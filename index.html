@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Country Memory Map</title>
   <style>
     :root {
@@ -475,63 +475,73 @@
       display: none;
     }
 
-    @media (max-width: 760px) {
-      .topbar {
-        right: 12px;
-        left: 12px;
-        top: 12px;
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto auto;
-        gap: 8px;
-      }
-
-      .topbar h1 {
-        grid-column: 1 / -1;
-      }
-
-      .topbar .mode-switch {
-        grid-column: 1 / 3;
-      }
-
-      .topbar .score {
-        grid-column: 3 / 5;
-        min-width: 0;
-        text-align: right;
-      }
-
-      .topbar #revealButton {
-        grid-column: 1 / 4;
-      }
-
-      .continentbar {
-        top: 148px;
-        right: 12px;
-        left: 12px;
-      }
-
-      .zoom-controls {
-        top: auto;
-        right: 12px;
-        bottom: 226px;
-      }
-
-      .map-shell {
-        padding: 222px 10px 224px;
-      }
-
-      .legend {
-        right: 12px;
-        left: 12px;
-        bottom: 126px;
-        max-width: none;
-      }
-
-      .control {
-        right: 12px;
-        bottom: 12px;
-        left: 12px;
-        width: auto;
-      }
+    .label.answered, .label-leader.answered, .label-anchor.answered { display: block; }
+    .label.suppressed, .label-leader.suppressed, .label-anchor.suppressed,
+    .label.hidden-continent, .label-leader.hidden-continent, .label-anchor.hidden-continent { display: none; }
+    .country.answer-pulse { animation: country-pulse 850ms ease-out; }
+    @keyframes country-pulse {
+      0%, 100% { fill: var(--highlight); }
+      35% { fill: #fffbd0; stroke: #fff5a0; stroke-width: 4; filter: drop-shadow(0 0 10px #ffc529); }
+      65% { fill: #ffca28; stroke-width: 2.5; }
+    }
+    .control.wrong-answer { animation: wrong-answer 360ms ease-out; }
+    @keyframes wrong-answer {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-3px); background: #ffe0dd; border-color: #bd4034; }
+      50% { transform: translateX(3px); background: #ffe0dd; }
+      75% { transform: translateX(-2px); }
+    }
+    button:focus-visible, summary:focus-visible { outline: 3px solid #2f6f91; outline-offset: 3px; }
+    .legend-panel summary { cursor: pointer; font-weight: 700; }
+    .legend-panel { position: absolute; bottom: 18px; left: 18px; z-index: 7;
+      padding: 10px 12px; border-radius: 8px; background: #fffaf0; font-size: 14px; }
+    .legend-panel .legend { position: static; max-width: 560px; margin-top: 8px; box-shadow: none; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .control.wrong-answer { border-color: #bd4034; }
+    }
+    @media (max-width: 1100px), (max-height: 600px) {
+      html, body { overflow: auto; }
+      .app { height: var(--app-height, 100dvh); min-height: 440px; display: grid;
+        grid-template-rows: auto auto minmax(150px, 1fr) auto;
+        padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); gap: 6px; }
+      button, .mode-switch button, .continentbar button { min-height: 44px; font-size: 14px; }
+      .topbar { position: static; display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 6px; padding: 8px; box-shadow: none; }
+      .topbar h1 { grid-column: 1; font-size: 15px; }
+      .topbar .score { grid-column: 2 / 4; grid-row: 1; min-width: 0; max-width: 180px; text-align: right; font-size: 12px; }
+      .topbar .mode-switch { grid-column: 1; grid-row: 2; }
+      .mode-switch button { flex: 1; padding: 5px; }
+      .topbar #revealButton { grid-column: 2; grid-row: 2; padding: 6px; }
+      .topbar #resetButton { grid-column: 3; grid-row: 2; padding: 6px; }
+      .continentbar { position: static; flex-wrap: nowrap; overflow-x: auto; pointer-events: auto; gap: 6px; padding-bottom: 2px; }
+      .continentbar button { flex: 0 0 auto; }
+      .map-shell { padding: 0; min-height: 0; position: relative; }
+      .zoom-controls { top: 8px; right: 8px; padding: 4px; gap: 4px; box-shadow: none; }
+      .zoom-controls button { min-width: 44px; }
+      .control { position: static; width: auto; padding: 8px; box-shadow: none; }
+      input { font-size: 16px; min-height: 44px; }
+      .message { font-size: 13px; margin-top: 6px; }
+      .legend-panel { left: 8px; bottom: 8px; padding: 0; max-width: calc(100% - 16px); }
+      .legend-panel summary { padding: 12px; min-height: 44px; }
+      .legend-panel .legend { max-height: 130px; overflow-y: auto; margin: 0; padding: 8px; }
+      .legend-note { white-space: normal; }
+    }
+    @media (max-height: 500px) and (min-width: 600px) {
+      .app { min-height: 340px; }
+      .topbar { display: flex; }
+      .topbar h1 { flex: 1; }
+      .topbar .score { max-width: 130px; }
+      .topbar .mode-switch { flex: 0 0 auto; }
+      .message { min-height: 16px; }
+    }
+    @media (max-width: 360px) {
+      .topbar { grid-template-columns: minmax(0, 1fr) auto; }
+      .topbar h1 { font-size: 14px; }
+      .topbar .score { grid-column: 2; max-width: 140px; }
+      .topbar .mode-switch { grid-column: 1 / -1; }
+      .topbar #revealButton { grid-column: 1; grid-row: 3; }
+      .topbar #resetButton { grid-column: 2; grid-row: 3; }
     }
   </style>
 </head>
@@ -550,13 +560,14 @@
 
     <div class="continentbar" id="continentButtons" aria-label="Choose continent"></div>
 
+    <div class="map-shell">
     <div class="zoom-controls" aria-label="Map zoom controls">
       <button type="button" id="zoomOutButton" aria-label="Zoom out">-</button>
       <button type="button" id="zoomResetButton">Reset zoom</button>
       <button type="button" id="zoomInButton" aria-label="Zoom in or focus islands" title="Zoom in or focus an island group">+</button>
     </div>
 
-    <div class="map-shell">
+
       <svg id="map" class="country-mode" viewBox="0 0 1000 520" role="img" aria-label="Interactive world map with country names hidden">
         <defs>
           <pattern id="unTerritoryPattern" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -573,17 +584,16 @@
           <g id="labels"></g>
         </g>
       </svg>
+      <details class="legend-panel"><summary>Map key</summary><div class="legend" id="legend" aria-label="Continent colour legend"></div></details>
     </div>
-
-    <div class="legend" id="legend" aria-label="Continent colour legend"></div>
 
     <section class="control" aria-label="Country input">
       <form id="guessForm" autocomplete="off">
-        <input id="guessInput" type="text" placeholder="Type a country name" aria-label="Type a country name">
+        <input id="guessInput" type="text" enterkeyhint="go" autocapitalize="words" spellcheck="false" placeholder="Type a country name" aria-label="Type a country name">
         <button type="button" id="voiceButton" class="voice-button" aria-label="Say country name" title="Say country name">Speak</button>
         <button type="submit">Mark</button>
       </form>
-      <div class="message" id="message">Names are hidden. Press Enter after typing a country.</div>
+      <div class="message" id="message" role="status" aria-live="polite" aria-atomic="true">Name a country to begin. Pinch to zoom; drag to explore.</div>
     </section>
 
     <div class="loading" id="loading">Loading map...</div>
@@ -745,8 +755,6 @@
     let viewBox = { x: 0, y: 0, w: width, h: height };
     let recognition = null;
     let isListening = false;
-    let isPanning = false;
-    let panStart = null;
     let legendNote = null;
 
     function normalize(value) {
@@ -1023,7 +1031,7 @@
       let maxY = Math.min(height, bounds.maxY + padding);
       let boxW = Math.max(80, maxX - minX);
       let boxH = Math.max(70, maxY - minY);
-      const targetRatio = width / height;
+      const targetRatio = svg.clientWidth / Math.max(1, svg.clientHeight);
       const boxRatio = boxW / boxH;
 
       if (boxRatio > targetRatio) {
@@ -1076,7 +1084,7 @@
       const minW = 80;
       const maxW = width;
       const nextW = Math.max(minW, Math.min(maxW, viewBox.w / factor));
-      const nextH = nextW * height / width;
+      const nextH = nextW * viewBox.h / viewBox.w;
       setViewBox({
         x: Math.max(0, Math.min(width - nextW, centerX - nextW / 2)),
         y: Math.max(0, Math.min(height - nextH, centerY - nextH / 2)),
@@ -1103,8 +1111,9 @@
     function panBy(screenDx, screenDy) {
       if (!canPan()) return;
       const rect = svg.getBoundingClientRect();
-      const dx = screenDx * viewBox.w / rect.width;
-      const dy = screenDy * viewBox.h / rect.height;
+      const scale = Math.max(viewBox.w / rect.width, viewBox.h / rect.height);
+      const dx = screenDx * scale;
+      const dy = screenDy * scale;
       setViewBox({
         x: viewBox.x + dx,
         y: viewBox.y + dy,
@@ -1113,47 +1122,58 @@
       });
     }
 
+    const pointers = new Map();
+    let gesture = null;
+    function mapPoint(x, y) {
+      return new DOMPoint(x, y).matrixTransform(svg.getScreenCTM().inverse());
+    }
+    function beginGesture() {
+      const points = [...pointers.values()];
+      if (!points.length) { gesture = null; return; }
+      const a = points[0], b = points[1] || a;
+      gesture = { box: { ...viewBox }, point: mapPoint((a.x + b.x) / 2, (a.y + b.y) / 2),
+        distance: points.length > 1 ? Math.hypot(a.x - b.x, a.y - b.y) : 0 };
+    }
     function startPan(event) {
-      if (event.button !== 0 || !canPan()) return;
-      isPanning = true;
-      panStart = {
-        clientX: event.clientX,
-        clientY: event.clientY,
-        viewBox: { ...viewBox }
-      };
-      svg.classList.add("panning");
+      if (event.button !== 0) return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       svg.setPointerCapture(event.pointerId);
+      svg.classList.add("panning");
+      beginGesture();
     }
-
     function movePan(event) {
-      if (!isPanning || !panStart) return;
-      const rect = svg.getBoundingClientRect();
-      const dx = (event.clientX - panStart.clientX) * panStart.viewBox.w / rect.width;
-      const dy = (event.clientY - panStart.clientY) * panStart.viewBox.h / rect.height;
-      setViewBox({
-        x: panStart.viewBox.x - dx,
-        y: panStart.viewBox.y - dy,
-        w: panStart.viewBox.w,
-        h: panStart.viewBox.h
-      });
+      if (!pointers.has(event.pointerId) || !gesture) return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const points = [...pointers.values()], a = points[0], b = points[1] || a;
+      const current = mapPoint((a.x + b.x) / 2, (a.y + b.y) / 2);
+      const factor = gesture.distance ? Math.max(0.1, Math.hypot(a.x - b.x, a.y - b.y) / gesture.distance) : 1;
+      const w = Math.max(80, Math.min(width, gesture.box.w / factor));
+      const h = Math.max(42, Math.min(height, gesture.box.h * w / gesture.box.w));
+      setViewBox({ x: gesture.point.x - (current.x - viewBox.x) * w / viewBox.w,
+        y: gesture.point.y - (current.y - viewBox.y) * h / viewBox.h, w, h });
     }
-
     function stopPan(event) {
-      if (!isPanning) return;
-      isPanning = false;
-      panStart = null;
-      svg.classList.remove("panning");
-      if (event?.pointerId !== undefined && svg.hasPointerCapture(event.pointerId)) {
-        svg.releasePointerCapture(event.pointerId);
-      }
+      pointers.delete(event.pointerId);
+      if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
+      svg.classList.toggle("panning", pointers.size > 0);
+      beginGesture();
     }
 
     function updateLabelLayout() {
       const svgRect = svg.getBoundingClientRect();
-      const unitsPerPixel = viewBox.w / Math.max(1, svgRect.width);
+      const unitsPerPixel = Math.max(viewBox.w / Math.max(1, svgRect.width), viewBox.h / Math.max(1, svgRect.height));
       const fontSize = 12 * unitsPerPixel;
       const gap = 3 * unitsPerPixel;
       const placed = [];
+      const matrix = svg.getScreenCTM();
+      if (matrix) {
+        for (const control of document.querySelectorAll(".zoom-controls, .legend-panel")) {
+          const box = control.getBoundingClientRect();
+          const start = new DOMPoint(box.left, box.top).matrixTransform(matrix.inverse());
+          const end = new DOMPoint(box.right, box.bottom).matrixTransform(matrix.inverse());
+          placed.push({ minX: start.x - gap, minY: start.y - gap, maxX: end.x + gap, maxY: end.y + gap });
+        }
+      }
       const mainlandCandidates = [
         [0, 0], [0, -17], [0, 17], [26, 0], [-26, 0],
         [24, -17], [-24, -17], [24, 17], [-24, 17],
@@ -1180,6 +1200,8 @@
       const ordered = labelRecords
         .filter(record => (record.mode || "countries") === quizMode)
         .sort((a, b) =>
+        Number((b.capitalId || b.id) === latestAnswerId) - Number((a.capitalId || a.id) === latestAnswerId) ||
+        Number(isAnswered(b)) - Number(isAnswered(a)) ||
         Number(b.isCountry) - Number(a.isCountry) ||
         a.labelRank - b.labelRank ||
         b.area - a.area ||
@@ -1212,7 +1234,11 @@
         leader.setAttribute("x2", record.labelX.toFixed(2));
         leader.setAttribute("y2", record.labelY.toFixed(2));
 
-        if (!labelsVisible || !isRecordVisible(record)) {
+        const answered = isAnswered(record);
+        if (record.mode === "capitals") label.textContent = answered ? `${record.name} · ${record.country}` : record.name;
+        for (const element of [label, leader, anchor]) element.classList.toggle("answered", answered);
+        if ((!labelsVisible && !answered) || !isRecordVisible(record)) {
+          label.classList.add("suppressed");
           leader.classList.add("suppressed");
           if (!foundCapital || !isRecordVisible(record)) anchor.classList.add("suppressed");
           continue;
@@ -1275,6 +1301,35 @@
       return { shown, hidden };
     }
 
+    function playAnimation(element, className) {
+      element.classList.remove(className);
+      void element.getBoundingClientRect();
+      element.classList.add(className);
+      element.addEventListener("animationend", () => element.classList.remove(className), { once: true });
+    }
+
+    function celebrateCountry(id) {
+      const label = labelRecords.find(record => (record.capitalId || record.id) === latestAnswerId);
+      if (label && (label.labelX < viewBox.x || label.labelX > viewBox.x + viewBox.w ||
+          label.labelY < viewBox.y || label.labelY > viewBox.y + viewBox.h)) {
+        setViewBox({ ...viewBox, x: label.labelX - viewBox.w / 2, y: label.labelY - viewBox.h / 2 });
+      }
+      for (const record of regionRecords) {
+        if ((record.ownerId || record.id) === id) playAnimation(record.path, "answer-pulse");
+      }
+    }
+
+    let latestAnswerId = null;
+
+    function isAnswered(record) {
+      return record.mode === "capitals" ? foundCapitalCityIds.has(record.capitalId)
+        : foundIds.has(record.id) || foundTerritoryIds.has(record.id);
+    }
+
+    function focusInput() {
+      if (matchMedia("(hover: hover) and (pointer: fine)").matches) input.focus({ preventScroll: true });
+    }
+
     function markCountry(id, name) {
       const entry = countryById.get(id);
       if (!entry) return;
@@ -1283,6 +1338,7 @@
       const targetSet = entry.isCountry ? foundIds : foundTerritoryIds;
       const alreadyFound = targetSet.has(id);
       targetSet.add(id);
+      latestAnswerId = id;
       record.path.classList.remove("dimmed");
       refreshFoundStyles();
       updateScore();
@@ -1293,7 +1349,7 @@
         const note = sovereign && sovereign !== name ? `, part of ${sovereign}` : "";
         setMessage(`${name} is shown and highlighted as a territory${note}; it is not counted in the 195-country score.`, "good");
       }
-      record.path.scrollIntoView({ block: "nearest", inline: "nearest" });
+      celebrateCountry(id);
     }
 
     function handleCountryGuess(raw) {
@@ -1317,6 +1373,7 @@
       const alreadyFound = foundCapitalCountryIds.has(record.countryId);
       foundCapitalCountryIds.add(record.countryId);
       foundCapitalCityIds.add(record.capitalId);
+      latestAnswerId = record.capitalId;
       refreshFoundStyles();
       updateScore();
       const roleText = record.role === "capital" ? "" : ` (${record.role})`;
@@ -1326,7 +1383,7 @@
           : `Marked ${record.name}${roleText}, ${record.country}.`,
         "good"
       );
-      record.anchor.scrollIntoView({ block: "nearest", inline: "nearest" });
+      celebrateCountry(record.countryId);
     }
 
     function handleCapitalGuess(raw) {
@@ -1349,14 +1406,16 @@
     }
 
     function handleGuess(raw) {
+      if (!normalize(raw)) return;
       if (quizMode === "capitals") handleCapitalGuess(raw);
       else handleCountryGuess(raw);
+      if (message.classList.contains("bad")) playAnimation(form.closest("section"), "wrong-answer");
     }
 
     function setupVoiceInput() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        voiceButton.disabled = true;
+        voiceButton.setAttribute("aria-label", "Voice input unavailable; tap for help");
         voiceButton.title = "Voice input is not supported in this browser.";
         return;
       }
@@ -1395,7 +1454,7 @@
           handleGuess(transcript);
           input.value = "";
         }
-        input.focus();
+        focusInput();
       });
     }
 
@@ -1405,7 +1464,7 @@
         return;
       }
       if (!recognition) {
-        setMessage("Voice input is not supported in this browser.", "bad");
+        setMessage("This browser does not support voice input. Use your keyboard’s microphone or type an answer.", "bad");
         return;
       }
       if (isListening) {
@@ -1500,7 +1559,7 @@
           ? "Capital quiz ready. Name a capital to highlight its country and exact location."
           : "Country quiz ready. Name a country to highlight it."
       );
-      input.focus();
+      focusInput();
     }
 
     function selectContinent(name) {
@@ -1521,7 +1580,7 @@
           ? "World view restored. Choose a continent before revealing names."
           : `${selectedContinent} selected. Other continents are hidden.`
       );
-      input.focus();
+      focusInput();
     }
 
     function applyContinentFilter() {
@@ -1721,22 +1780,14 @@
       refreshFoundStyles();
       updateScore();
       loading.classList.add("hidden");
-      input.focus();
+      focusInput();
     }
 
     form.addEventListener("submit", event => {
       event.preventDefault();
       handleGuess(input.value);
       input.value = "";
-      input.focus();
-    });
-
-    input.addEventListener("keydown", event => {
-      if (event.key !== "Enter") return;
-      event.preventDefault();
-      handleGuess(input.value);
-      input.value = "";
-      input.focus();
+      focusInput();
     });
 
     countryModeButton.addEventListener("click", () => setQuizMode("countries"));
@@ -1773,7 +1824,7 @@
       refreshFoundStyles();
       updateScore();
       setMessage(`${quizMode === "capitals" ? "Capital" : "Country"} quiz reset. Names remain hidden unless revealed.`);
-      input.focus();
+      focusInput();
     });
 
     zoomInButton.addEventListener("click", () => {
@@ -1794,7 +1845,7 @@
     svg.addEventListener("pointermove", movePan);
     svg.addEventListener("pointerup", stopPan);
     svg.addEventListener("pointercancel", stopPan);
-    svg.addEventListener("pointerleave", stopPan);
+    svg.addEventListener("lostpointercapture", stopPan);
     svg.addEventListener("wheel", event => {
       if (!canPan()) return;
       event.preventDefault();
@@ -1822,6 +1873,19 @@
       }
     }
 
+    let lastMapWidth = 0;
+    new ResizeObserver(() => {
+      if (lastMapWidth && Math.abs(svg.clientWidth - lastMapWidth) > 10) fitSelectedContinent();
+      lastMapWidth = svg.clientWidth;
+      updateLabelLayout();
+    }).observe(svg);
+    document.querySelector(".legend-panel").addEventListener("toggle", updateLabelLayout);
+    function syncViewport() {
+      document.documentElement.style.setProperty("--app-height", `${window.visualViewport?.height || window.innerHeight}px`);
+    }
+    window.visualViewport?.addEventListener("resize", syncViewport);
+    window.addEventListener("resize", syncViewport);
+    syncViewport();
     init();
   </script>
 </body>
