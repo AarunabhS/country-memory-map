@@ -544,10 +544,12 @@
       .topbar #resetButton { grid-column: 2; grid-row: 3; }
     }
   </style>
+  <link rel="stylesheet" href="game.css">
 </head>
 <body>
   <main class="app">
     <div class="topbar">
+      <button type="button" id="openGames">Games</button>
       <h1 id="appTitle">Country Memory Map</h1>
       <div class="mode-switch" role="group" aria-label="Choose quiz type">
         <button type="button" id="countryModeButton" class="active" aria-pressed="true">Countries</button>
@@ -599,6 +601,7 @@
     <div class="loading" id="loading">Loading map...</div>
   </main>
 
+  <script src="game-core.js"></script>
   <script src="countries-data.js"></script>
   <script src="capitals-data.js"></script>
   <script>
@@ -992,6 +995,7 @@
     }
 
     function isRecordVisible(record) {
+      if (window.GameMap?.gameActive) return true;
       return selectedContinent === "World" || record.continent === selectedContinent;
     }
 
@@ -1002,6 +1006,7 @@
     function applyViewBox() {
       svg.setAttribute("viewBox", `${viewBox.x.toFixed(2)} ${viewBox.y.toFixed(2)} ${viewBox.w.toFixed(2)} ${viewBox.h.toFixed(2)}`);
       updateLabelLayout();
+      window.dispatchEvent(new Event("mapviewchange"));
     }
 
     function clampViewBox(box) {
@@ -1406,6 +1411,7 @@
     }
 
     function handleGuess(raw) {
+      if (window.gameController?.handleText(raw)) return;
       if (!normalize(raw)) return;
       if (quizMode === "capitals") handleCapitalGuess(raw);
       else handleCountryGuess(raw);
@@ -1587,6 +1593,7 @@
       for (const record of regionRecords) {
         const visible = isRecordVisible(record);
         record.path.classList.toggle("hidden-continent", !visible);
+        record.path.classList.toggle("outside-target", !!window.GameMap?.gameActive && window.GameMap.gameRegion !== "World" && record.continent !== window.GameMap.gameRegion);
       }
       for (const record of labelRecords) {
         const visible = isRecordVisible(record);
@@ -1781,6 +1788,7 @@
       updateScore();
       loading.classList.add("hidden");
       focusInput();
+      window.dispatchEvent(new Event("mapready"));
     }
 
     form.addEventListener("submit", event => {
@@ -1886,7 +1894,27 @@
     window.visualViewport?.addEventListener("resize", syncViewport);
     window.addEventListener("resize", syncViewport);
     syncViewport();
+    window.GameMap = {
+      svg, countryRecords, regionRecords, labelRecords, capitalRecords,
+      countries: countryRecords, capitals: capitalRecords, gameActive: false, gameRegion: "World",
+      stopVoice: () => { if (isListening) recognition?.abort(); },
+      feature: id => countryById.get(id)?.feature,
+      countryId: name => countryIdByName.get(name),
+      aliases: id => [...countryByAlias].filter(([, value]) => value === id).map(([alias]) => alias),
+      getView: () => ({ ...viewBox }), setView: setViewBox, point: mapPoint, project,
+      selectRegion: selectContinent,
+      setMode: setQuizMode,
+      clear: () => { foundIds.clear(); foundTerritoryIds.clear(); foundCapitalCountryIds.clear(); foundCapitalCityIds.clear(); latestAnswerId = null; refreshFoundStyles(); },
+      mark: id => { foundIds.add(id); latestAnswerId = id; refreshFoundStyles(); },
+      filter: applyContinentFilter, layout: updateLabelLayout,
+      focusRegion: (name) => { selectedContinent = name; fitSelectedContinent(); },
+      refresh: refreshFoundStyles
+    };
     init();
   </script>
+  <script src="country-borders.js"></script>
+  <script src="game-data.js"></script>
+  <script src="game-map.js"></script>
+  <script src="game-ui.js"></script>
 </body>
 </html>

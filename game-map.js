@@ -1,0 +1,121 @@
+/* Map adapter: the existing renderer remains responsible for borders, labels and navigation. */
+window.createGameMap = function (bridge, onPick) {
+  const svg = bridge.svg;
+  const hitLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  hitLayer.id = 'gameHitTargets'; svg.querySelector('#mapViewport').append(hitLayer);
+  let clickMode = false, countries = [], lastRegion = null, gesture = null, pointerCount = 0;
+  let keyboardCountries = [], keyboardIndex = -1;
+  function units() { const v = bridge.getView(), box = svg.getBoundingClientRect(); return Math.max(v.w / box.width, v.h / box.height); }
+  function clearFeedback() {
+    for (const r of bridge.regionRecords) r.path.classList.remove('game-good', 'game-bad', 'game-reveal');
+  }
+  function feedback(id, kind, permanent = false) {
+    if (kind === 'reveal') {
+      const label = bridge.labelRecords.find(r => r.mode === 'countries' && r.id === id), view = bridge.getView();
+      if (label && (label.labelX < view.x || label.labelX > view.x+view.w || label.labelY < view.y || label.labelY > view.y+view.h)) {
+        bridge.setView({...view,x:label.labelX-view.w/2,y:label.labelY-view.h/2});
+      }
+    }
+    if (kind !== 'bad') bridge.mark(id);
+    for (const r of bridge.regionRecords) {
+      if ((r.ownerId || r.id) !== id) continue;
+      r.path.classList.remove('game-good', 'game-bad', 'game-reveal');
+      void r.path.getBoundingClientRect();
+      r.path.classList.add(`game-${kind}`);
+      if (kind === 'bad') setTimeout(() => r.path.classList.remove('game-bad'), 450);
+    }
+  }
+  function renderTargets() {
+    hitLayer.replaceChildren();
+    if (!clickMode) return;
+    const scale = units(), view = bridge.getView();
+    if (view.w > 350) return;
+    for (const record of bridge.labelRecords.filter(r => r.mode === 'countries' && r.isCountry)) {
+      const recordWidth = record.bounds.maxX - record.bounds.minX;
+      const recordHeight = record.bounds.maxY - record.bounds.minY;
+      const country = countries.find(c => c.country_id === record.id);
+      if (Math.min(recordWidth, recordHeight) / scale > 12 && country?.countryLocationDifficulty !== 4) continue;
+      const capital = country?.capital[0];
+      const [targetX, targetY] = capital && Number.isFinite(capital.longitude) && Number.isFinite(capital.latitude)
+        ? bridge.project([capital.longitude,capital.latitude]) : [record.labelX,record.labelY];
+      if (record.labelX < view.x || record.labelX > view.x + view.w || record.labelY < view.y || record.labelY > view.y + view.h) continue;
+      const point = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      point.setAttribute('cx', targetX); point.setAttribute('cy', targetY); point.setAttribute('r', 6 * scale);
+      point.setAttribute('class', 'game-hit-target'); point.dataset.countryId = record.id;
+      hitLayer.append(point);
+    }
+  }
+  function prepare(question, country) {
+    clearFeedback(); bridge.clear();
+    clickMode = question.type.endsWith('_CLICK');
+    svg.classList.toggle('click-game', clickMode);
+    svg.setAttribute('tabindex', clickMode ? '0' : '-1');
+    keyboardIndex = -1;
+    const oldCursor = svg.querySelector('.keyboard-cursor'); if (oldCursor) oldCursor.remove();
+    if (clickMode) {
+      const label = bridge.labelRecords.find(r => r.mode === 'countries' && r.id === country.country_id);
+      const small = country.countryLocationDifficulty === 4 || (label && Math.min(label.bounds.maxX-label.bounds.minX,label.bounds.maxY-label.bounds.minY) < 5);
+      if (small && label) {
+        // A broad neighbourhood, shared with nearby countries; never isolate the answer.
+        const w = 130, h = Math.min(150, w * svg.clientHeight / Math.max(1,svg.clientWidth));
+        const x = Math.floor(label.labelX / 55) * 55 - w / 3;
+        const y = Math.floor(label.labelY / 45) * 45 - h / 3;
+        bridge.setView({ x, y, w, h }); lastRegion = 'detail';
+      } else if (lastRegion === 'detail') {
+        bridge.focusRegion(bridge.gameRegion); lastRegion = bridge.gameRegion;
+      }
+    }
+    renderTargets();
+  }
+  svg.addEventListener('pointerdown', e => {
+    pointerCount++;
+    if (pointerCount === 1) gesture = { x: e.clientX, y: e.clientY, moved: false };
+    else if (gesture) gesture.moved = true;
+  });
+  svg.addEventListener('pointermove', e => { if (gesture && Math.hypot(e.clientX-gesture.x, e.clientY-gesture.y)>8) gesture.moved = true; });
+  svg.addEventListener('pointercancel', () => { pointerCount = 0; gesture = null; });
+  svg.addEventListener('pointerup', e => {
+    pointerCount = Math.max(0, pointerCount-1);
+    if (!clickMode || !gesture || gesture.moved || pointerCount) { if (!pointerCount) gesture = null; return; }
+    gesture = null;
+    // Pointer capture retargets the up event to the SVG; hit-test at the actual release point.
+    const node = document.elementFromPoint(e.clientX, e.clientY);
+    let id = node?.closest('[data-country-id]')?.dataset.countryId;
+    if (id) {
+      const at = bridge.point(e.clientX,e.clientY);
+      const near = [...hitLayer.children].filter(c => c.dataset.countryId).map(c => ({id:c.dataset.countryId, distance:Math.hypot(Number(c.getAttribute('cx'))-at.x,Number(c.getAttribute('cy'))-at.y)})).sort((a,b)=>a.distance-b.distance);
+      id = near[0]?.id || id;
+    }
+    if (!id) {
+      const regionId = node?.closest('[data-region-id]')?.dataset.regionId;
+      const record = bridge.regionRecords.find(r => r.id === regionId);
+      id = record?.ownerId || (record?.isCountry ? record.id : null);
+      if (!id && record) { onPick(null, record.name); return; }
+    }
+    if (id) onPick(id);
+  });
+  // Keyboard alternative: traverse geographic positions, then select with Enter.
+  svg.addEventListener('keydown', e => {
+    if (!clickMode || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter',' '].includes(e.key)) return;
+    e.preventDefault();
+    keyboardCountries = bridge.labelRecords.filter(r => r.mode === 'countries' && r.isCountry)
+      .sort((a,b)=>a.labelY-b.labelY || a.labelX-b.labelX);
+    if (e.key === 'Enter' || e.key === ' ') { if (keyboardIndex >= 0) onPick(keyboardCountries[keyboardIndex].id); return; }
+    keyboardIndex = (keyboardIndex + (e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1) + keyboardCountries.length) % keyboardCountries.length;
+    const r = keyboardCountries[keyboardIndex], v = bridge.getView();
+    if (r.labelX<v.x || r.labelX>v.x+v.w || r.labelY<v.y || r.labelY>v.y+v.h) bridge.setView({...v,x:r.labelX-v.w/2,y:r.labelY-v.h/2});
+    svg.querySelector('.keyboard-cursor')?.remove();
+    const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    ring.setAttribute('class','keyboard-cursor');ring.setAttribute('cx',r.labelX);ring.setAttribute('cy',r.labelY);ring.setAttribute('r',12*units()); hitLayer.append(ring);
+    svg.setAttribute('aria-label',`Map location ${keyboardIndex+1} of ${keyboardCountries.length}. Use arrows to move, Enter to choose.`);
+  });
+  window.addEventListener('mapviewchange', renderTargets);
+  new ResizeObserver(renderTargets).observe(svg);
+  return {
+    start(region, dataset) { countries = dataset; bridge.gameActive = true; bridge.gameRegion = region; bridge.setMode('countries'); bridge.clear(); bridge.selectRegion(region); lastRegion = region; },
+    prepare, feedback, clearFeedback,
+    end() { clickMode = false; svg.classList.remove('click-game'); hitLayer.replaceChildren(); svg.removeAttribute('tabindex'); },
+    restore() { this.end(); clearFeedback(); bridge.gameActive = false; bridge.gameRegion = 'World'; bridge.clear(); bridge.selectRegion('World'); },
+    enableClick(value) { clickMode = value; renderTargets(); }
+  };
+};
