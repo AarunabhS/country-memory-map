@@ -544,7 +544,7 @@
       .topbar #resetButton { grid-column: 2; grid-row: 3; }
     }
   </style>
-  <link rel="stylesheet" href="game.css?v=20260907-friends1">
+  <link rel="stylesheet" href="game.css?v=20260907-friends2">
   <link rel="stylesheet" href="multiplayer.css?v=20260907-friends1">
 </head>
 <body>
@@ -1412,7 +1412,8 @@
     }
 
     function handleGuess(raw) {
-      if (window.gameController?.handleText(raw)) return;
+      const handled = window.gameController?.handleText(raw);
+      if (handled) return handled;
       if (!normalize(raw)) return;
       if (quizMode === "capitals") handleCapitalGuess(raw);
       else handleCountryGuess(raw);
@@ -1794,8 +1795,8 @@
 
     form.addEventListener("submit", event => {
       event.preventDefault();
-      handleGuess(input.value);
-      input.value = "";
+      const handled = handleGuess(input.value);
+      if (handled !== "pending") input.value = "";
       focusInput();
     });
 
@@ -1915,10 +1916,10 @@
   </script>
   <script src="country-borders.js"></script>
   <script src="game-data.js?v=20260907-friends1"></script>
-  <script src="game-map.js?v=20260907-friends1"></script>
-  <script src="game-ui.js?v=20260907-friends1"></script>
+  <script src="game-map.js?v=20260907-friends2"></script>
+  <script src="game-ui.js?v=20260907-friends2"></script>
   <script src="multiplayer-config.js?v=20260907-friends1"></script>
   <script src="multiplayer-service.js?v=20260907-friends1"></script>
-  <script src="multiplayer-ui.js?v=20260907-friends1"></script>
+  <script src="multiplayer-ui.js?v=20260907-friends2"></script>
 </body>
 </html>
