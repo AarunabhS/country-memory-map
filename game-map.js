@@ -51,7 +51,8 @@ window.createGameMap = function (bridge, onPick) {
         ? bridge.project([capital.longitude,capital.latitude]) : [record.labelX,record.labelY];
       if (record.labelX < view.x || record.labelX > view.x + view.w || record.labelY < view.y || record.labelY > view.y + view.h) continue;
       const point = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      point.setAttribute('cx', targetX); point.setAttribute('cy', targetY); point.setAttribute('r', 6 * scale);
+      const radius = matchMedia('(pointer: coarse)').matches ? 18 : 10;
+      point.setAttribute('cx', targetX); point.setAttribute('cy', targetY); point.setAttribute('r', radius * scale);
       point.setAttribute('class', 'game-hit-target'); point.dataset.countryId = record.id;
       hitLayer.append(point);
     }
@@ -80,10 +81,10 @@ window.createGameMap = function (bridge, onPick) {
   }
   svg.addEventListener('pointerdown', e => {
     pointerCount++;
-    if (pointerCount === 1) gesture = { x: e.clientX, y: e.clientY, moved: false };
+    if (pointerCount === 1) gesture = { x: e.clientX, y: e.clientY, moved: false, threshold: e.pointerType === 'touch' ? 16 : 8 };
     else if (gesture) gesture.moved = true;
   });
-  svg.addEventListener('pointermove', e => { if (gesture && Math.hypot(e.clientX-gesture.x, e.clientY-gesture.y)>8) gesture.moved = true; });
+  svg.addEventListener('pointermove', e => { if (gesture && Math.hypot(e.clientX-gesture.x, e.clientY-gesture.y)>gesture.threshold) gesture.moved = true; });
   svg.addEventListener('pointercancel', () => { pointerCount = 0; gesture = null; });
   svg.addEventListener('pointerup', e => {
     lastPointerUp = performance.now();
@@ -91,7 +92,8 @@ window.createGameMap = function (bridge, onPick) {
     if (!clickMode || !gesture || gesture.moved || pointerCount) { if (!pointerCount) gesture = null; return; }
     gesture = null;
     // Pointer capture retargets the up event to the SVG; hit-test at the actual release point.
-    const node = document.elementFromPoint(e.clientX, e.clientY);
+    const nodes = document.elementsFromPoint(e.clientX, e.clientY);
+    const node = nodes.find(item => item.closest?.('[data-country-id], [data-region-id]')) || nodes[0];
     let id = node?.closest('[data-country-id]')?.dataset.countryId;
     if (id) {
       const at = bridge.point(e.clientX,e.clientY);

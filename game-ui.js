@@ -67,7 +67,10 @@
     const formatTime = seconds => { const value = Math.max(0, Math.floor(seconds || 0)); return `${Math.floor(value/60)}:${String(value%60).padStart(2,'0')}`; };
     function textFeedback(text, type = '') { message.textContent = text; message.className = `message ${type}`; }
     function animate(element, className) { element.classList.remove(className); void element.offsetWidth; element.classList.add(className); element.addEventListener('animationend',()=>element.classList.remove(className),{once:true}); }
-    function focusTyping() { if (!input.disabled && !form.hidden) input.focus(); }
+    function focusTyping() {
+      const keepMobileKeyboard = document.activeElement === input;
+      if (!input.disabled && !form.hidden && (keepMobileKeyboard || matchMedia('(hover: hover) and (pointer: fine)').matches)) input.focus({preventScroll:true});
+    }
     function showMilestone(text) { clearTimeout(feedbackTimer); $('milestone').textContent = text; $('milestone').hidden = false; animate($('milestone'),'milestone-pop'); feedbackTimer = setTimeout(()=>$('milestone').hidden=true,900); }
     function activeConfig() { return { family, variant:$('gameVariant').value, difficulty:$('gameDifficulty').value, region:$('gameRegion').value }; }
     function chooseFamily(next, variant) {
@@ -263,7 +266,6 @@
       const height = window.visualViewport?.height || window.innerHeight;
       const typing = document.activeElement === input && !input.disabled && !form.hidden;
       app.classList.toggle('keyboard-open', platform && typing && window.innerWidth < 600 && height < 500);
-      if (typing && height < 500) requestAnimationFrame(() => input.scrollIntoView({ block: 'nearest' }));
     }
     window.visualViewport?.addEventListener('resize', syncKeyboard);
     input.addEventListener('focus', syncKeyboard);

@@ -26,7 +26,7 @@ body:has(.platform) { overflow: auto; }
 .platform .continentbar { position:static; grid-row:3; flex-wrap:nowrap; overflow-x:auto; pointer-events:auto; gap:6px; padding:0 0 2px; }
 .platform .continentbar button { flex:0 0 auto; min-height:36px; font-size:13px; padding:6px 12px; }
 .platform .map-shell { grid-row:4; position:relative; padding:0; min-height:0; }
-.platform #map { border-radius:16px; background:#dcecee; border-color:#c1d7d9; }
+.platform #map { border-radius:16px; background:#dcecee; border-color:#c1d7d9; -webkit-tap-highlight-color:transparent; }
 .platform .zoom-controls { top:10px; right:10px; bottom:auto; padding:4px; gap:4px; box-shadow:none; border-radius:12px; background:#ffffffdf; }
 .platform .zoom-controls button { min-width:44px; }
 .platform .legend-panel { bottom:10px; left:10px; padding:0; background:#fffffff2; border:1px solid #d2dfdb; border-radius:10px; }
@@ -125,6 +125,10 @@ body:has(.platform) { overflow: auto; }
   .result-stats { grid-template-columns:repeat(2,1fr); }
   .milestone {font-size:18px;padding:14px;}
   .topbar #openGames { grid-row:3;grid-column:1 / -1; }
+  .platform #map:focus, .platform #map:focus-visible { outline:none; }
+  .platform .game-hit-target { fill:#294e6428; stroke-width:1px; }
+  .platform .control form { align-items:stretch; }
+  .platform #markButton { min-width:64px; touch-action:manipulation; }
 }
 @media (max-height:500px) and (min-width:600px) {
   .platform { min-height:360px; grid-template-rows:auto auto minmax(120px,1fr) auto; }

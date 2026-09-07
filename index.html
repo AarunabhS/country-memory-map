@@ -544,7 +544,7 @@
       .topbar #resetButton { grid-column: 2; grid-row: 3; }
     }
   </style>
-  <link rel="stylesheet" href="game.css?v=20260907-friends2">
+  <link rel="stylesheet" href="game.css?v=20260907-mobile1">
   <link rel="stylesheet" href="multiplayer.css?v=20260907-friends1">
 </head>
 <body>
@@ -594,7 +594,7 @@
       <form id="guessForm" autocomplete="off">
         <input id="guessInput" type="text" enterkeyhint="go" autocapitalize="words" spellcheck="false" placeholder="Type a country name" aria-label="Type a country name">
         <button type="button" id="voiceButton" class="voice-button" aria-label="Say country name" title="Say country name">Speak</button>
-        <button type="submit">Mark</button>
+        <button type="submit" id="markButton">Mark</button>
       </form>
       <div class="message" id="message" role="status" aria-live="polite" aria-atomic="true">Name a country to begin. Pinch to zoom; drag to explore.</div>
     </section>
@@ -619,6 +619,7 @@
     const input = document.getElementById("guessInput");
     const voiceButton = document.getElementById("voiceButton");
     const form = document.getElementById("guessForm");
+    const markButton = document.getElementById("markButton");
     const message = document.getElementById("message");
     const score = document.getElementById("score");
     const appTitle = document.getElementById("appTitle");
@@ -1004,10 +1005,21 @@
       return width / viewBox.w;
     }
 
-    function applyViewBox() {
+    let viewFrame = 0;
+    function paintViewBox() {
+      viewFrame = 0;
       svg.setAttribute("viewBox", `${viewBox.x.toFixed(2)} ${viewBox.y.toFixed(2)} ${viewBox.w.toFixed(2)} ${viewBox.h.toFixed(2)}`);
       updateLabelLayout();
       window.dispatchEvent(new Event("mapviewchange"));
+    }
+
+    function applyViewBox(interactive = false) {
+      if (!interactive) {
+        if (viewFrame) cancelAnimationFrame(viewFrame);
+        paintViewBox();
+        return;
+      }
+      if (!viewFrame) viewFrame = requestAnimationFrame(paintViewBox);
     }
 
     function clampViewBox(box) {
@@ -1021,9 +1033,9 @@
       };
     }
 
-    function setViewBox(nextViewBox) {
+    function setViewBox(nextViewBox, interactive = false) {
       viewBox = clampViewBox(nextViewBox);
-      applyViewBox();
+      applyViewBox(interactive);
     }
 
     function worldViewBox() {
@@ -1151,17 +1163,20 @@
       if (!pointers.has(event.pointerId) || !gesture) return;
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       const points = [...pointers.values()], a = points[0], b = points[1] || a;
-      const current = mapPoint((a.x + b.x) / 2, (a.y + b.y) / 2);
+      const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
+      const rect = svg.getBoundingClientRect();
       const factor = gesture.distance ? Math.max(0.1, Math.hypot(a.x - b.x, a.y - b.y) / gesture.distance) : 1;
       const w = Math.max(80, Math.min(width, gesture.box.w / factor));
       const h = Math.max(42, Math.min(height, gesture.box.h * w / gesture.box.w));
-      setViewBox({ x: gesture.point.x - (current.x - viewBox.x) * w / viewBox.w,
-        y: gesture.point.y - (current.y - viewBox.y) * h / viewBox.h, w, h });
+      const screenX = Math.max(0, Math.min(1, (midX - rect.left) / Math.max(1, rect.width)));
+      const screenY = Math.max(0, Math.min(1, (midY - rect.top) / Math.max(1, rect.height)));
+      setViewBox({ x: gesture.point.x - screenX * w, y: gesture.point.y - screenY * h, w, h }, true);
     }
     function stopPan(event) {
       pointers.delete(event.pointerId);
       if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
       svg.classList.toggle("panning", pointers.size > 0);
+      if (!pointers.size && viewFrame) { cancelAnimationFrame(viewFrame); paintViewBox(); }
       beginGesture();
     }
 
@@ -1797,8 +1812,12 @@
       event.preventDefault();
       const handled = handleGuess(input.value);
       if (handled !== "pending") input.value = "";
-      focusInput();
     });
+
+    markButton.addEventListener("touchend", event => {
+      event.preventDefault();
+      form.requestSubmit(markButton);
+    }, { passive: false });
 
     countryModeButton.addEventListener("click", () => setQuizMode("countries"));
     capitalModeButton.addEventListener("click", () => setQuizMode("capitals"));
@@ -1916,8 +1935,8 @@
   </script>
   <script src="country-borders.js"></script>
   <script src="game-data.js?v=20260907-friends1"></script>
-  <script src="game-map.js?v=20260907-friends2"></script>
-  <script src="game-ui.js?v=20260907-results1"></script>
+  <script src="game-map.js?v=20260907-mobile1"></script>
+  <script src="game-ui.js?v=20260907-mobile1"></script>
   <script src="multiplayer-config.js?v=20260907-friends1"></script>
   <script src="multiplayer-service.js?v=20260907-friends1"></script>
   <script src="multiplayer-ui.js?v=20260907-results1"></script>
