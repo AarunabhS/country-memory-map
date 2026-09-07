@@ -71,6 +71,33 @@
       const keepMobileKeyboard = document.activeElement === input;
       if (!input.disabled && !form.hidden && (keepMobileKeyboard || matchMedia('(hover: hover) and (pointer: fine)').matches)) input.focus({preventScroll:true});
     }
+    function editDistance(a,b) {
+      const row=Array.from({length:b.length+1},(_,i)=>i);
+      for(let i=1;i<=a.length;i++){
+        let previous=row[0];row[0]=i;
+        for(let j=1;j<=b.length;j++){const saved=row[j];row[j]=Math.min(row[j]+1,row[j-1]+1,previous+(a[i-1]===b[j-1]?0:1));previous=saved;}
+      }
+      return row[b.length];
+    }
+    function voiceAnswer(alternatives) {
+      const q=engine.state.currentQuestion;
+      let candidates=[];
+      if(engine.config.family==='conquest'){
+        candidates=engine.pool.filter(c=>!engine.state.completedCountries.has(c.country_id))
+          .flatMap(c=>c.accepted_names.map(name=>({key:GeographyGame.normalize(name),answer:c.canonical_name,label:c.canonical_name})));
+      }else if(q?.type===TYPES.CAPITAL_TYPING){
+        const c=byId.get(q.countryId);
+        candidates=c.capital.flatMap(capital=>[capital.name,...capital.aliases].map(name=>({key:GeographyGame.normalize(name),answer:capital.name,label:capital.name})));
+      }
+      const heard=alternatives.map(value=>({raw:value,key:GeographyGame.normalize(value)})).filter(x=>x.key);
+      for(const item of heard){const exact=candidates.find(c=>c.key===item.key);if(exact)return {...exact,heard:item.raw,exact:true};}
+      const ranked=[];
+      for(const item of heard)for(const candidate of candidates){const distance=editDistance(item.key,candidate.key),longest=Math.max(item.key.length,candidate.key.length),allowed=longest>=9?2:longest>=4?1:0;if(distance<=allowed)ranked.push({...candidate,heard:item.raw,distance,ratio:distance/longest});}
+      ranked.sort((a,b)=>a.ratio-b.ratio||a.distance-b.distance||a.label.localeCompare(b.label));
+      if(!ranked.length)return null;
+      const best=ranked[0],runner=ranked.find(x=>x.answer!==best.answer);
+      return runner&&runner.ratio<=best.ratio+0.04?null:best;
+    }
     function showMilestone(text) { clearTimeout(feedbackTimer); $('milestone').textContent = text; $('milestone').hidden = false; animate($('milestone'),'milestone-pop'); feedbackTimer = setTimeout(()=>$('milestone').hidden=true,900); }
     function activeConfig() { return { family, variant:$('gameVariant').value, difficulty:$('gameDifficulty').value, region:$('gameRegion').value, questionTime:Number($('gameQuestionTime').value) }; }
     function chooseFamily(next, variant) {
@@ -213,6 +240,18 @@
       textFeedback('Free map: the original country and capital checkers.');
     }
     window.gameController={
+      previewVoice(heard) {
+        if(!platform)return false;
+        textFeedback(`Hearing: “${heard}”…`,'listening');return true;
+      },
+      handleVoice(alternatives) {
+        if(!platform)return false;
+        const match=voiceAnswer(alternatives),heard=alternatives[0]||'';
+        if(!match){input.value=heard;textFeedback(`Heard “${heard}”, but no confident match. Try speaking again or edit the text · no penalty.`,'bad');return true;}
+        input.value=match.answer;
+        textFeedback(match.exact?`Heard “${match.label}”.`:`Heard “${match.heard}” · matched ${match.label}.`,'listening');
+        window.gameController.handleText(match.answer);return true;
+      },
       handleText(raw) {
         if (!platform) return false;
         if(remote){

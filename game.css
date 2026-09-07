@@ -14,6 +14,9 @@ body:has(.platform) { overflow: auto; }
 .platform-header h1 { font-size:22px; font-weight:800; letter-spacing:-.6px; line-height:1.15; }
 .platform button, .platform select, #resultsDialog button { min-height:44px; font-size:14px; border-radius:10px; }
 .platform button { background:#fff; box-shadow:none; }
+.platform .voice-button.listening { color:#fff;background:#c9343f;border-color:#9e202b;box-shadow:0 0 0 4px #d84b5530;animation:mic-live 900ms ease-in-out infinite alternate; }
+.platform .message.listening { color:#a51f2c; }
+@keyframes mic-live { from{box-shadow:0 0 0 3px #d84b5525} to{box-shadow:0 0 0 7px #d84b5548} }
 .platform button:hover { border-color:#4a8375; }
 .platform .game-hud { grid-row:2; display:flex; gap:0; background:white; border:1px solid #dbe4e2; border-radius:14px; padding:10px 8px; }
 .hud-stat { flex:1; padding:0 16px; border-right:1px solid #e3eae7; }

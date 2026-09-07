@@ -544,7 +544,7 @@
       .topbar #resetButton { grid-column: 2; grid-row: 3; }
     }
   </style>
-  <link rel="stylesheet" href="game.css?v=20260907-mobile2">
+  <link rel="stylesheet" href="game.css?v=20260907-voice1">
   <link rel="stylesheet" href="multiplayer.css?v=20260907-friends1">
 </head>
 <body>
@@ -1445,19 +1445,21 @@
 
       recognition = new SpeechRecognition();
       recognition.lang = "en-US";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 3;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 5;
 
       recognition.addEventListener("start", () => {
         isListening = true;
         voiceButton.classList.add("listening");
-        voiceButton.textContent = "Listening";
-        setMessage(`Listening. Say one ${quizMode === "capitals" ? "capital" : "country"} name.`);
+        voiceButton.setAttribute("aria-pressed", "true");
+        voiceButton.textContent = "● Listening";
+        setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`);
       });
 
       recognition.addEventListener("end", () => {
         isListening = false;
         voiceButton.classList.remove("listening");
+        voiceButton.setAttribute("aria-pressed", "false");
         voiceButton.textContent = "Speak";
       });
 
@@ -1469,7 +1471,17 @@
       });
 
       recognition.addEventListener("result", event => {
-        const alternatives = [...event.results[0]].map(item => item.transcript.trim()).filter(Boolean);
+        const result = event.results[event.results.length - 1];
+        const alternatives = [...result].map(item => item.transcript.trim()).filter(Boolean);
+        const heard = alternatives[0] || "";
+        input.value = heard;
+        if (!result.isFinal) {
+          const handled = window.gameController?.previewVoice?.(heard);
+          if (!handled) setMessage(`Hearing: “${heard}”…`);
+          return;
+        }
+        const gameHandled = window.gameController?.handleVoice?.(alternatives);
+        if (gameHandled) return;
         const activeAliases = quizMode === "capitals" ? capitalByAlias : countryByAlias;
         const transcript = alternatives.find(value => activeAliases.has(normalize(value))) || alternatives[0] || "";
         input.value = transcript;
@@ -1936,7 +1948,7 @@
   <script src="country-borders.js"></script>
   <script src="game-data.js?v=20260907-friends1"></script>
   <script src="game-map.js?v=20260907-mobile2"></script>
-  <script src="game-ui.js?v=20260907-mobile2"></script>
+  <script src="game-ui.js?v=20260907-voice1"></script>
   <script src="multiplayer-config.js?v=20260907-friends1"></script>
   <script src="multiplayer-service.js?v=20260907-friends1"></script>
   <script src="multiplayer-ui.js?v=20260907-mobile2"></script>
