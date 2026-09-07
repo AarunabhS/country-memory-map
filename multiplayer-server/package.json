@@ -1,0 +1,1 @@
+{"name":"country-memory-friends","private":true,"type":"module","scripts":{"build":"node build.mjs","test":"node --test test/*.test.mjs","db:generate":"drizzle-kit generate"},"devDependencies":{"esbuild":"^0.25.0","drizzle-kit":"^0.31.0","drizzle-orm":"^0.44.0"}}

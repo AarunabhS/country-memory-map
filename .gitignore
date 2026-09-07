@@ -1,3 +1,5 @@
 start-map.command
 .DS_Store
 
+multiplayer-server/node_modules/
+multiplayer-server/dist/

@@ -11,6 +11,7 @@
     const voice = document.querySelector('#voiceButton'), message = document.querySelector('#message');
     const families = { conquest: 'World Conquest', find: 'Find the Country', capital: 'Capital Clash' };
     const variants = { relaxed:'Relaxed', sprint:'Sprint', blitz:'Blitz', sudden:'Sudden Death', continent:'Continent', standard:'Standard', classic:'Classic' };
+    let remote = null, remoteKey = null, lastRemoteEvent = null, soloReplay = null;
     let family = profile.data.lastMode.family, lastConfig = null, result = null, platform = true, feedbackTimer;
     app.insertAdjacentHTML('afterbegin', `
       <header class="platform-header"><div><span class="brand-kicker">COUNTRY MEMORY MAP</span><h1 id="gameTitle">Choose your game</h1></div><button id="endGame" type="button" hidden>End round</button><button id="freeMap" type="button">Free map</button></header>
@@ -35,7 +36,7 @@
         <details id="recentPanel" class="rules-details"><summary>Recent rounds on this device</summary><div id="recentResults"></div></details>
         <p class="storage-note" id="storageNote"></p>
       </section>
-      <dialog id="resultsDialog" aria-labelledby="resultsTitle"><div class="results-content"><p class="eyebrow" id="resultsMode"></p><h2 id="resultsTitle">Round complete</h2><p id="personalBest" class="personal-best" hidden>NEW PERSONAL BEST</p><div id="resultStats" class="result-stats"></div><p id="resultRegions"></p><p class="result-note">Accuracy includes wrong attempts and timeouts. Answer speeds use correct answers.</p><details id="missedDetails"><summary id="missedSummary">Countries to practise</summary><div id="missedList"></div></details><div id="finalMistakes"></div><div class="result-actions"><button type="button" id="playAgain" class="primary-button">Play Again</button><button type="button" id="practiceMissed">Practice Missed</button><button type="button" id="chooseGame">Choose game</button><button type="button" disabled title="Multiplayer is not available yet">Challenge Friend · soon</button></div></div></dialog>
+      <dialog id="resultsDialog" aria-labelledby="resultsTitle"><div class="results-content"><p class="eyebrow" id="resultsMode"></p><h2 id="resultsTitle">Round complete</h2><p id="personalBest" class="personal-best" hidden>NEW PERSONAL BEST</p><div id="resultStats" class="result-stats"></div><p id="resultRegions"></p><p class="result-note">Accuracy includes wrong attempts and timeouts. Answer speeds use correct answers.</p><details id="missedDetails"><summary id="missedSummary">Countries to practise</summary><div id="missedList"></div></details><div id="finalMistakes"></div><div class="result-actions"><button type="button" id="playAgain" class="primary-button">Play Again</button><button type="button" id="practiceMissed">Practice Missed</button><button type="button" id="chooseGame">Choose game</button><button type="button" id="challengeFriends">Challenge Friends</button></div></div></dialog>
     `);
     const shell = document.querySelector('.map-shell');
     shell.insertAdjacentHTML('beforeend','<div id="milestone" class="milestone" role="status" hidden></div>');
@@ -44,9 +45,17 @@
     const engine = new Engine(countries, { onEvent });
     const map = createGameMap(GameMap, (id, regionName) => {
       if (!platform || engine.state.gameStatus !== 'playing') return;
-      if (!id && regionName) { engine.submitCountry(null, regionName); return; }
+      if (!id && regionName) { if(remote)remote.submit('country','');else {soloReplay?.actions.push({kind:'country',value:'',at:Date.now()-engine.state.startedAt});engine.submitCountry(null, regionName);} return; }
+      if (remote) { remote.submit('country', id); return; }
+      tickSolo();
+      if (engine.state.gameStatus === 'playing') soloReplay?.actions.push({ kind:'country',value:id,at:Date.now()-engine.state.startedAt });
       engine.submitCountry(id);
     });
+    function tickSolo() {
+      const at=Date.now(),s=engine.state;
+      if(s.gameStatus==='playing'&&((s.deadline!==null&&at>=s.deadline)||(s.feedbackUntil!==null&&at>=s.feedbackUntil)||(s.currentQuestion&&!s.currentQuestion.resolved&&at>=s.currentQuestion.deadline)))soloReplay?.actions.push({kind:'tick',at:at-s.startedAt});
+      engine.tick(at);
+    }
     const formatTime = seconds => { const value = Math.max(0, Math.floor(seconds || 0)); return `${Math.floor(value/60)}:${String(value%60).padStart(2,'0')}`; };
     function textFeedback(text, type = '') { message.textContent = text; message.className = `message ${type}`; }
     function animate(element, className) { element.classList.remove(className); void element.offsetWidth; element.classList.add(className); element.addEventListener('animationend',()=>element.classList.remove(className),{once:true}); }
@@ -81,10 +90,10 @@
       $('storageNote').textContent = profile.available ? 'Personal bests and recent rounds are saved on this device.' : 'Device storage is unavailable. You can still play; results last for this visit.';
     }
     function start(config = activeConfig()) {
-      lastConfig = {...config}; result = null;
+      remote = null; remoteKey = null; lastConfig = {...config}; result = null;
       platform = true; app.classList.add('platform'); app.classList.remove('choosing','round-ended');
       $('resultsDialog').close(); $('setupError').textContent='';
-      try { engine.start(config); profile.select(config); }
+      try { const seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1; const random = GeographyGame.seededRandom(seed); engine.random = () => random.next(); soloReplay = {seed,actions:[]}; engine.start({...config,seed}); profile.select(config); }
       catch(error) { app.classList.add('choosing'); document.querySelector('.setup-panel').hidden=false; $('setupError').textContent=error.message; return; }
     }
     function updateHUD(s) {
@@ -99,7 +108,7 @@
       $('gameLives').hidden = s.lives === null;
       if (s.lives !== null) { $('gameLives').textContent = '♥'.repeat(s.lives)+'♡'.repeat(3-s.lives); $('gameLives').setAttribute('aria-label',`${s.lives} lives remaining`); }
       if (s.currentQuestion) {
-        const remaining = s.currentQuestion.resolved ? 0 : Math.max(0,(s.currentQuestion.deadline-Date.now())/1000);
+        const remaining = s.currentQuestion.resolved ? 0 : Math.max(0,(s.currentQuestion.deadline-engine.now())/1000);
         $('questionTime').textContent = `${Math.ceil(remaining)}s · ${s.questionNumber}${s.questionLimit?` / ${s.questionLimit}`:''}`;
         $('questionBar').style.width = `${remaining*10}%`;
       }
@@ -152,6 +161,7 @@
       } else if (event.type === 'milestone') showMilestone(`${event.count} COUNTRIES FOUND`);
       else if (event.type === 'end') {
         GameMap.stopVoice();input.disabled=true;voice.disabled=true;map.end();$('endGame').hidden=true;
+        event.result.replay = {config:engine.config,seed:soloReplay?.seed,actions:soloReplay?.actions||[],elapsed:Math.max(s.elapsedTime*1000,soloReplay?.actions.at(-1)?.at||0)};
         result=profile.record(event.result);showResults(result);
       }
       updateHUD(s);
@@ -170,6 +180,7 @@
       $('missedList').replaceChildren(...r.missedCountries.map(id=>{const p=document.createElement('p');const c=byId.get(id);p.textContent=c?`${c.canonical_name}${r.config.family==='capital'?` — ${c.capital.map(x=>`${x.name} (${x.role})`).join('; ')}`:''}`:id;return p;}));
       $('finalMistakes').textContent=r.mistakes.length?`Submitted mistakes: ${r.mistakes.slice(-3).join(' · ')}`:'';
       $('practiceMissed').disabled=!r.missedCountries.length;
+      $('challengeFriends').disabled=!!r.config.practiceIds;
       $('resultsDialog').showModal(); $('playAgain').focus(); updateRecent();
     }
     function menu() {
@@ -187,16 +198,42 @@
       textFeedback('Free map: the original country and capital checkers.');
     }
     window.gameController={
-      handleText(raw) { if (!platform) return false; if(engine.state.gameStatus==='playing')engine.submitText(raw);input.value='';focusTyping();return true; }
+      handleText(raw) {
+        if (!platform) return false;
+        if(remote){if(engine.state.gameStatus==='playing')remote.submit('text',raw);input.value='';return true;}
+        tickSolo();if(engine.state.gameStatus==='playing'){if(GeographyGame.normalize(raw))soloReplay?.actions.push({kind:'text',value:raw,at:Date.now()-engine.state.startedAt});engine.submitText(raw);}
+        input.value='';focusTyping();return true;
+      },
+      connectRemote(hooks) { remote=hooks;engine.now=()=>remote?remote.now():Date.now(); },
+      renderRemote(data) {
+        if(!remote||!data.game)return;
+        const s={...data.game,completedCountries:new Set(data.game.completedCountries)};
+        const key=data.match.id+':'+s.startedAt,previous=engine.state.currentQuestion?.id;
+        engine.config=data.config;engine.pool=countries.filter(c=>data.config.variant!=='continent'||c.continent===data.config.region);engine.state=s;
+        platform=true;app.classList.add('platform');app.classList.remove('choosing','round-ended');
+        if(remoteKey!==key){remoteKey=key;lastRemoteEvent=null;onEvent({type:'start'},s);if(data.config.family==='conquest')s.completedCountries.forEach(id=>GameMap.mark(id));}
+        if(s.gameStatus==='playing'){
+          if(data.config.family==='conquest'){if(previous!==null||form.hidden){onEvent({type:'question',question:{type:TYPES.COUNTRY_TYPING}},s);}}
+          else if(previous!==s.currentQuestion?.id)onEvent({type:'question',question:s.currentQuestion},s);
+          if(data.event?.id&&lastRemoteEvent!==data.event.id&&(data.config.family==='conquest'||data.event.questionId===s.currentQuestion?.id)){lastRemoteEvent=data.event.id;onEvent(data.event,s);}
+          if(s.feedbackUntil===null){const typing=data.config.family==='conquest'||s.currentQuestion?.type===TYPES.CAPITAL_TYPING;input.disabled=!typing;voice.disabled=!typing;if(typing&&previous!==s.currentQuestion?.id)focusTyping();}
+        }else{input.disabled=true;voice.disabled=true;$('endGame').hidden=true;map.end();}
+        $('gameTitle').textContent= families[data.config.family]+' · Friends';updateHUD(s);
+      },
+      blockRemote(value) {input.disabled=value;voice.disabled=value;},
+      exitRemote() {remote=null;remoteKey=null;engine.state.gameStatus='idle';menu();},
+      closeResults() {$('resultsDialog').close();}
+
     };
     document.querySelectorAll('[data-family]').forEach(b=>b.addEventListener('click',()=>chooseFamily(b.dataset.family)));
     for (const name of ['Africa','Asia','Europe','North America','South America','Oceania']) $('gameRegion').add(new Option(`${name} · ${countries.filter(c=>c.continent===name).length} countries`,name));
     $('gameDifficulty').value=profile.data.difficulty;
     ['gameVariant','gameDifficulty','gameRegion'].forEach(id=>$(id).addEventListener('change',updateSetup));
     $('startGame').addEventListener('click',()=>start());
-    $('endGame').addEventListener('click',()=>engine.finish('manual'));
+    $('endGame').addEventListener('click',()=>remote?remote.finish():engine.finish('manual'));
     $('playAgain').addEventListener('click',()=>start(lastConfig));
     $('practiceMissed').addEventListener('click',()=>start({...lastConfig,variant:lastConfig.family==='conquest'?'relaxed':lastConfig.family==='find'?'standard':'classic',practiceIds:result.missedCountries}));
+    $('challengeFriends').addEventListener('click',()=>{if(window.Friends&&result?.replay){$('resultsDialog').close();window.Friends.challenge(result.replay);}});
     $('chooseGame').addEventListener('click',menu);$('freeMap').addEventListener('click',legacy);$('openGames').addEventListener('click',menu);
     $('resultsDialog').addEventListener('cancel',e=>{e.preventDefault();menu();});
     function syncKeyboard() {
@@ -208,8 +245,11 @@
     window.visualViewport?.addEventListener('resize', syncKeyboard);
     input.addEventListener('focus', syncKeyboard);
     input.addEventListener('blur', () => app.classList.remove('keyboard-open'));
-    document.addEventListener('visibilitychange',()=>engine.tick());
-    setInterval(()=>engine.tick(),50);
+    document.addEventListener('visibilitychange',()=>{if(!remote)tickSolo();});
+    setInterval(()=>{
+      if(!remote){tickSolo();return;}
+      const s=engine.state;if(s.gameStatus==='playing'){s.elapsedTime=Math.max(0,(engine.now()-s.startedAt)/1000);if(s.deadline!==null){s.remainingTime=Math.max(0,(s.deadline-engine.now())/1000);if(!s.remainingTime){input.disabled=true;voice.disabled=true;}}updateHUD(s);}
+    },50);
     chooseFamily(family,profile.data.lastMode.variant);menu();
   }
   if (window.GameMap?.countries.length) boot(); else window.addEventListener('mapready',boot,{once:true});

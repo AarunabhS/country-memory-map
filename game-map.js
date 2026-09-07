@@ -4,7 +4,7 @@ window.createGameMap = function (bridge, onPick) {
   const hitLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   hitLayer.id = 'gameHitTargets'; svg.querySelector('#mapViewport').append(hitLayer);
   let clickMode = false, countries = [], lastRegion = null, gesture = null, pointerCount = 0;
-  let keyboardCountries = [], keyboardIndex = -1;
+  let keyboardCountries = [], keyboardIndex = -1, lastPointerUp = -Infinity;
   function units() { const v = bridge.getView(), box = svg.getBoundingClientRect(); return Math.max(v.w / box.width, v.h / box.height); }
   function clearFeedback() {
     for (const r of bridge.regionRecords) r.path.classList.remove('game-good', 'game-bad', 'game-reveal');
@@ -75,6 +75,7 @@ window.createGameMap = function (bridge, onPick) {
   svg.addEventListener('pointermove', e => { if (gesture && Math.hypot(e.clientX-gesture.x, e.clientY-gesture.y)>8) gesture.moved = true; });
   svg.addEventListener('pointercancel', () => { pointerCount = 0; gesture = null; });
   svg.addEventListener('pointerup', e => {
+    lastPointerUp = performance.now();
     pointerCount = Math.max(0, pointerCount-1);
     if (!clickMode || !gesture || gesture.moved || pointerCount) { if (!pointerCount) gesture = null; return; }
     gesture = null;
@@ -93,6 +94,15 @@ window.createGameMap = function (bridge, onPick) {
       if (!id && record) { onPick(null, record.name); return; }
     }
     if (id) onPick(id);
+  });
+  // Assistive technology and semantic activation may emit a click without pointer events.
+  svg.addEventListener('click', e => {
+    if (!clickMode || performance.now()-lastPointerUp<600) return;
+    const node=e.target;
+    const targetId=node?.closest('[data-country-id]')?.dataset.countryId;
+    if(targetId){onPick(targetId);return;}
+    const record=bridge.regionRecords.find(r=>r.id===node?.closest('[data-region-id]')?.dataset.regionId);
+    if(record)onPick(record.ownerId||(record.isCountry?record.id:null),record.name);
   });
   // Keyboard alternative: traverse geographic positions, then select with Enter.
   svg.addEventListener('keydown', e => {

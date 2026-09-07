@@ -1,0 +1,44 @@
+import Game from '../shared/game-core.cjs';
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {makeRoom,joinRoom,roomAction,syncRoom,publicRoom,ranking,DATA,createChallenge} from '../room-engine.mjs';
+import {handle} from '../worker.mjs';
+const base=1000000;
+function room(){return makeRoom({code:'GEOABCDEF',id:'host',tokenHash:'secret',name:'Arun',now:base,seed:42});}
+function ready(r){joinRoom(r,{id:'guest',tokenHash:'guest-secret',name:'Riya'},base);roomAction(r,r.players[1],{action:'ready',ready:true},base);roomAction(r,r.players[0],{action:'start'},base);return r;}
+test('2-8 players, duplicate and Unicode names, host-only settings',()=>{const r=room();for(let i=1;i<8;i++)joinRoom(r,{id:'p'+i,tokenHash:'t'+i,name:'Player '+i},base);assert.equal(r.players.length,8);assert.throws(()=>joinRoom(r,{id:'ninth',name:'Nine'},base),/8 players/);const n=room();joinRoom(n,{id:'hindi',name:'अरुण'},base);joinRoom(n,{id:'bangla',name:'অরুণ'},base);assert.throws(()=>joinRoom(n,{id:'dupe',name:'ARUN'},base),/already in use/);assert.throws(()=>roomAction(n,n.players[1],{action:'settings'},base),/host/);});
+test('start requires two ready connected players and config changes reset readiness',()=>{const r=room();assert.throws(()=>roomAction(r,r.players[0],{action:'start'},base),/two/);joinRoom(r,{id:'p',name:'Guest'},base);assert.throws(()=>roomAction(r,r.players[0],{action:'start'},base),/ready/);roomAction(r,r.players[1],{action:'ready',ready:true},base);roomAction(r,r.players[0],{action:'settings',config:{family:'find',variant:'standard'}},base);assert.equal(r.players[1].ready,false);});
+test('countdown and independent identical questions',()=>{const r=room();r.config={family:'capital',variant:'classic',difficulty:'medium',region:'Africa',questionCount:10};ready(r);assert.equal(r.state,'COUNTDOWN');assert.equal(r.match.startAt,base+3000);assert.deepEqual(r.players[0].game.state.currentQuestion,r.players[1].game.state.currentQuestion);syncRoom(r,base+3000);assert.equal(r.state,'PLAYING');const p=r.players[0],q=p.game.state.currentQuestion,c=DATA.find(c=>c.country_id===q.countryId);roomAction(r,p,{action:'answer',kind:'text',value:c.capital[0].name,questionId:q.id,matchId:r.match.id,seq:1,responseTime:1},base+4000);assert.equal(p.game.state.correctAnswers,1);assert.equal(r.players[1].game.state.correctAnswers,0);syncRoom(r,base+4800);assert.equal(p.game.state.questionNumber,2);assert.equal(r.players[1].game.state.questionNumber,1);});
+test('server scoring, duplicates, idempotent retry, forged question and timing rejected',()=>{const r=ready(room()),p=r.players[0];const action={action:'answer',kind:'text',value:'India',seq:1,responseTime:1,matchId:r.match.id};roomAction(r,p,action,base+4000);assert.equal(p.game.state.score,130);roomAction(r,p,action,base+4200);assert.equal(p.game.state.score,130);roomAction(r,p,{...action,seq:2},base+4500);assert.equal(p.game.state.score,130);assert.equal(p.game.state.streak,1);assert.throws(()=>roomAction(r,p,{...action,seq:3,responseTime:500},base+4700),/timing/);assert.throws(()=>roomAction(r,p,{...action,seq:3,matchId:'fake'},base+4800),/earlier/);});
+test('privacy: opponents get totals, never answer histories or tokens',()=>{const r=ready(room());const v=publicRoom(r,r.players[1],base+3000);assert.equal(v.players[0].tokenHash,undefined);assert.equal(v.standings[0].completedCountries,undefined);assert.equal(v.game.currentQuestion,null);assert.ok(!JSON.stringify(v).includes('secret'));});
+test('host migrates after grace; original host returns without reclaiming role',()=>{const r=ready(room());r.players[1].lastSeenAt=base+46000;syncRoom(r,base+46000);assert.equal(r.hostPlayerId,'guest');roomAction(r,r.players[0],{action:'poll'},base+47000);assert.equal(r.hostPlayerId,'guest');});
+test('deadline freezes all participants, rematch preserves room and resets progress',()=>{const r=ready(room());r.players.forEach(p=>p.lastSeenAt=base+62000);syncRoom(r,base+63000);assert.equal(r.state,'RESULTS');assert.ok(r.players.every(p=>p.game.state.gameStatus==='ended'));roomAction(r,r.players[0],{action:'rematch'},base+64000);assert.equal(r.state,'REMATCH_LOBBY');assert.equal(r.players.length,2);assert.ok(r.players.every(p=>p.game===null));assert.equal(r.players[1].ready,false);});
+test('mid-game joins rejected and expired rooms close',()=>{const r=ready(room());assert.throws(()=>joinRoom(r,{id:'late',name:'Late'},base+4000),/progress/);syncRoom(r,base+7200001);assert.equal(r.state,'CLOSED');});
+test('ranking uses deterministic ties and DNF ordering',()=>{const p=(id,score)=>({id,name:id,game:{state:{score,correctAnswers:1,wrongAnswers:0,bestStreak:1,gameStatus:'ended'},result:{accuracy:100,averageResponseTime:1}}});const list=ranking([p('a',100),p('b',100),{...p('c',200),dnf:true}]);assert.deepEqual(list.map(p=>p.rank),[1,1,3]);assert.equal(list[2].id,'c');});
+test('async challenge replays answers, ignores submitted score, locks one attempt',()=>{const r=createChallenge({config:{family:'conquest',variant:'blitz'},seed:42,elapsed:60000,actions:[{kind:'text',value:'India',at:1000}],score:999999},{code:'GEOASYNC',id:'host',tokenHash:'h',name:'Host'},base);assert.equal(r.players[0].game.state.score,130);joinRoom(r,{id:'guest',name:'Guest',tokenHash:'g'},base+100);roomAction(r,r.players[1],{action:'attempt'},base+200);assert.throws(()=>roomAction(r,r.players[1],{action:'attempt'},base+300),/already started/);assert.equal(r.match.seed,42);});
+class MemoryStore{constructor(){this.rows=new Map();}async rate(){return 1;}async get(code){return this.rows.get(code);}async insert(room){this.rows.set(room.code,{body:JSON.stringify(room),version:0});}async save(room,v){const old=this.rows.get(room.code);if(old.version!==v)return false;this.rows.set(room.code,{body:JSON.stringify(room),version:v+1});return true;}}
+test('atomic parallel joins cannot exceed eight members',async()=>{const store=new MemoryStore(),r=room();await store.insert(r);const responses=await Promise.all(Array.from({length:10},(_,i)=>handle(new Request('http://test/rooms/GEOABCDEF',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'join',name:'Guest '+i})}),store,base+1000)));assert.equal(responses.filter(r=>r.ok).length,7);assert.equal(JSON.parse((await store.get(r.code)).body).players.length,8);});
+
+test('async replay preserves timed question transitions and response scores',()=>{
+ const seed=42,settings={family:'capital',variant:'classic',difficulty:'medium',questionCount:10};
+ let at=0;const random=Game.seededRandom(seed),actions=[];const e=new Game.Engine(DATA,{now:()=>at,random:()=>random.next()});e.start(settings);
+ at=4000;let q=e.state.currentQuestion;let answer=DATA.find(c=>c.country_id===q.countryId).capital[0].name;actions.push({kind:'text',value:answer,at});e.submitText(answer);
+ at=4720;actions.push({kind:'tick',at});e.tick();
+ at=9000;q=e.state.currentQuestion;actions.push({kind:'country',value:q.countryId,at});e.submitCountry(q.countryId);
+ e.finish('manual');const r=createChallenge({config:settings,seed,actions,elapsed:at},{code:'GEOTIMING',id:'host',name:'Host'},base);
+ assert.equal(r.players[0].game.state.score,e.state.score);assert.equal(r.players[0].game.result.averageResponseTime,e.result.averageResponseTime);
+});
+test('feedback belongs to its question and is cleared before rematch',()=>{
+ const r=room();r.config={family:'find',variant:'standard',difficulty:'easy',questionCount:10};ready(r);const p=r.players[0];const first=p.game.state.currentQuestion.id;
+ r.players.forEach(p=>p.lastSeenAt=base+14000);syncRoom(r,base+14000);assert.equal(p.feedback.questionId,first);
+ syncRoom(r,base+14800);assert.notEqual(p.game.state.currentQuestion.id,p.feedback.questionId);
+ r.players.forEach(p=>roomAction(r,p,{action:'finish'},base+15000));roomAction(r,p,{action:'rematch'},base+15001);roomAction(r,r.players[1],{action:'ready',ready:true},base+15002);roomAction(r,p,{action:'start'},base+15003);assert.equal(p.feedback,null);
+});
+test('async continent conquest retains the original untimed rules',()=>{
+ const r=createChallenge({config:{family:'conquest',variant:'continent',region:'Asia'},seed:42,actions:[],elapsed:1000},{code:'GEOASIA',id:'host',name:'Host'},base);
+ joinRoom(r,{id:'guest',name:'Guest'},base+10);roomAction(r,r.players[1],{action:'attempt'},base+20);assert.equal(r.players[1].game.state.deadline,null);
+});
+
+test('untimed challenges allow a normal manual finish',()=>{
+ const r=createChallenge({config:{family:'conquest',variant:'relaxed'},seed:42,actions:[],elapsed:1000},{code:'GEOMANUAL',id:'host',name:'Host'},base);
+ joinRoom(r,{id:'guest',name:'Guest'},base+10);const p=r.players[1];roomAction(r,p,{action:'attempt'},base+20);roomAction(r,p,{action:'finish'},base+5000);assert.equal(p.dnf,false);assert.equal(p.game.state.gameStatus,'ended');
+});
