@@ -169,6 +169,9 @@
     makeResult(reason) {
       const s = this.state, history = s.questionHistory;
       const successes = history.filter(q => q.correct);
+      const questionMisses = history.filter(q => !q.correct).length;
+      const questionAccuracy = history.length ? Math.round(100 * successes.length / history.length) : 0;
+      const attemptAccuracy = s.correctAnswers + s.wrongAnswers ? Math.round(100 * s.correctAnswers / (s.correctAnswers + s.wrongAnswers)) : 0;
       const times = successes.map(q => q.responseTime);
       const missed = this.config.family === 'conquest' ? this.pool.filter(c => !s.completedCountries.has(c.country_id)).map(c => c.country_id)
         : [...new Set(history.filter(q => !q.correct || q.wrongAttempts > 0).map(q => q.countryId))];
@@ -179,10 +182,13 @@
         const total = this.config.family === 'conquest' ? targets.length : attempts.length;
         return { name, correct, total, ratio: total ? correct / total : 0 };
       }).filter(r => r.total > 0).sort((a, b) => b.ratio - a.ratio || b.correct - a.correct);
+      const isConquest = this.config.family === 'conquest';
       return { config: { ...this.config }, endedAt: new Date(this.now()).toISOString(), reason,
-        score: s.score, correct: s.correctAnswers, wrong: s.wrongAnswers, countriesFound: s.completedCountries.size,
-        total: this.config.family === 'conquest' ? this.pool.length : history.length,
-        accuracy: s.correctAnswers + s.wrongAnswers ? Math.round(100 * s.correctAnswers / (s.correctAnswers + s.wrongAnswers)) : 0,
+        score: s.score, correct: s.correctAnswers, wrong: isConquest ? s.wrongAnswers : questionMisses,
+        incorrectAttempts: s.wrongAnswers, missedQuestions: isConquest ? null : questionMisses,
+        countriesFound: s.completedCountries.size,
+        total: isConquest ? this.pool.length : history.length,
+        accuracy: isConquest ? attemptAccuracy : questionAccuracy,
         bestStreak: s.bestStreak, elapsedTime: s.elapsedTime,
         averageResponseTime: times.length ? times.reduce((a, b) => a + b, 0) / times.length : null,
         fastestAnswer: times.length ? Math.min(...times) : null,
