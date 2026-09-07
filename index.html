@@ -544,7 +544,7 @@
       .topbar #resetButton { grid-column: 2; grid-row: 3; }
     }
   </style>
-  <link rel="stylesheet" href="game.css?v=20260907-mobile1">
+  <link rel="stylesheet" href="game.css?v=20260907-mobile2">
   <link rel="stylesheet" href="multiplayer.css?v=20260907-friends1">
 </head>
 <body>
@@ -602,7 +602,7 @@
     <div class="loading" id="loading">Loading map...</div>
   </main>
 
-  <script src="game-core.js?v=20260907-friends1"></script>
+  <script src="game-core.js?v=20260907-mobile2"></script>
   <script src="countries-data.js"></script>
   <script src="capitals-data.js"></script>
   <script>
@@ -1023,8 +1023,8 @@
     }
 
     function clampViewBox(box) {
-      const w = Math.min(width, Math.max(80, box.w));
-      const h = Math.min(height, Math.max(42, box.h));
+      const w = Math.min(width, Math.max(20, box.w));
+      const h = Math.min(height, Math.max(11, box.h));
       return {
         x: Math.max(0, Math.min(width - w, box.x)),
         y: Math.max(0, Math.min(height - h, box.y)),
@@ -1099,7 +1099,7 @@
     function zoomBy(factor) {
       const centerX = viewBox.x + viewBox.w / 2;
       const centerY = viewBox.y + viewBox.h / 2;
-      const minW = 80;
+      const minW = 20;
       const maxW = width;
       const nextW = Math.max(minW, Math.min(maxW, viewBox.w / factor));
       const nextH = nextW * viewBox.h / viewBox.w;
@@ -1166,8 +1166,8 @@
       const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
       const rect = svg.getBoundingClientRect();
       const factor = gesture.distance ? Math.max(0.1, Math.hypot(a.x - b.x, a.y - b.y) / gesture.distance) : 1;
-      const w = Math.max(80, Math.min(width, gesture.box.w / factor));
-      const h = Math.max(42, Math.min(height, gesture.box.h * w / gesture.box.w));
+      const w = Math.max(20, Math.min(width, gesture.box.w / factor));
+      const h = Math.max(11, Math.min(height, gesture.box.h * w / gesture.box.w));
       const screenX = Math.max(0, Math.min(1, (midX - rect.left) / Math.max(1, rect.width)));
       const screenY = Math.max(0, Math.min(1, (midY - rect.top) / Math.max(1, rect.height)));
       setViewBox({ x: gesture.point.x - screenX * w, y: gesture.point.y - screenY * h, w, h }, true);
@@ -1935,10 +1935,10 @@
   </script>
   <script src="country-borders.js"></script>
   <script src="game-data.js?v=20260907-friends1"></script>
-  <script src="game-map.js?v=20260907-mobile1"></script>
-  <script src="game-ui.js?v=20260907-mobile1"></script>
+  <script src="game-map.js?v=20260907-mobile2"></script>
+  <script src="game-ui.js?v=20260907-mobile2"></script>
   <script src="multiplayer-config.js?v=20260907-friends1"></script>
   <script src="multiplayer-service.js?v=20260907-friends1"></script>
-  <script src="multiplayer-ui.js?v=20260907-results1"></script>
+  <script src="multiplayer-ui.js?v=20260907-mobile2"></script>
 </body>
 </html>

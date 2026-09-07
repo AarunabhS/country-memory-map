@@ -155,11 +155,9 @@ body:has(.platform) { overflow: auto; }
 .click-game:focus { outline:none; }
 .click-game:focus-visible { outline:3px solid #168263; outline-offset:2px; }
 
-.platform.keyboard-open {min-height:340px;grid-template-rows:auto auto minmax(80px,1fr) auto;}
+.platform.keyboard-open {position:fixed;top:var(--keyboard-top,0);left:0;width:100%;height:var(--app-height,100dvh);min-height:0;overflow:hidden;z-index:20;grid-template-rows:minmax(80px,1fr) auto;padding:4px 8px 0;}
 .platform.keyboard-open .continentbar {display:none;}
-.platform.keyboard-open .map-shell {grid-row:3;}
-.platform.keyboard-open .control {grid-row:4;padding:8px;}
-.platform.keyboard-open .platform-header h1 {font-size:16px;}
-.platform.keyboard-open .brand-kicker {display:none;}
-.platform.keyboard-open .game-hud {padding:4px;}
-.platform.keyboard-open .question-panel h2 {font-size:19px;}
+.platform.keyboard-open .platform-header,.platform.keyboard-open .game-hud {display:none;}
+.platform.keyboard-open .map-shell {grid-row:1;min-height:0;}
+.platform.keyboard-open .control {grid-row:2;padding:8px;margin:0;border-radius:14px 14px 0 0;}
+.platform.keyboard-open .question-panel {display:none;}

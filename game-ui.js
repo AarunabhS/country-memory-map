@@ -29,10 +29,10 @@
           <button type="button" data-family="find"><b>Find the Country</b><span>See the name. Find it on the map.</span></button>
           <button type="button" data-family="capital"><b>Capital Clash</b><span>Connect countries and their capitals.</span></button>
         </div>
-        <div class="setup-fields"><label>Format<select id="gameVariant"></select></label><label id="difficultyField">Difficulty<select id="gameDifficulty"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="expert">Expert</option></select></label><label id="regionField" hidden>Continent<select id="gameRegion"></select></label></div>
+        <div class="setup-fields"><label>Format<select id="gameVariant"></select></label><label id="difficultyField">Difficulty<select id="gameDifficulty"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="expert">Expert</option></select></label><label id="questionTimeField">Time per question<select id="gameQuestionTime"><option value="30">30 seconds</option><option value="20" selected>20 seconds</option><option value="15">15 seconds</option><option value="10">10 seconds · challenging</option></select></label><label id="regionField" hidden>Continent<select id="gameRegion"></select></label></div>
         <p id="gameRules" class="game-rules"></p><p id="setupError" role="status"></p>
         <button type="button" id="startGame" class="primary-button">Start playing <span aria-hidden="true">↗</span></button>
-        <details class="rules-details"><summary>Scoring & rules</summary><p>New answer: 100 points × speed bonus × streak bonus, rounded. Under 2s: ×1.30; under 4s: ×1.20; up to 7s: ×1.10. Streaks of 5 / 10 / 20 / 40 earn ×1.05 / ×1.10 / ×1.20 / ×1.30.</p><p>World Conquest: duplicates change nothing. Invalid submissions reset your streak, and accuracy measures accepted entries. Other games: 10 seconds per question; wrong attempts cost 25 then 50 points. A third mistake or timeout reveals the answer, and accuracy measures questions answered correctly. Difficulty starts with editorial tiers, separately for capitals and map locations.</p></details>
+        <details class="rules-details"><summary>Scoring & rules</summary><p>New answer: 100 points × speed bonus × streak bonus, rounded. Under 2s: ×1.30; under 4s: ×1.20; up to 7s: ×1.10. Streaks of 5 / 10 / 20 / 40 earn ×1.05 / ×1.10 / ×1.20 / ×1.30.</p><p>World Conquest: duplicates change nothing. Invalid submissions reset your streak, and accuracy measures accepted entries. Other games: choose 10, 15, 20, or 30 seconds per question; wrong attempts cost 25 then 50 points. A third mistake or timeout reveals the answer, and accuracy measures questions answered correctly. Difficulty starts with editorial tiers, separately for capitals and map locations.</p></details>
         <details id="recentPanel" class="rules-details"><summary>Recent rounds on this device</summary><div id="recentResults"></div></details>
         <p class="storage-note" id="storageNote"></p>
       </section>
@@ -72,7 +72,7 @@
       if (!input.disabled && !form.hidden && (keepMobileKeyboard || matchMedia('(hover: hover) and (pointer: fine)').matches)) input.focus({preventScroll:true});
     }
     function showMilestone(text) { clearTimeout(feedbackTimer); $('milestone').textContent = text; $('milestone').hidden = false; animate($('milestone'),'milestone-pop'); feedbackTimer = setTimeout(()=>$('milestone').hidden=true,900); }
-    function activeConfig() { return { family, variant:$('gameVariant').value, difficulty:$('gameDifficulty').value, region:$('gameRegion').value }; }
+    function activeConfig() { return { family, variant:$('gameVariant').value, difficulty:$('gameDifficulty').value, region:$('gameRegion').value, questionTime:Number($('gameQuestionTime').value) }; }
     function chooseFamily(next, variant) {
       family = next;
       document.querySelectorAll('[data-family]').forEach(b=>{b.classList.toggle('selected',b.dataset.family===family);b.setAttribute('aria-pressed',String(b.dataset.family===family));});
@@ -81,7 +81,7 @@
       updateSetup();
     }
     function updateSetup() {
-      const c = activeConfig(); $('difficultyField').hidden = family === 'conquest'; $('regionField').hidden = c.variant !== 'continent';
+      const c = activeConfig(); $('difficultyField').hidden = family === 'conquest'; $('questionTimeField').hidden = family === 'conquest'; $('regionField').hidden = c.variant !== 'continent';
       const region = c.variant === 'continent' ? c.region : 'World';
       const rules = family === 'conquest' ? {
         relaxed: 'No time limit. Name all 195 countries, or end whenever you like. Your completion time is the challenge.',
@@ -121,7 +121,7 @@
       if (s.currentQuestion) {
         const remaining = s.currentQuestion.resolved ? 0 : Math.max(0,(s.currentQuestion.deadline-engine.now())/1000);
         $('questionTime').textContent = `${Math.ceil(remaining)}s · ${s.questionNumber}${s.questionLimit?` / ${s.questionLimit}`:''}`;
-        $('questionBar').style.width = `${remaining*10}%`;
+        $('questionBar').style.width = `${100*remaining/Math.max(1,s.currentQuestion.timeLimit)}%`;
       }
     }
     function onEvent(event,s) {
@@ -254,7 +254,7 @@
     document.querySelectorAll('[data-family]').forEach(b=>b.addEventListener('click',()=>chooseFamily(b.dataset.family)));
     for (const name of ['Africa','Asia','Europe','North America','South America','Oceania']) $('gameRegion').add(new Option(`${name} · ${countries.filter(c=>c.continent===name).length} countries`,name));
     $('gameDifficulty').value=profile.data.difficulty;
-    ['gameVariant','gameDifficulty','gameRegion'].forEach(id=>$(id).addEventListener('change',updateSetup));
+    ['gameVariant','gameDifficulty','gameRegion','gameQuestionTime'].forEach(id=>$(id).addEventListener('change',updateSetup));
     $('startGame').addEventListener('click',()=>start());
     $('endGame').addEventListener('click',()=>remote?remote.finish():engine.finish('manual'));
     $('playAgain').addEventListener('click',()=>start(lastConfig));
@@ -263,9 +263,10 @@
     $('chooseGame').addEventListener('click',menu);$('freeMap').addEventListener('click',legacy);$('openGames').addEventListener('click',menu);
     $('resultsDialog').addEventListener('cancel',e=>{e.preventDefault();menu();});
     function syncKeyboard() {
-      const height = window.visualViewport?.height || window.innerHeight;
+      const viewport = window.visualViewport, height = viewport?.height || window.innerHeight;
       const typing = document.activeElement === input && !input.disabled && !form.hidden;
       app.classList.toggle('keyboard-open', platform && typing && window.innerWidth < 600 && height < 500);
+      app.style.setProperty('--keyboard-top',`${viewport?.offsetTop||0}px`);
     }
     window.visualViewport?.addEventListener('resize', syncKeyboard);
     input.addEventListener('focus', syncKeyboard);

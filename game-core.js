@@ -46,6 +46,7 @@
       if (!MODES[config.family]?.[config.variant]) throw new Error('Unknown game mode');
       const rules = MODES[config.family][config.variant];
       this.config = { difficulty: 'medium', region: 'World', ...config };
+      this.config.questionTime = [10,15,20,30].includes(Number(this.config.questionTime)) ? Number(this.config.questionTime) : 10;
       const practice = config.practiceIds?.length ? new Set(config.practiceIds) : null;
       this.pool = this.countries.filter(c => (!practice || practice.has(c.country_id)) &&
         (config.variant !== 'continent' || c.continent === config.region) &&
@@ -82,7 +83,7 @@
         role: type === TYPES.CAPITAL_COUNTRY_CLICK ? capital.role : null,
         acceptedAnswers: type === TYPES.CAPITAL_TYPING ? country.capital.flatMap(c => [c.name, ...c.aliases]).map(normalize) : [country.country_id],
         difficulty: country[this.config.family === 'find' ? 'countryLocationDifficulty' : 'capitalDifficulty'],
-        timeLimit: 10, deadline: at + 10000, wrongAttempts: 0, resolved: false };
+        timeLimit: this.config.questionTime, deadline: at + this.config.questionTime * 1000, wrongAttempts: 0, resolved: false };
       this.emit('question', { question: s.currentQuestion });
     }
     tick(at = this.now()) {

@@ -13,14 +13,14 @@ export function config(input={},async=false){
  const difficulty=['easy','medium','hard','expert'].includes(input.difficulty)?input.difficulty:'medium';
  const region=['Africa','Asia','Europe','North America','South America','Oceania'].includes(input.region)?input.region:'Africa';
  const practiceIds=async&&Array.isArray(input.practiceIds)?[...new Set(input.practiceIds.filter(id=>byId.has(id)))].slice(0,195):[];
- return {family,variant,difficulty,region,...(practiceIds.length?{practiceIds}:{}),questionCount:[10,20,30].includes(input.questionCount)?input.questionCount:20};
+ return {family,variant,difficulty,region,...(practiceIds.length?{practiceIds}:{}),questionCount:[10,20,30].includes(input.questionCount)?input.questionCount:20,questionTime:[10,15,20,30].includes(Number(input.questionTime))?Number(input.questionTime):20};
 }
 function createEngine(settings,seed,startAt,now,snapshot,live=true){
  const random=rng(seed); const e=new Engine(DATA,{now:()=>now,random:()=>random.next()});e.start(settings);
  if(snapshot){e.state={...snapshot.state,completedCountries:new Set(snapshot.state.completedCountries)};e.queue=snapshot.queue.map(id=>byId.get(id));e.lastCountryId=snapshot.lastCountryId;random.state=snapshot.rngState;e.result=snapshot.result||null;}
  else{e.state.startedAt=startAt;e.state.lastCorrectAt=startAt;if(e.state.deadline!==null)e.state.deadline=startAt+(settings.variant==='sprint'?180:60)*1000;
  if(live&&settings.family==='conquest'&&settings.variant==='continent'){e.state.deadline=startAt+180000;e.state.remainingTime=180;}
- if(settings.family!=='conquest'){e.state.questionLimit=settings.practiceIds?.length|| (settings.variant==='blitz'?null:settings.questionCount);e.state.questionStartedAt=startAt;e.state.currentQuestion.deadline=startAt+10000;}}
+ if(settings.family!=='conquest'){e.state.questionLimit=settings.practiceIds?.length|| (settings.variant==='blitz'?null:settings.questionCount);e.state.questionStartedAt=startAt;e.state.currentQuestion.deadline=startAt+settings.questionTime*1000;}}
  return {e,random};
 }
 function pack(e,random){return {state:{...e.state,completedCountries:[...e.state.completedCountries]},queue:e.queue.map(c=>c.country_id),lastCountryId:e.lastCountryId,rngState:random.state,result:e.result||null};}
