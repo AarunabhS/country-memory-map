@@ -65,6 +65,7 @@ body:has(.platform) { overflow: auto; }
 .milestone { position:absolute; top:24%; left:50%; transform:translateX(-50%); background:#143f35eb; color:white; border-radius:12px; padding:16px 24px; font-weight:850; font-size:24px; letter-spacing:1px; white-space:nowrap; pointer-events:none; z-index:8; }
 .milestone-pop { animation:milestone-pop 900ms ease-out; }
 @keyframes milestone-pop { 0% {opacity:0;} 15%,75% {opacity:1;} 100% {opacity:0;} }
+.solo-countdown { position:absolute; inset:0; z-index:16; display:grid; place-items:center; border-radius:16px; background:#dceceee8; color:#135b45; font-size:clamp(72px,18vw,130px); font-weight:900; line-height:1; pointer-events:none; }
 .setup-panel { position:absolute; z-index:9; top:96px; left:32px; width:420px; max-height:calc(100% - 120px); overflow:auto; background:#fffffff5; border:1px solid #dbe5e0; box-shadow:0 20px 70px #173a3220; border-radius:22px; padding:24px; }
 .eyebrow { color:#377767; letter-spacing:1.7px; font-size:11px; font-weight:800; margin:0 0 10px; }
 .setup-panel h2, #resultsDialog h2 { font-size:28px; line-height:1.1; letter-spacing:-1px; margin:0 0 20px; }

@@ -65,19 +65,7 @@ window.createGameMap = function (bridge, onPick) {
     keyboardIndex = -1;
     const oldCursor = svg.querySelector('.keyboard-cursor'); if (oldCursor) oldCursor.remove();
     if (clickMode) {
-      const label = bridge.labelRecords.find(r => r.mode === 'countries' && r.id === country.country_id);
-      const small = country.countryLocationDifficulty === 4 || (label && Math.min(label.bounds.maxX-label.bounds.minX,label.bounds.maxY-label.bounds.minY) < 5);
-      if (small && label) {
-        // Show the actual island group at close range while retaining nearby geography.
-        const capital = country.capital[0];
-        const [cx,cy] = capital && Number.isFinite(capital.longitude) && Number.isFinite(capital.latitude)
-          ? bridge.project([capital.longitude,capital.latitude]) : [label.labelX,label.labelY];
-        const w = 38, h = Math.max(22,w * svg.clientHeight / Math.max(1,svg.clientWidth));
-        const x = cx-w/2, y = cy-h/2;
-        bridge.setView({ x, y, w, h }); lastRegion = 'detail';
-      } else if (lastRegion === 'detail') {
-        bridge.focusRegion(bridge.gameRegion); lastRegion = bridge.gameRegion;
-      }
+      bridge.focusRegion(country.continent); lastRegion = country.continent;
     }
     renderTargets();
   }

@@ -12,7 +12,7 @@
     const families = { conquest: 'World Conquest', find: 'Find the Country', capital: 'Capital Clash' };
     const variants = { relaxed:'Relaxed', sprint:'Sprint', blitz:'Blitz', sudden:'Sudden Death', continent:'Continent', standard:'Standard', classic:'Classic' };
     let remote = null, remoteKey = null, lastRemoteEvent = null, soloReplay = null;
-    let family = profile.data.lastMode.family, lastConfig = null, result = null, platform = true, feedbackTimer;
+    let family = profile.data.lastMode.family, lastConfig = null, result = null, platform = true, feedbackTimer, startToken = 0;
     app.insertAdjacentHTML('afterbegin', `
       <header class="platform-header"><div><span class="brand-kicker">COUNTRY MEMORY MAP</span><h1 id="gameTitle">Choose your game</h1></div><button id="endGame" type="button" hidden>End round</button><button id="freeMap" type="button">Free map</button></header>
       <section class="game-hud" aria-label="Game statistics" hidden>
@@ -40,6 +40,7 @@
     `);
     const shell = document.querySelector('.map-shell');
     shell.insertAdjacentHTML('beforeend','<div id="milestone" class="milestone" role="status" hidden></div>');
+    shell.insertAdjacentHTML('beforeend','<div id="soloCountdown" class="solo-countdown" role="status" hidden></div>');
     form.insertAdjacentHTML('beforebegin','<div id="questionPanel" class="question-panel" hidden><div class="question-heading"><span id="questionLabel"></span><span id="questionTime"></span></div><h2 id="questionPrompt"></h2><p id="questionHint"></p><div class="question-track"><div id="questionBar"></div></div></div>');
     const $ = id => document.getElementById(id);
     const engine = new Engine(countries, { onEvent });
@@ -114,7 +115,7 @@
         relaxed: 'No time limit. Name all 195 countries, or end whenever you like. Your completion time is the challenge.',
         sprint: 'Three minutes. Name as many countries as you can before the clock runs out.',
         blitz: 'Sixty seconds. Keep typing, keep your streak alive.',
-        sudden: 'Three lives. A wrong submission costs a life; duplicates are safe. No countdown.',
+        sudden: 'Three lives. A wrong submission costs a life; duplicates are safe. No round timer.',
         continent: `Conquer ${region}. Only countries in this continent count; the rest of the world stays dimmed.`
       }[c.variant] : family === 'find' ? (c.variant==='blitz'?'Sixty seconds. Find as many countries as possible.':`20 questions${c.variant==='continent'?` in ${region}`:''}. Tap the country on the map.`) :
         (c.variant==='blitz'?'Sixty seconds. Alternate naming capitals and finding their countries.':`20 questions${c.variant==='continent'?` in ${region}`:''}: 10 typed capitals and 10 map locations.`);
@@ -127,10 +128,18 @@
       $('recentPanel').hidden = !profile.data.recent.length;
       $('storageNote').textContent = profile.available ? 'Personal bests and recent rounds are saved on this device.' : 'Device storage is unavailable. You can still play; results last for this visit.';
     }
-    function start(config = activeConfig()) {
+    async function start(config = activeConfig()) {
+      const token=++startToken;
       remote = null; remoteKey = null; lastConfig = {...config}; result = null;
       platform = true; app.classList.add('platform'); app.classList.remove('choosing','round-ended');
       $('resultsDialog').close(); $('setupError').textContent='';
+      document.querySelector('.setup-panel').hidden=true;document.querySelector('.game-hud').hidden=true;
+      $('endGame').hidden=true;$('freeMap').hidden=true;input.disabled=true;voice.disabled=true;
+      map.start(config.variant==='continent'?config.region:'World',countries);
+      const countdown=$('soloCountdown');countdown.hidden=false;
+      for(const value of [3,2,1]){countdown.textContent=value;await new Promise(resolve=>setTimeout(resolve,900));if(token!==startToken)return;}
+      countdown.textContent='GO';await new Promise(resolve=>setTimeout(resolve,300));
+      if(token!==startToken)return;countdown.hidden=true;
       try { const seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1; const random = GeographyGame.seededRandom(seed); engine.random = () => random.next(); soloReplay = {seed,actions:[]}; engine.start({...config,seed}); profile.select(config); }
       catch(error) { app.classList.add('choosing'); document.querySelector('.setup-panel').hidden=false; $('setupError').textContent=error.message; return; }
     }
@@ -226,6 +235,7 @@
       $('resultsDialog').showModal(); $('playAgain').focus(); updateRecent();
     }
     function menu() {
+      startToken++; $('soloCountdown').hidden=true;
       $('resultsDialog').close(); map.restore(); platform=true;
       app.classList.add('platform','choosing');app.classList.remove('round-ended','map-question');
       document.querySelector('.setup-panel').hidden=false;document.querySelector('.game-hud').hidden=true;
@@ -234,6 +244,7 @@
       form.hidden=false; input.disabled=true; updateRecent();
     }
     function legacy() {
+      startToken++; $('soloCountdown').hidden=true;
       platform=false; app.classList.remove('platform','choosing','round-ended','map-question'); map.restore();
       document.querySelector('.setup-panel').hidden=true; $('questionPanel').hidden=true;
       form.hidden=false;input.disabled=false;voice.disabled=false;
@@ -272,6 +283,7 @@
       connectRemote(hooks) { remote=hooks;engine.now=()=>remote?remote.now():Date.now(); },
       renderRemote(data) {
         if(!remote||!data.game)return;
+        startToken++; $('soloCountdown').hidden=true;
         const s={...data.game,completedCountries:new Set(data.game.completedCountries)};
         const key=data.match.id+':'+s.startedAt,previous=engine.state.currentQuestion?.id,isNewMatch=remoteKey!==key;
         engine.config=data.config;engine.pool=countries.filter(c=>data.config.variant!=='continent'||c.continent===data.config.region);engine.state=s;
