@@ -9,8 +9,8 @@
     const profile = new LocalProfile(storage);
     const app = document.querySelector('.app'), input = document.querySelector('#guessInput'), form = document.querySelector('#guessForm');
     const voice = document.querySelector('#voiceButton'), message = document.querySelector('#message');
-    const families = { conquest: 'World Conquest', find: 'Find the Country', capital: 'Capital Clash' };
-    const variants = { relaxed:'Relaxed', sprint:'Sprint', blitz:'Blitz', sudden:'Sudden Death', continent:'Continent', standard:'Standard', classic:'Classic' };
+    const families = { conquest: 'World Conquest', find: 'Find the Country', capital: 'Capital Clash', flag: 'Flag Games' };
+    const variants = { relaxed:'Relaxed', sprint:'Sprint', blitz:'Blitz', sudden:'Sudden Death', continent:'Continent', standard:'Standard', classic:'Classic', recall:'Flag Recall', match:'Flag Match' };
     let remote = null, remoteKey = null, lastRemoteEvent = null, soloReplay = null;
     let family = profile.data.lastMode.family, lastConfig = null, result = null, platform = true, feedbackTimer, startToken = 0;
     app.insertAdjacentHTML('afterbegin', `
@@ -22,17 +22,27 @@
         <div class="hud-stat timer-stat"><span id="timerLabel">Elapsed</span><strong id="gameTime">0:00</strong></div>
         <div id="gameLives" aria-label="Lives remaining" hidden></div>
       </section>
+      <section id="flagGameView" class="flag-game-view" aria-label="Flag quiz" hidden>
+        <div class="flag-round-heading"><span id="flagQuestionLabel">FLAG RECALL</span><span id="flagQuestionNumber"></span><span id="flagQuestionTime" aria-label="Time remaining"></span></div>
+        <div id="flagStage" class="flag-stage"></div>
+        <h2 id="flagPrompt" class="flag-prompt"></h2>
+        <div id="flagOutlineStage" class="flag-outline-stage" role="img" aria-label="Country outline" hidden></div>
+        <div id="flagChoices" class="flag-choices" role="group" aria-label="Flag choices" hidden></div>
+        <div class="flag-tools"><button id="flagHintButton" type="button">Use a hint <span aria-hidden="true">−25</span></button><p id="flagHintText" class="flag-hint" role="status" aria-live="polite"></p></div>
+      </section>
       <section class="setup-panel" aria-label="Choose a game">
         <p class="eyebrow">THE WORLD IS YOUR PLAYGROUND</p><h2>Where will you begin?</h2>
         <div class="game-choices" role="group" aria-label="Game">
           <button type="button" data-family="conquest"><b>World Conquest</b><span>Name countries. Build your streak.</span></button>
           <button type="button" data-family="find"><b>Find the Country</b><span>See the name. Find it on the map.</span></button>
           <button type="button" data-family="capital"><b>Capital Clash</b><span>Connect countries and their capitals.</span></button>
+          <button type="button" data-family="flag" data-flag-variant="recall"><b>Flag Recall</b><span>See a flag. Type the country.</span></button>
+          <button type="button" data-family="flag" data-flag-variant="match"><b>Flag Match</b><span>See a name. Pick the flag.</span></button>
         </div>
         <div class="setup-fields"><label>Format<select id="gameVariant"></select></label><label id="difficultyField">Difficulty<select id="gameDifficulty"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="expert">Expert</option></select></label><label id="questionTimeField">Time per question<select id="gameQuestionTime"><option value="30">30 seconds</option><option value="20" selected>20 seconds</option><option value="15">15 seconds</option><option value="10">10 seconds · challenging</option></select></label><label id="regionField" hidden>Continent<select id="gameRegion"></select></label></div>
         <p id="gameRules" class="game-rules"></p><p id="setupError" role="status"></p>
         <button type="button" id="startGame" class="primary-button">Start playing <span aria-hidden="true">↗</span></button>
-        <details class="rules-details"><summary>Scoring & rules</summary><p>New answer: 100 points × speed bonus × streak bonus, rounded. Under 2s: ×1.30; under 4s: ×1.20; up to 7s: ×1.10. Streaks of 5 / 10 / 20 / 40 earn ×1.05 / ×1.10 / ×1.20 / ×1.30.</p><p>World Conquest: duplicates change nothing. Invalid submissions reset your streak, and accuracy measures accepted entries. Other games: choose 10, 15, 20, or 30 seconds per question; wrong attempts cost 25 then 50 points. A third mistake or timeout reveals the answer, and accuracy measures questions answered correctly. Difficulty starts with editorial tiers, separately for capitals and map locations.</p></details>
+        <details class="rules-details"><summary>Scoring & rules</summary><p>New answer: 100 points × speed bonus × streak bonus, rounded. Under 2s: ×1.30; under 4s: ×1.20; up to 7s: ×1.10. Streaks of 5 / 10 / 20 / 40 earn ×1.05 / ×1.10 / ×1.20 / ×1.30.</p><p>World Conquest: duplicates change nothing. Invalid submissions reset your streak, and accuracy measures accepted entries. Other games: choose 10, 15, 20, or 30 seconds per question; wrong attempts cost 25 then 50 points. A third mistake or timeout reveals the answer, and accuracy measures questions answered correctly.</p><p>Flag games use the same transparent scoring. Each hint removes 25 points; wrong attempts cost 25, then 50. Flag Match options are unique, with Easy using contrasting choices, Medium favouring the same region, and Hard favouring visually confusable flags.</p></details>
         <details id="recentPanel" class="rules-details"><summary>Recent rounds on this device</summary><div id="recentResults"></div></details>
         <p class="storage-note" id="storageNote"></p>
       </section>
@@ -43,6 +53,7 @@
     shell.insertAdjacentHTML('beforeend','<div id="soloCountdown" class="solo-countdown" role="status" hidden></div>');
     form.insertAdjacentHTML('beforebegin','<div id="questionPanel" class="question-panel" hidden><div class="question-heading"><span id="questionLabel"></span><span id="questionTime"></span></div><h2 id="questionPrompt"></h2><p id="questionHint"></p><div class="question-track"><div id="questionBar"></div></div></div>');
     const $ = id => document.getElementById(id);
+    const flagView = $('flagGameView'), flagStage = $('flagStage'), flagPrompt = $('flagPrompt'), flagOutlineStage = $('flagOutlineStage'), flagChoices = $('flagChoices');
     const engine = new Engine(countries, { onEvent });
     const map = createGameMap(GameMap, (id, regionName) => {
       if (!platform || engine.state.gameStatus !== 'playing') return;
@@ -69,6 +80,7 @@
     function textFeedback(text, type = '') { message.textContent = text; message.className = `message ${type}`; }
     function animate(element, className) { element.classList.remove(className); void element.offsetWidth; element.classList.add(className); element.addEventListener('animationend',()=>element.classList.remove(className),{once:true}); }
     function focusTyping() {
+      if (engine.config?.family === 'flag' && (window.innerWidth < 600 || !matchMedia('(hover: hover) and (pointer: fine)').matches)) return;
       const keepMobileKeyboard = document.activeElement === input;
       if (!input.disabled && !form.hidden && (keepMobileKeyboard || matchMedia('(hover: hover) and (pointer: fine)').matches)) input.focus({preventScroll:true});
     }
@@ -83,12 +95,14 @@
     function voiceAnswer(alternatives) {
       const q=engine.state.currentQuestion;
       let candidates=[];
-      if(engine.config.family==='conquest'){
+      if(engine.config?.family==='conquest'){
         candidates=engine.pool.filter(c=>!engine.state.completedCountries.has(c.country_id))
           .flatMap(c=>c.accepted_names.map(name=>({key:GeographyGame.normalize(name),answer:c.canonical_name,label:c.canonical_name})));
       }else if(q?.type===TYPES.CAPITAL_TYPING){
         const c=byId.get(q.countryId);
         candidates=c.capital.flatMap(capital=>[capital.name,...capital.aliases].map(name=>({key:GeographyGame.normalize(name),answer:capital.name,label:capital.name})));
+      }else if(q?.type===TYPES.FLAG_RECALL){
+        candidates=engine.pool.flatMap(c=>engine.validator.namesFor(c.country_id).map(name=>({key:GeographyGame.normalize(name),answer:c.canonical_name,label:c.canonical_name})));
       }
       const heard=alternatives.map(value=>({raw:value,key:GeographyGame.normalize(value)})).filter(x=>x.key);
       for(const item of heard){const exact=candidates.find(c=>c.key===item.key);if(exact)return {...exact,heard:item.raw,exact:true};}
@@ -100,12 +114,20 @@
       return runner&&runner.ratio<=best.ratio+0.04?null:best;
     }
     function showMilestone(text) { clearTimeout(feedbackTimer); $('milestone').textContent = text; $('milestone').hidden = false; animate($('milestone'),'milestone-pop'); feedbackTimer = setTimeout(()=>$('milestone').hidden=true,900); }
+    function syncChoiceSelection() {
+      const selectedVariant = $('gameVariant').value;
+      document.querySelectorAll('[data-family]').forEach(button => {
+        const selected = button.dataset.family === family && (!button.dataset.flagVariant || button.dataset.flagVariant === selectedVariant);
+        button.classList.toggle('selected', selected);
+        button.setAttribute('aria-pressed', String(selected));
+      });
+    }
     function activeConfig() { return { family, variant:$('gameVariant').value, difficulty:$('gameDifficulty').value, region:$('gameRegion').value, questionTime:Number($('gameQuestionTime').value) }; }
     function chooseFamily(next, variant) {
       family = next;
-      document.querySelectorAll('[data-family]').forEach(b=>{b.classList.toggle('selected',b.dataset.family===family);b.setAttribute('aria-pressed',String(b.dataset.family===family));});
       $('gameVariant').replaceChildren(...Object.keys(MODES[family]).map(value=>new Option(variants[value],value)));
       if (variant && MODES[family][variant]) $('gameVariant').value = variant;
+      syncChoiceSelection();
       updateSetup();
     }
     function updateSetup() {
@@ -117,10 +139,12 @@
         blitz: 'Sixty seconds. Keep typing, keep your streak alive.',
         sudden: 'Three lives. A wrong submission costs a life; duplicates are safe. No round timer.',
         continent: `Conquer ${region}. Only countries in this continent count; the rest of the world stays dimmed.`
-      }[c.variant] : family === 'find' ? (c.variant==='blitz'?'Sixty seconds. Find as many countries as possible.':`20 questions${c.variant==='continent'?` in ${region}`:''}. Tap the country on the map.`) :
-        (c.variant==='blitz'?'Sixty seconds. Alternate naming capitals and finding their countries.':`20 questions${c.variant==='continent'?` in ${region}`:''}: 10 typed capitals and 10 map locations.`);
+      }[c.variant] : family === 'find' ? (c.variant==='blitz'?'Sixty seconds. Find as many countries as possible.':`20 questions${c.variant==='continent'?` in ${region}`:''}. Tap the country on the map.`) : family === 'capital' ?
+        (c.variant==='blitz'?'Sixty seconds. Alternate naming capitals and finding their countries.':`20 questions${c.variant==='continent'?` in ${region}`:''}: 10 typed capitals and 10 map locations.`) :
+        (c.variant === 'match' ? '20 questions. See a country name and choose one of four unique flags.' : '20 questions. Identify an authentic flag by typing its country name. No answer suggestions are shown during recall.');
       $('gameRules').textContent = rules;
       $('setupError').textContent = '';
+      syncChoiceSelection();
       profile.select(c);
     }
     function updateRecent() {
@@ -128,14 +152,80 @@
       $('recentPanel').hidden = !profile.data.recent.length;
       $('storageNote').textContent = profile.available ? 'Personal bests and recent rounds are saved on this device.' : 'Device storage is unavailable. You can still play; results last for this visit.';
     }
+    function disableFlagAnswers() {
+      input.disabled = true; voice.disabled = true;
+      flagChoices.querySelectorAll('button').forEach(button => { button.disabled = true; });
+      $('flagHintButton').disabled = true;
+    }
+    function renderFlagQuestion(q, s) {
+      const country = byId.get(q.countryId);
+      if (!country || !window.FlagComponent) return;
+      flagView.hidden = false;
+      flagView.classList.remove('flag-answer-good','flag-answer-bad');
+      $('flagQuestionLabel').textContent = q.type === TYPES.FLAG_MATCH ? 'FLAG MATCH' : 'FLAG RECALL';
+      $('flagQuestionNumber').textContent = `${s.questionNumber}${s.questionLimit ? ` / ${s.questionLimit}` : ''}`;
+      $('flagHintButton').disabled = false;
+      $('flagHintText').textContent = 'Hints cost 25 points.';
+      flagStage.replaceChildren();
+      flagOutlineStage.replaceChildren();
+      flagOutlineStage.hidden = true;
+      flagChoices.replaceChildren();
+      if (q.type === TYPES.FLAG_RECALL) {
+        flagStage.hidden = false;
+        flagStage.appendChild(FlagComponent.create(country, { size:'hero', alt:'Flag to identify', fetchPriority:'high' }));
+        flagPrompt.textContent = 'Which country flies this flag?';
+        flagChoices.hidden = true;
+        form.hidden = false; input.disabled = false; voice.disabled = false;
+        markButton.textContent = 'Check answer';
+        input.placeholder = 'Type a country name'; input.setAttribute('aria-label','Type a country name');
+        voice.setAttribute('aria-label','Say country name'); voice.title = 'Say country name';
+        textFeedback('Type the country name. No answer list is shown during recall.');
+        focusTyping();
+        return;
+      }
+      flagStage.hidden = true;
+      flagPrompt.textContent = q.prompt;
+      const feature = country.map_geometry_id ? GameMap.feature(country.map_geometry_id) : null;
+      if (feature && window.CountryOutlineComponent) {
+        flagOutlineStage.appendChild(CountryOutlineComponent.create(feature, { ariaLabel:`Outline map of ${country.canonical_name}` }));
+        flagOutlineStage.hidden = false;
+      }
+      flagChoices.hidden = false;
+      flagChoices.setAttribute('aria-label',`Four flag options for ${q.prompt}`);
+      q.options.forEach((id, index) => {
+        const optionCountry = byId.get(id);
+        const letter = String.fromCharCode(65 + index);
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'flag-option'; button.dataset.flagId = id;
+        button.setAttribute('aria-label',`Flag option ${letter}`);
+        button.appendChild(FlagComponent.create(optionCountry, { size:'card', alt:`Flag option ${letter}` }));
+        const label = document.createElement('span'); label.className = 'flag-option-label'; label.textContent = `Option ${letter}`;
+        button.appendChild(label);
+        button.addEventListener('click', () => {
+          if (button.disabled || engine.state.gameStatus !== 'playing') return;
+          tickSolo();
+          soloReplay?.actions.push({ kind:'flag', value:id, at:Date.now()-engine.state.startedAt });
+          engine.submitFlag(id);
+        });
+        flagChoices.appendChild(button);
+      });
+      form.hidden = true; input.disabled = true; voice.disabled = true; markButton.textContent = 'Mark';
+      textFeedback('Choose the flag that belongs to this country.');
+    }
+    function flagButtonFor(id) {
+      return [...flagChoices.querySelectorAll('button')].find(button => button.dataset.flagId === id) || null;
+    }
     async function start(config = activeConfig()) {
       const token=++startToken;
       remote = null; remoteKey = null; lastConfig = {...config}; result = null;
       platform = true; app.classList.add('platform'); app.classList.remove('choosing','round-ended');
+      const flagGame = config.family === 'flag';
+      app.classList.toggle('flag-platform', flagGame);
       $('resultsDialog').close(); $('setupError').textContent='';
       document.querySelector('.setup-panel').hidden=true;document.querySelector('.game-hud').hidden=true;
       $('endGame').hidden=true;$('freeMap').hidden=true;input.disabled=true;voice.disabled=true;
-      map.start(config.variant==='continent'?config.region:'World',countries);
+      flagView.hidden = true; form.hidden = flagGame; flagChoices.hidden = true;
+      if (flagGame) map.restore(); else map.start(config.variant==='continent'?config.region:'World',countries);
       const countdown=$('soloCountdown');countdown.hidden=false;
       for(const value of [3,2,1]){countdown.textContent=value;await new Promise(resolve=>setTimeout(resolve,900));if(token!==startToken)return;}
       countdown.textContent='GO';await new Promise(resolve=>setTimeout(resolve,300));
@@ -157,6 +247,7 @@
       if (s.currentQuestion) {
         const remaining = s.currentQuestion.resolved ? 0 : Math.max(0,(s.currentQuestion.deadline-engine.now())/1000);
         $('questionTime').textContent = `${Math.ceil(remaining)}s · ${s.questionNumber}${s.questionLimit?` / ${s.questionLimit}`:''}`;
+        $('flagQuestionTime').textContent = `${Math.ceil(remaining)}s`;
         $('questionBar').style.width = `${100*remaining/Math.max(1,s.currentQuestion.timeLimit)}%`;
       }
     }
@@ -168,11 +259,28 @@
         document.title = $('gameTitle').textContent;
         input.value=''; input.disabled=false; voice.disabled=false;
         GameMap.stopVoice();
-        map.start(engine.config.variant==='continent'?engine.config.region:'World',countries);
+        const flagGame = engine.config.family === 'flag';
+        app.classList.toggle('flag-platform', flagGame);
+        if (flagGame) {
+          map.restore();
+          form.hidden = true;
+          flagView.hidden = true;
+        } else {
+          map.start(engine.config.variant==='continent'?engine.config.region:'World',countries);
+          form.hidden = false;
+        }
         $('milestone').hidden=true;
       } else if (event.type === 'question') {
         GameMap.stopVoice();
         const q = event.question, conquest = engine.config.family==='conquest';
+        if (engine.config.family === 'flag') {
+          app.classList.add('flag-platform');
+          $('questionPanel').hidden = true;
+          app.classList.remove('map-question');
+          renderFlagQuestion(q, s);
+          updateHUD(s);
+          return;
+        }
         const typing = conquest || q.type===TYPES.CAPITAL_TYPING;
         $('questionPanel').hidden = conquest;
         form.hidden = !typing; input.disabled = !typing; voice.disabled = !typing;
@@ -191,23 +299,57 @@
         voice.setAttribute('aria-label',conquest?'Say country name':'Say capital name');
         input.value=''; if (typing) focusTyping();
       } else if (event.type === 'correct') {
-        map.feedback(event.countryId,'good',engine.config.family==='conquest');
-        const c=byId.get(event.countryId); textFeedback(`${c.canonical_name} · +${event.gained} · ${event.seconds.toFixed(1)}s`,'good');
-        animate($('gameScore'),'score-pop');
-        if (engine.config.family!=='conquest') { input.disabled=true; voice.disabled=true; map.enableClick(false); }
+        const c=byId.get(event.countryId);
+        if (engine.config.family === 'flag') {
+          flagView.classList.remove('flag-answer-bad'); flagView.classList.add('flag-answer-good');
+          disableFlagAnswers();
+          textFeedback(`Correct — ${c.canonical_name} · +${event.gained} · ${event.seconds.toFixed(1)}s${event.hintPenalty ? ` · hint −${event.hintPenalty}` : ''}`,'good');
+          animate(flagView,'flag-correct');
+        } else {
+          map.feedback(event.countryId,'good',engine.config.family==='conquest');
+          textFeedback(`${c.canonical_name} · +${event.gained} · ${event.seconds.toFixed(1)}s`,'good');
+          animate($('gameScore'),'score-pop');
+          if (engine.config.family!=='conquest') { input.disabled=true; voice.disabled=true; map.enableClick(false); }
+        }
       } else if (event.type === 'wrong') {
-        if (event.countryId) map.feedback(event.countryId,'bad');
-        const clicked = byId.get(event.countryId)?.canonical_name || event.clickedName;
-        textFeedback(engine.config.family==='conquest' ? (event.reason==='region'?'Outside this continent. Streak reset.':'Not recognised. Streak reset.') : `${clicked?clicked+'. ':''}Try again${event.penalty?` · −${event.penalty}`:''}.`,'bad');
-        animate(form.closest('.control'),'wrong-answer');
+        if (engine.config.family === 'flag') {
+          flagView.classList.remove('flag-answer-good'); flagView.classList.add('flag-answer-bad');
+          const wrongButton = engine.state.currentQuestion?.type === TYPES.FLAG_MATCH ? flagButtonFor(event.countryId) : null;
+          if (wrongButton) { wrongButton.classList.add('flag-option-wrong'); wrongButton.disabled = true; }
+          textFeedback(`Not quite. Try again${event.penalty ? ` · −${event.penalty}` : ''}.`,'bad');
+          animate(flagView,'flag-wrong');
+        } else {
+          if (event.countryId) map.feedback(event.countryId,'bad');
+          const clicked = byId.get(event.countryId)?.canonical_name || event.clickedName;
+          textFeedback(engine.config.family==='conquest' ? (event.reason==='region'?'Outside this continent. Streak reset.':'Not recognised. Streak reset.') : `${clicked?clicked+'. ':''}Try again${event.penalty?` · −${event.penalty}`:''}.`,'bad');
+          animate(form.closest('.control'),'wrong-answer');
+        }
       } else if (event.type === 'duplicate') textFeedback('Already found.');
+      else if (event.type === 'hint') {
+        if (engine.config.family === 'flag') {
+          const removeButton = event.removeId ? flagButtonFor(event.removeId) : null;
+          if (removeButton) { removeButton.hidden = true; removeButton.setAttribute('aria-hidden','true'); }
+          $('flagHintButton').disabled = true;
+          $('flagHintText').textContent = `${event.hint} (−${event.penalty} points)`;
+          textFeedback(event.hint,'pending');
+        }
+      }
       else if (event.type === 'reveal') {
-        map.feedback(event.countryId,'reveal'); map.enableClick(false); input.disabled=true; voice.disabled=true;
         const c=byId.get(event.countryId); const q=s.currentQuestion;
-        textFeedback(`${event.reason==='timeout'?'TIME UP':'Answer'} · ${q.type===TYPES.CAPITAL_TYPING?c.capital.map(c=>`${c.name} (${c.role})`).join(' / '):c.canonical_name}`,'bad');
+        if (engine.config.family === 'flag') {
+          disableFlagAnswers(); flagView.classList.remove('flag-answer-good'); flagView.classList.add('flag-answer-bad');
+          if (q.type === TYPES.FLAG_MATCH) flagButtonFor(event.countryId)?.classList.add('flag-option-correct');
+          $('flagHintText').textContent = `Answer: ${c.canonical_name}.`;
+          textFeedback(`${event.reason==='timeout'?'Time up.':'Answer revealed.'} The flag is ${c.canonical_name}.`,'bad');
+        } else {
+          map.feedback(event.countryId,'reveal'); map.enableClick(false); input.disabled=true; voice.disabled=true;
+          textFeedback(`${event.reason==='timeout'?'TIME UP':'Answer'} · ${q.type===TYPES.CAPITAL_TYPING?c.capital.map(c=>`${c.name} (${c.role})`).join(' / '):c.canonical_name}`,'bad');
+        }
       } else if (event.type === 'milestone') showMilestone(`${event.count} COUNTRIES FOUND`);
       else if (event.type === 'end') {
-        GameMap.stopVoice();input.disabled=true;voice.disabled=true;map.end();$('endGame').hidden=true;
+        GameMap.stopVoice();input.disabled=true;voice.disabled=true;
+        if (engine.config.family !== 'flag') map.end();
+        $('endGame').hidden=true;
         event.result.replay = {config:engine.config,seed:soloReplay?.seed,actions:soloReplay?.actions||[],elapsed:Math.max(s.elapsedTime*1000,soloReplay?.actions.at(-1)?.at||0)};
         result=profile.record(event.result);showResults(result);
       }
@@ -225,29 +367,30 @@
       $('resultRegions').textContent=`Strongest region: ${regionText(r.strongestRegion)}. Weakest region: ${regionText(r.weakestRegion)}.`;
       $('resultNote').textContent=isConquest
         ? 'Accuracy is the share of submitted country names that were accepted. Answer times use accepted countries only.'
-        : `Accuracy is the share of questions answered correctly. Answer times run from the prompt appearing until the correct answer, including retries.${r.incorrectAttempts?` You made ${r.incorrectAttempts} incorrect ${r.incorrectAttempts===1?'attempt':'attempts'}; these affect score and practice suggestions.`:''}`;
-      $('missedSummary').textContent=`Countries to practise (${r.missedCountries.length})`;
+        : `${r.config.family==='flag' ? 'Flags use the same 100-point base, speed/streak bonuses, and −25-point hints.' : 'Accuracy is the share of questions answered correctly.'} Answer times run from the prompt appearing until the correct answer, including retries.${r.incorrectAttempts?` You made ${r.incorrectAttempts} incorrect ${r.incorrectAttempts===1?'attempt':'attempts'}; these affect score and practice suggestions.`:''}${r.hintsUsed?` You used ${r.hintsUsed} hint${r.hintsUsed===1?'':'s'} for −${r.hintPenalty} points.`:''}`;
+      $('missedSummary').textContent=`${r.config.family==='flag'?'Flags':'Countries'} to practise (${r.missedCountries.length})`;
       $('missedDetails').hidden=!r.missedCountries.length; $('missedDetails').open=false;
       $('missedList').replaceChildren(...r.missedCountries.map(id=>{const p=document.createElement('p');const c=byId.get(id);p.textContent=c?`${c.canonical_name}${r.config.family==='capital'?` — ${c.capital.map(x=>`${x.name} (${x.role})`).join('; ')}`:''}`:id;return p;}));
       $('finalMistakes').textContent=r.mistakes.length?`Submitted mistakes: ${r.mistakes.slice(-3).join(' · ')}`:'';
       $('practiceMissed').disabled=!r.missedCountries.length;
-      $('challengeFriends').disabled=!!r.config.practiceIds;
+      $('challengeFriends').disabled=!!r.config.practiceIds || r.config.family==='flag';
       $('resultsDialog').showModal(); $('playAgain').focus(); updateRecent();
     }
     function menu() {
       startToken++; $('soloCountdown').hidden=true;
       $('resultsDialog').close(); map.restore(); platform=true;
-      app.classList.add('platform','choosing');app.classList.remove('round-ended','map-question');
+      app.classList.add('platform','choosing');app.classList.remove('round-ended','map-question','flag-platform');
       document.querySelector('.setup-panel').hidden=false;document.querySelector('.game-hud').hidden=true;
       $('endGame').hidden=true;$('freeMap').hidden=false;$('questionPanel').hidden=true;
       $('gameTitle').textContent='Choose your game'; document.title='Country Memory Map';
-      form.hidden=false; input.disabled=true; updateRecent();
+      flagView.hidden=true; flagChoices.replaceChildren(); $('flagHintText').textContent=''; $('flagHintButton').disabled=false;
+      form.hidden=false; markButton.textContent='Mark'; input.disabled=true; updateRecent();
     }
     function legacy() {
       startToken++; $('soloCountdown').hidden=true;
-      platform=false; app.classList.remove('platform','choosing','round-ended','map-question'); map.restore();
+      platform=false; app.classList.remove('platform','choosing','round-ended','map-question','flag-platform'); map.restore();
       document.querySelector('.setup-panel').hidden=true; $('questionPanel').hidden=true;
-      form.hidden=false;input.disabled=false;voice.disabled=false;
+      flagView.hidden=true; flagChoices.replaceChildren(); form.hidden=false;markButton.textContent='Mark';input.disabled=false;voice.disabled=false;
       textFeedback('Free map: the original country and capital checkers.');
     }
     window.gameController={
@@ -302,14 +445,18 @@
       closeResults() {$('resultsDialog').close();}
 
     };
-    document.querySelectorAll('[data-family]').forEach(b=>b.addEventListener('click',()=>chooseFamily(b.dataset.family)));
+    document.querySelectorAll('[data-family]').forEach(b=>b.addEventListener('click',()=>chooseFamily(b.dataset.family,b.dataset.flagVariant)));
     for (const name of ['Africa','Asia','Europe','North America','South America','Oceania']) $('gameRegion').add(new Option(`${name} · ${countries.filter(c=>c.continent===name).length} countries`,name));
     $('gameDifficulty').value=profile.data.difficulty;
     ['gameVariant','gameDifficulty','gameRegion','gameQuestionTime'].forEach(id=>$(id).addEventListener('change',updateSetup));
     $('startGame').addEventListener('click',()=>start());
     $('endGame').addEventListener('click',()=>remote?remote.finish():engine.finish('manual'));
+    $('flagHintButton').addEventListener('click',()=>{
+      if (engine.config?.family !== 'flag') return;
+      engine.useHint();
+    });
     $('playAgain').addEventListener('click',()=>start(lastConfig));
-    $('practiceMissed').addEventListener('click',()=>start({...lastConfig,variant:lastConfig.family==='conquest'?'relaxed':lastConfig.family==='find'?'standard':'classic',practiceIds:result.missedCountries}));
+    $('practiceMissed').addEventListener('click',()=>start({...lastConfig,variant:lastConfig.family==='conquest'?'relaxed':lastConfig.family==='find'?'standard':lastConfig.family==='flag'?lastConfig.variant:'classic',practiceIds:result.missedCountries}));
     $('challengeFriends').addEventListener('click',()=>{if(window.Friends&&result?.replay){$('resultsDialog').close();window.Friends.challenge(result.replay);}});
     $('chooseGame').addEventListener('click',menu);$('freeMap').addEventListener('click',legacy);$('openGames').addEventListener('click',menu);
     $('resultsDialog').addEventListener('cancel',e=>{e.preventDefault();menu();});

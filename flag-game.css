@@ -1,0 +1,86 @@
+/* Centered flag-game stage. Images stay inside a reserved frame and retain their SVG ratio. */
+.flag-game-view { display:flex; grid-row:3; min-height:0; width:100%; flex-direction:column; align-items:center; justify-content:center; gap:clamp(10px,2vh,20px); padding:clamp(10px,2vw,24px); color:#203d35; text-align:center; }
+.flag-platform { grid-template-rows:auto auto minmax(260px,1fr) auto; background:linear-gradient(180deg,#f4f8f7 0%,#e8f1ee 100%); }
+.flag-platform .map-shell, .flag-platform .continentbar { display:none !important; }
+.flag-platform .flag-game-view { display:flex; }
+.flag-platform .control { grid-row:4; }
+.flag-platform .game-hud { color:#203d35; }
+.flag-round-heading { display:flex; align-items:center; justify-content:center; gap:10px; width:min(760px,100%); color:#437067; font-size:11px; font-weight:850; letter-spacing:1.3px; }
+.flag-round-heading span:last-child { margin-left:auto; letter-spacing:0; font-size:13px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+#flagQuestionNumber { letter-spacing:0; font-variant-numeric:tabular-nums; }
+.flag-stage { display:grid; place-items:center; width:min(760px,100%); min-height:clamp(170px,30vh,340px); }
+.flag-frame { display:grid; place-items:center; box-sizing:border-box; min-width:0; min-height:0; width:100%; overflow:hidden; border:1px solid #cbdcd6; border-radius:14px; background:linear-gradient(135deg,#ffffff,#f2f7f4); box-shadow:0 16px 34px #21473a14; }
+.flag-frame--hero { width:min(760px,100%); height:clamp(170px,31vh,340px); padding:clamp(10px,2vw,22px); }
+.flag-frame--card { height:clamp(92px,13vh,138px); padding:10px; border-radius:10px; box-shadow:none; }
+.flag-frame--compact { height:82px; padding:7px; border-radius:8px; box-shadow:none; }
+.flag-image { display:block; min-width:0; min-height:0; width:100%; height:100%; max-width:100%; max-height:100%; object-fit:contain; object-position:center; }
+.flag-prompt { width:min(760px,100%); margin:0; color:#173d33; font-size:clamp(22px,3vw,36px); line-height:1.08; letter-spacing:-.7px; }
+.flag-outline-stage { position:relative; display:grid; place-items:center; flex:0 0 clamp(54px,8vh,84px); width:min(220px,100%); overflow:hidden; color:#4c9078; pointer-events:none; }
+.country-outline { position:absolute; inset:0; display:block; width:100%; height:100%; min-width:0; min-height:0; max-width:100%; max-height:100%; overflow:visible; }
+.country-outline-path { fill:currentColor; fill-opacity:.13; stroke:currentColor; stroke-width:1.8; stroke-linejoin:round; }
+.flag-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; width:min(760px,100%); }
+.flag-choices .flag-option { display:flex; min-height:150px; flex-direction:column; align-items:stretch; justify-content:space-between; gap:8px; padding:8px; border:2px solid #d5e4de; border-radius:14px; background:#ffffff; color:#24483e; transition:border-color .15s ease,transform .15s ease,background .15s ease; }
+.flag-choices .flag-option:hover { border-color:#4b907a; transform:translateY(-2px); }
+.flag-choices .flag-option:focus-visible { outline:3px solid #2f6f91; outline-offset:3px; }
+.flag-option-label { padding:3px 0 2px; color:#58746c; font-size:11px; font-weight:850; letter-spacing:1px; text-transform:uppercase; }
+.flag-choices .flag-option-wrong { border-color:#c94a4f; background:#fff1f0; opacity:.72; }
+.flag-choices .flag-option-correct { border-color:#20825f; background:#e9f8ef; box-shadow:0 0 0 3px #20825f25; }
+.flag-tools { display:flex; align-items:center; justify-content:center; gap:12px; min-height:44px; width:min(760px,100%); }
+.flag-tools button { color:#315c50; background:#f7fbf9; border-color:#bfd6cc; }
+.flag-tools button:disabled { opacity:.56; cursor:not-allowed; }
+.flag-hint { min-height:20px; margin:0; color:#61786f; font-size:13px; font-weight:650; }
+.flag-answer-good .flag-frame { border-color:#2c9a6d; box-shadow:0 0 0 4px #2c9a6d20,0 18px 40px #2c9a6d20; }
+.flag-answer-bad .flag-frame { border-color:#c94a4f; }
+.flag-correct { animation:flag-correct .5s ease-out; }
+.flag-wrong { animation:flag-wrong .35s ease-out; }
+@keyframes flag-correct { 35% { transform:scale(1.012); } }
+@keyframes flag-wrong { 25%,75% { transform:translateX(-4px); } 50% { transform:translateX(4px); } }
+.flag-platform .control { background:#ffffff; border-color:#d5e4de; }
+@media (prefers-color-scheme:dark) {
+  .flag-platform { background:linear-gradient(180deg,#17241f 0%,#111b18 100%); color:#e6f1ec; }
+  .flag-prompt { color:#f2fbf6; }
+  .flag-round-heading { color:#9dcbb7; }
+  .flag-frame { border-color:#55766b; background:linear-gradient(135deg,#273a34,#1b2925); }
+  .flag-choices .flag-option { border-color:#48665d; background:#20322c; color:#eff9f4; }
+  .flag-choices .flag-option:hover { border-color:#7bc4a6; }
+  .flag-option-label, .flag-hint { color:#aac4b8; }
+  .flag-tools button { color:#e2f1eb; background:#20322c; border-color:#56786b; }
+  .flag-choices .flag-option-wrong { border-color:#ec7c7f; background:#43282a; }
+  .flag-choices .flag-option-correct { border-color:#70d5a3; background:#1f4a38; }
+  .flag-platform .control { background:#20322c; border-color:#48665d; }
+}
+@media (max-width:760px) {
+  .flag-platform { min-height:500px; grid-template-rows:auto auto minmax(250px,1fr) auto; }
+  .flag-game-view { gap:10px; padding:8px 4px; }
+  .flag-stage { min-height:clamp(150px,27vh,230px); }
+  .flag-frame--hero { height:clamp(150px,27vh,230px); padding:10px; border-radius:12px; }
+  .flag-prompt { font-size:clamp(22px,7vw,30px); }
+  .flag-outline-stage { flex-basis:64px; width:min(180px,100%); }
+  .flag-choices { gap:8px; }
+  .flag-choices .flag-option { min-height:125px; padding:6px; border-radius:11px; }
+  .flag-frame--card { height:clamp(78px,15vh,112px); padding:7px; }
+  .flag-tools { flex-wrap:wrap; gap:5px 10px; }
+  .flag-hint { flex-basis:100%; order:2; }
+  .flag-platform .control { padding:8px; }
+}
+@media (max-width:430px) {
+  .flag-platform { grid-template-rows:auto auto minmax(230px,1fr) auto; }
+  .flag-game-view { gap:7px; }
+  .flag-stage { min-height:140px; }
+  .flag-frame--hero { height:140px; }
+  .flag-outline-stage { flex-basis:54px; }
+  .flag-choices .flag-option { min-height:112px; }
+  .flag-frame--card { height:70px; }
+  .flag-platform #guessInput { font-size:14px; }
+  .flag-round-heading { font-size:10px; }
+}
+@media (max-height:500px) and (min-width:600px) {
+  .flag-platform { min-height:360px; grid-template-rows:auto auto minmax(145px,1fr) auto; }
+  .flag-game-view { gap:6px; padding:4px 12px; }
+  .flag-stage, .flag-frame--hero { min-height:120px; height:120px; }
+  .flag-choices .flag-option { min-height:100px; }
+  .flag-frame--card { height:62px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .flag-correct, .flag-wrong { animation:none !important; }
+}

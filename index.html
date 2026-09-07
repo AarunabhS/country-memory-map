@@ -545,6 +545,7 @@
     }
   </style>
   <link rel="stylesheet" href="game.css?v=20260907-countdown1">
+  <link rel="stylesheet" href="flag-game.css?v=20260908-flags5">
   <link rel="stylesheet" href="multiplayer.css?v=20260907-friends1">
 </head>
 <body>
@@ -602,7 +603,8 @@
     <div class="loading" id="loading">Loading map...</div>
   </main>
 
-  <script src="game-core.js?v=20260907-mobile2"></script>
+  <script src="flag-data.js?v=20260908-flags1"></script>
+  <script src="game-core.js?v=20260908-flags1"></script>
   <script src="countries-data.js"></script>
   <script src="capitals-data.js"></script>
   <script>
@@ -746,6 +748,7 @@
     const foundCapitalCityIds = new Set();
     const countryByAlias = new Map();
     const countryById = new Map();
+    let countryAnswerValidator = null;
     const countryIdByName = new Map();
     const capitalByAlias = new Map();
     const countryRecords = [];
@@ -763,16 +766,7 @@
     let legendNote = null;
 
     function normalize(value) {
-      return String(value || "")
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/&/g, " and ")
-        .replace(/\bsaint\b/g, "st")
-        .replace(/\bthe\b/g, "")
-        .replace(/[^a-zA-Z0-9]+/g, " ")
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, " ");
+      return GeographyGame.normalize(value);
     }
 
     function project(coord) {
@@ -1376,7 +1370,7 @@
     function handleCountryGuess(raw) {
       const alias = normalize(raw);
       if (!alias) return;
-      const id = countryByAlias.get(alias);
+      const id = countryAnswerValidator?.resolveId(raw) || countryByAlias.get(alias);
       if (!id) {
         setMessage(`No match for "${raw}". Try a common country name or ISO code.`, "bad");
         return;
@@ -1482,8 +1476,9 @@
         }
         const gameHandled = window.gameController?.handleVoice?.(alternatives);
         if (gameHandled) return;
-        const activeAliases = quizMode === "capitals" ? capitalByAlias : countryByAlias;
-        const transcript = alternatives.find(value => activeAliases.has(normalize(value))) || alternatives[0] || "";
+        const transcript = quizMode === "capitals"
+          ? alternatives.find(value => capitalByAlias.has(normalize(value))) || alternatives[0] || ""
+          : alternatives.find(value => countryAnswerValidator?.resolve(value)) || alternatives[0] || "";
         input.value = transcript;
         if (transcript) {
           handleGuess(transcript);
@@ -1808,6 +1803,14 @@
       for (const record of regionRecords) {
         if (record.ownerName) record.ownerId = countryIdByName.get(record.ownerName) || null;
       }
+      countryAnswerValidator = new window.GeographyGame.AnswerValidator(countryRecords.map(record => {
+        const feature = countryById.get(record.id)?.feature;
+        return {
+          id: record.id,
+          canonicalName: record.name,
+          aliases: feature ? aliasesFor(feature) : []
+        };
+      }));
       renderCapitals(capitals);
       capitalModeButton.disabled = !capitalRecords.length;
 
@@ -1946,9 +1949,11 @@
     init();
   </script>
   <script src="country-borders.js"></script>
-  <script src="game-data.js?v=20260907-friends1"></script>
+  <script src="game-data.js?v=20260908-flags1"></script>
   <script src="game-map.js?v=20260907-countdown1"></script>
-  <script src="game-ui.js?v=20260907-countdown1"></script>
+  <script src="flag-component.js?v=20260908-flags1"></script>
+  <script src="country-outline.js?v=20260908-flags1"></script>
+  <script src="game-ui.js?v=20260908-flags3"></script>
   <script src="multiplayer-config.js?v=20260907-friends1"></script>
   <script src="multiplayer-service.js?v=20260907-friends1"></script>
   <script src="multiplayer-ui.js?v=20260907-mobile2"></script>

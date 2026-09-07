@@ -7,6 +7,8 @@ Static geography games, published from `main` at https://www.arunabhosom.com/cou
 - **World Conquest:** Relaxed, 3-minute Sprint, 60-second Blitz, three-life Sudden Death, Continent.
 - **Find the Country:** 20-question Standard, 60-second Blitz, 20-question Continent.
 - **Capital Clash:** 20-question Classic (10 typed, 10 clicked), 60-second alternating Blitz, 20-question Continent.
+- **Flag Recall:** identify an authentic country flag by typing its country or territory name; normal recall has no answer suggestions.
+- **Flag Match:** choose the correct flag from four unique flag cards. Easy, Medium and Hard alter distractor selection, including same-region and curated confusable-flag preferences.
 - **Free map:** the original country and capital recognition modes, aliases, territories, labels, filters, zoom, touch gestures and speech.
 
 All games use the same 195-country classification as the original checker. Small pools repeat only after every eligible country has been served. Practice Missed uses exactly the countries missed or answered with retries and is separate from personal-best comparisons.
@@ -16,6 +18,10 @@ All games use the same 195-country classification as the original checker. Small
 - `index.html`: retained map renderer and free checker; `GameMap` is its narrow adapter interface.
 - `game-data.js`: projects the existing map/capital sources into one country model. Capitals are arrays of name, aliases, role and coordinates. Geography, capital, flag and shape difficulty fields are independent. Editorial v1 difficulty metadata can be replaced by performance statistics without changing question logic.
 - `game-core.js`: DOM-independent `Engine`, shared question types, scoring, state, deadlines, result aggregation and `LocalProfile` persistence. Clock and randomness are injectable. Future question types can reuse `submitCountry`, `resolveQuestion`, and the results model.
+- `flag-data.js` / `flags/`: curated flag metadata and 195 self-hosted SVG assets using ISO alpha-2 filenames. `flag-component.js` renders each asset in a reserved, native-proportion frame.
+- `country-outline.js`: reuses the existing country GeoJSON to render a compact, native-proportion border silhouette above Flag Match options. The outline has its own clipped frame so it cannot cover or intercept answer cards.
+- `flag-game.css` / `flag-gallery.html`: centered flag-game presentation and the internal complete-inventory QA gallery. The gallery supports search, continent filtering, light/dark surfaces and focused checks for detailed flags.
+- `AnswerValidator` in `game-core.js`: shared normalization and explicit aliases for map, typed-game and flag answers.
 - `game-map.js`: map feedback, region dimming, small-country targets, touch-safe selection and keyboard selection. Broad regional views appear for small targets; successful typed answers never move or zoom the view.
 - `game-ui.js` / `game.css`: shared setup, HUD, live feedback and results. The interface ticks the engine every 50ms; every answer also checks absolute deadlines before validation. A delayed/background tick cannot admit a late answer. Successful/failed questions transition after 700ms, which remains part of timed sessions.
 - `country-borders.js`: shared-edge adjacency derived from retained Natural Earth geometry. Regenerate with `python3 scripts/derive-borders.py`. It reflects that geometry and is not an independent legal boundary source.
@@ -38,4 +44,4 @@ These checks complement the existing dataset's 2026-09-01 validation. They are n
 
 ## Validation
 
-Run `node --test tests/*.test.cjs`. The tests cover every mode, all 195 canonical answers, every accepted capital spelling, timing/scoring thresholds, third-error elimination, duplicates, practice, region and difficulty coverage, and persistence failure. Browser QA covers phone, tablet and desktop layouts, actual map clicks, game selection, shared results, retries, free-map compatibility and countdown locking. Physical-device microphone permissions remain browser-controlled; no voice recordings are stored by this app.
+Run `node --test tests/*.test.cjs`. The tests cover every mode, all 195 canonical answers, every accepted capital spelling, timing/scoring thresholds, third-error elimination, duplicates, practice, region and difficulty coverage, persistence failure, flag-answer aliases, flag distractor uniqueness, hint penalties, local SVG coverage and native flag ratios. Browser QA covers phone, tablet and desktop layouts, actual map clicks, game selection, shared results, retries, free-map compatibility, countdown locking, Flag Recall, Flag Match and the complete flag gallery. Physical-device microphone permissions remain browser-controlled; no voice recordings are stored by this app. See [AUDIT.md](AUDIT.md) for the pre-change inventory and reuse record.

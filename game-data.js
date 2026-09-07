@@ -12,6 +12,9 @@ window.buildGameCountries = function (bridge) {
     const p = bridge.feature(record.id).properties;
     const iso = p.ISO_A3_EH !== '-99' ? p.ISO_A3_EH : p.ADM0_A3;
     const iso2 = /^[A-Z]{2}$/.test(p.ISO_A2_EH) ? p.ISO_A2_EH : null;
+    const flagCode = iso2?.toLowerCase() || null;
+    const flagProfile = window.FLAG_DATA?.profiles?.[flagCode] || {};
+    const flagConfusableWith = [...new Set(window.FLAG_DATA?.confusables?.[flagCode] || [])];
     const capitals = bridge.capitals.filter(c => c.countryId === record.id).map(c => {
       const original = window.CAPITALS_DATA.find(x => x.name === c.name && bridge.countryId(x.country) === record.id);
       return { name: c.name, aliases: [...new Set([...(original?.aliases || []), ...(extraCapitalAliases[c.name] || [])])],
@@ -21,6 +24,8 @@ window.buildGameCountries = function (bridge) {
       accepted_names: [...new Set([record.name, ...bridge.aliases(record.id)])], iso_code: iso, continent: record.continent,
       subregion: p.SUBREGION, capital: capitals, latitude: Number(p.LABEL_Y), longitude: Number(p.LABEL_X),
       borders: [], flag: iso2 ? [...iso2].map(c => String.fromCodePoint(127397 + c.charCodeAt(0))).join('') : null,
+      flag_code: flagCode, flag_asset: flagCode ? `flags/${flagCode}.svg` : null,
+      flagColors: [...(flagProfile.colors || [])], flagConfusableWith,
       map_geometry_id: record.id, countryLocationDifficulty: easyLocation.has(iso) ? 1 : expertLocation.has(iso) ? 4 : hardLocation.has(iso) || Number(p.LABELRANK) >= 5 ? 3 : 2,
       capitalDifficulty: easyCapital.has(iso) ? 1 : expertCapital.has(iso) ? 4 : hardCapital.has(iso) ? 3 : 2,
       flagDifficulty: null, shapeDifficulty: null, difficultySource: 'editorial-v1',

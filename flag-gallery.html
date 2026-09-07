@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Country Memory Map · Flag Gallery QA</title>
+  <link rel="stylesheet" href="flag-gallery.css?v=20260908-flags2">
+</head>
+<body>
+  <main class="gallery-shell">
+    <header class="gallery-header">
+      <div>
+        <p class="kicker">COUNTRY MEMORY MAP · INTERNAL QA</p>
+        <h1>Flag asset gallery</h1>
+        <p class="lede">Every playable flag, rendered through the same reserved frame used by the games.</p>
+      </div>
+      <div class="gallery-actions">
+        <button id="themeToggle" type="button" aria-pressed="false">Dark surface</button>
+        <a href="index.html">Back to the map</a>
+      </div>
+    </header>
+    <section class="gallery-controls" aria-label="Flag gallery filters">
+      <label>Search flags<input id="flagSearch" type="search" placeholder="Country or ISO code" autocomplete="off"></label>
+      <label>Continent<select id="continentFilter"><option value="World">All continents</option></select></label>
+      <p id="galleryStatus" role="status" aria-live="polite">Loading inventory…</p>
+    </section>
+    <section id="flagGallery" class="flag-gallery" aria-label="Complete playable flag inventory"></section>
+  </main>
+  <script src="flag-data.js?v=20260908-flags1"></script>
+  <script src="flag-component.js?v=20260908-flags1"></script>
+  <script src="flag-inventory.js?v=20260908-flags1"></script>
+  <script src="flag-gallery.js?v=20260908-flags1"></script>
+</body>
+</html>
