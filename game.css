@@ -41,7 +41,9 @@ body:has(.platform) { overflow: auto; }
 .click-game, .click-game .country { cursor:crosshair !important; }
 .game-good { animation:game-correct 500ms ease-out !important; }
 .game-bad { animation:game-wrong 400ms ease-out !important; }
+.game-pending { stroke:#176d53 !important;stroke-width:2px !important;filter:drop-shadow(0 0 5px #4fc092) !important;animation:game-pending 700ms ease-in-out infinite alternate !important; }
 .game-reveal { fill:#ffc857 !important; stroke:#98650c !important; filter:drop-shadow(0 0 6px #ffc857) !important; }
+@keyframes game-pending { from{opacity:.65} to{opacity:1} }
 @keyframes game-correct { 0% { fill:#c8ffdc;stroke:#1bb474;stroke-width:4;filter:drop-shadow(0 0 12px #21c885); } 55% {fill:#37d88e;stroke-width:3;} 100% {fill:#80e3b7;} }
 @keyframes game-wrong { 15%,65% {fill:#ec6669;stroke:#a1212a;stroke-width:2;filter:drop-shadow(0 0 4px #ec6669);} }
 .game-hit-target { fill:#294e6460; stroke:#fff; stroke-width:1.5px; vector-effect:non-scaling-stroke; cursor:crosshair; }
@@ -142,7 +144,7 @@ body:has(.platform) { overflow: auto; }
   .setup-panel {top:62px;max-height:calc(100% - 74px);}
 }
 @media (prefers-reduced-motion:reduce) {
-  .game-good,.game-bad,.score-pop,.milestone-pop {animation:none !important;}
+  .game-good,.game-bad,.game-pending,.score-pop,.milestone-pop {animation:none !important;}
   .game-bad {fill:#ec6669 !important;}
 }
 

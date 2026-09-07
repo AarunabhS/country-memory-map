@@ -46,7 +46,15 @@
     const map = createGameMap(GameMap, (id, regionName) => {
       if (!platform || engine.state.gameStatus !== 'playing') return;
       if (!id && regionName) { if(remote)remote.submit('country','');else {soloReplay?.actions.push({kind:'country',value:'',at:Date.now()-engine.state.startedAt});engine.submitCountry(null, regionName);} return; }
-      if (remote) { remote.submit('country', id); return; }
+      if (remote) {
+        const name=byId.get(id)?.canonical_name||'selection';
+        map.pending(id);map.enableClick(false);textFeedback(`Checking ${name}…`,'pending');
+        Promise.resolve(remote.submit('country', id)).then(ok=>{
+          map.clearPending();
+          if(!ok){textFeedback('Could not submit. Tap the country again.','bad');if(engine.state.feedbackUntil===null)map.enableClick(true);}
+        });
+        return;
+      }
       tickSolo();
       if (engine.state.gameStatus === 'playing') soloReplay?.actions.push({ kind:'country',value:id,at:Date.now()-engine.state.startedAt });
       engine.submitCountry(id);
@@ -200,7 +208,18 @@
     window.gameController={
       handleText(raw) {
         if (!platform) return false;
-        if(remote){if(engine.state.gameStatus==='playing')remote.submit('text',raw);input.value='';return true;}
+        if(remote){
+          if(engine.state.gameStatus!=='playing'||!GeographyGame.normalize(raw))return true;
+          const value=String(raw),pendingId=engine.config.family==='conquest'?engine.aliases.get(GeographyGame.normalize(value)):null;
+          if(pendingId)map.pending(pendingId);
+          input.disabled=true;voice.disabled=true;textFeedback(`Checking ${value}…`,'pending');
+          Promise.resolve(remote.submit('text',value)).then(ok=>{
+            map.clearPending();
+            if(ok)input.value='';
+            else{input.value=value;textFeedback('Could not submit. Your answer is still here—try again.','bad');input.disabled=false;voice.disabled=false;focusTyping();}
+          });
+          return 'pending';
+        }
         tickSolo();if(engine.state.gameStatus==='playing'){if(GeographyGame.normalize(raw))soloReplay?.actions.push({kind:'text',value:raw,at:Date.now()-engine.state.startedAt});engine.submitText(raw);}
         input.value='';focusTyping();return true;
       },
@@ -208,12 +227,12 @@
       renderRemote(data) {
         if(!remote||!data.game)return;
         const s={...data.game,completedCountries:new Set(data.game.completedCountries)};
-        const key=data.match.id+':'+s.startedAt,previous=engine.state.currentQuestion?.id;
+        const key=data.match.id+':'+s.startedAt,previous=engine.state.currentQuestion?.id,isNewMatch=remoteKey!==key;
         engine.config=data.config;engine.pool=countries.filter(c=>data.config.variant!=='continent'||c.continent===data.config.region);engine.state=s;
         platform=true;app.classList.add('platform');app.classList.remove('choosing','round-ended');
-        if(remoteKey!==key){remoteKey=key;lastRemoteEvent=null;onEvent({type:'start'},s);if(data.config.family==='conquest')s.completedCountries.forEach(id=>GameMap.mark(id));}
+        if(isNewMatch){remoteKey=key;lastRemoteEvent=null;onEvent({type:'start'},s);if(data.config.family==='conquest')s.completedCountries.forEach(id=>GameMap.mark(id));}
         if(s.gameStatus==='playing'){
-          if(data.config.family==='conquest'){if(previous!==null||form.hidden){onEvent({type:'question',question:{type:TYPES.COUNTRY_TYPING}},s);}}
+          if(data.config.family==='conquest'){if(isNewMatch||form.hidden){onEvent({type:'question',question:{type:TYPES.COUNTRY_TYPING}},s);}}
           else if(previous!==s.currentQuestion?.id)onEvent({type:'question',question:s.currentQuestion},s);
           if(data.event?.id&&lastRemoteEvent!==data.event.id&&(data.config.family==='conquest'||data.event.questionId===s.currentQuestion?.id)){lastRemoteEvent=data.event.id;onEvent(data.event,s);}
           if(s.feedbackUntil===null){const typing=data.config.family==='conquest'||s.currentQuestion?.type===TYPES.CAPITAL_TYPING;input.disabled=!typing;voice.disabled=!typing;if(typing&&previous!==s.currentQuestion?.id)focusTyping();}

@@ -7,9 +7,20 @@ window.createGameMap = function (bridge, onPick) {
   let keyboardCountries = [], keyboardIndex = -1, lastPointerUp = -Infinity;
   function units() { const v = bridge.getView(), box = svg.getBoundingClientRect(); return Math.max(v.w / box.width, v.h / box.height); }
   function clearFeedback() {
-    for (const r of bridge.regionRecords) r.path.classList.remove('game-good', 'game-bad', 'game-reveal');
+    for (const r of bridge.regionRecords) r.path.classList.remove('game-good', 'game-bad', 'game-reveal', 'game-pending');
+  }
+  function pending(id) {
+    clearPending();
+    if (!id) return;
+    for (const r of bridge.regionRecords) {
+      if ((r.ownerId || r.id) === id) r.path.classList.add('game-pending');
+    }
+  }
+  function clearPending() {
+    for (const r of bridge.regionRecords) r.path.classList.remove('game-pending');
   }
   function feedback(id, kind, permanent = false) {
+    clearPending();
     if (kind === 'reveal') {
       const label = bridge.labelRecords.find(r => r.mode === 'countries' && r.id === id), view = bridge.getView();
       if (label && (label.labelX < view.x || label.labelX > view.x+view.w || label.labelY < view.y || label.labelY > view.y+view.h)) {
@@ -123,7 +134,7 @@ window.createGameMap = function (bridge, onPick) {
   new ResizeObserver(renderTargets).observe(svg);
   return {
     start(region, dataset) { countries = dataset; bridge.gameActive = true; bridge.gameRegion = region; bridge.setMode('countries'); bridge.clear(); bridge.selectRegion(region); lastRegion = region; },
-    prepare, feedback, clearFeedback,
+    prepare, feedback, pending, clearPending, clearFeedback,
     end() { clickMode = false; svg.classList.remove('click-game'); hitLayer.replaceChildren(); svg.removeAttribute('tabindex'); },
     restore() { this.end(); clearFeedback(); bridge.gameActive = false; bridge.gameRegion = 'World'; bridge.clear(); bridge.selectRegion('World'); },
     enableClick(value) { clickMode = value; renderTargets(); }
