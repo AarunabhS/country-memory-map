@@ -4,15 +4,21 @@
   function boot() {
     if (!window.GameMap?.countries.length || window.gameController) return;
     const { Engine, LocalProfile, TYPES, MODES } = GeographyGame;
+    const { ProfileService, ProfileManager, StatsSyncQueue, GameTracker, MapFeedbackAdapter, GameplayFeedbackController, ProfileUI } = window.CountryMemoryPlayers || {};
+    const flags = window.COUNTRY_MEMORY_FLAGS || {}, profilesEnabled = flags.PLAYER_PROFILES_ENABLED !== false, statsEnabled = flags.PLAYER_STATS_ENABLED !== false, feedbackEnabled = flags.ANSWER_FEEDBACK_ENABLED !== false;
     const countries = buildGameCountries(GameMap), byId = new Map(countries.map(c => [c.country_id, c]));
     let storage; try { storage = window.localStorage; } catch { storage = null; }
     const profile = new LocalProfile(storage);
+    const playerService = profilesEnabled && ProfileService ? new ProfileService({ baseUrl: window.FRIENDS_API }) : null;
+    const players = profilesEnabled && ProfileManager ? new ProfileManager(storage, playerService) : null;
+    const syncQueue = profilesEnabled && statsEnabled && players && StatsSyncQueue ? new StatsSyncQueue(storage, playerService, players) : null;
+    const tracker = profilesEnabled && statsEnabled && players && syncQueue && GameTracker ? new GameTracker(players, syncQueue) : null;
     const app = document.querySelector('.app'), input = document.querySelector('#guessInput'), form = document.querySelector('#guessForm');
     const voice = document.querySelector('#voiceButton'), message = document.querySelector('#message');
     const families = { conquest: 'World Conquest', find: 'Find the Country', capital: 'Capital Clash', flag: 'Flag Games' };
     const variants = { relaxed:'Relaxed', sprint:'Sprint', blitz:'Blitz', sudden:'Sudden Death', continent:'Continent', standard:'Standard', classic:'Classic', recall:'Flag Recall', match:'Flag Match' };
-    let remote = null, remoteKey = null, lastRemoteEvent = null, soloReplay = null;
-    let family = profile.data.lastMode.family, lastConfig = null, result = null, platform = true, feedbackTimer, startToken = 0;
+    let remote = null, remoteKey = null, lastRemoteEvent = null, soloReplay = null, queuedText = null, queuedCountry = null;
+    let family = profile.data.lastMode.family, lastConfig = null, result = null, platform = true, feedbackTimer, startToken = 0, suppressResults = false;
     app.insertAdjacentHTML('afterbegin', `
       <header class="platform-header"><div><span class="brand-kicker">COUNTRY MEMORY MAP</span><h1 id="gameTitle">Choose your game</h1></div><button id="endGame" type="button" hidden>End round</button><button id="freeMap" type="button">Free map</button></header>
       <section class="game-hud" aria-label="Game statistics" hidden>
@@ -68,9 +74,28 @@
         return;
       }
       tickSolo();
+      if (engine.state.feedbackUntil !== null) { queuedCountry = id; textFeedback('Next location queued…','pending'); return; }
       if (engine.state.gameStatus === 'playing') soloReplay?.actions.push({ kind:'country',value:id,at:Date.now()-engine.state.startedAt });
       engine.submitCountry(id);
     });
+    const feedbackController = feedbackEnabled && GameplayFeedbackController && MapFeedbackAdapter ? new GameplayFeedbackController({
+      adapter: new MapFeedbackAdapter(map),
+      manager: players,
+      reducedMotion: () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false,
+      animateHud(target) { const element = target === 'streak' ? $('gameStreak') : $('gameProgress'); animate(element, target === 'streak' ? 'streak-pulse' : 'counter-pulse'); }
+    }) : null;
+    const profileUI = profilesEnabled && ProfileUI && players ? new ProfileUI(app, players, {
+      async beforeSwitch() {
+        if (!tracker?.hasActiveSession()) return;
+        suppressResults = true;
+        tracker.finish('player_switch', engine.state);
+        if (engine.state.gameStatus === 'playing') engine.finish('player_switch');
+        menu();
+        suppressResults = false;
+      }
+    }) : null;
+    profileUI?.mount();
+    players?.initialize().then(() => { if (!players.active) profileUI?.open('create'); });
     function tickSolo() {
       const at=Date.now(),s=engine.state;
       if(s.gameStatus==='playing'&&((s.deadline!==null&&at>=s.deadline)||(s.feedbackUntil!==null&&at>=s.feedbackUntil)||(s.currentQuestion&&!s.currentQuestion.resolved&&at>=s.currentQuestion.deadline)))soloReplay?.actions.push({kind:'tick',at:at-s.startedAt});
@@ -152,8 +177,8 @@
       $('recentPanel').hidden = !profile.data.recent.length;
       $('storageNote').textContent = profile.available ? 'Personal bests and recent rounds are saved on this device.' : 'Device storage is unavailable. You can still play; results last for this visit.';
     }
-    function disableFlagAnswers() {
-      input.disabled = true; voice.disabled = true;
+    function disableFlagAnswers(keepRecallInput = false) {
+      input.disabled = !keepRecallInput; voice.disabled = !keepRecallInput;
       flagChoices.querySelectorAll('button').forEach(button => { button.disabled = true; });
       $('flagHintButton').disabled = true;
     }
@@ -216,6 +241,13 @@
       return [...flagChoices.querySelectorAll('button')].find(button => button.dataset.flagId === id) || null;
     }
     async function start(config = activeConfig()) {
+      if (profilesEnabled && players && !players.active) { profileUI?.open('create'); textFeedback('Create a player before starting a score-bearing round.','bad'); return; }
+      if (tracker?.hasActiveSession()) {
+        suppressResults = true;
+        tracker.finish('mode_change', engine.state);
+        if (engine.state.gameStatus === 'playing') engine.finish('mode_change');
+        suppressResults = false;
+      }
       const token=++startToken;
       remote = null; remoteKey = null; lastConfig = {...config}; result = null;
       platform = true; app.classList.add('platform'); app.classList.remove('choosing','round-ended');
@@ -230,7 +262,7 @@
       for(const value of [3,2,1]){countdown.textContent=value;await new Promise(resolve=>setTimeout(resolve,900));if(token!==startToken)return;}
       countdown.textContent='GO';await new Promise(resolve=>setTimeout(resolve,300));
       if(token!==startToken)return;countdown.hidden=true;
-      try { const seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1; const random = GeographyGame.seededRandom(seed); engine.random = () => random.next(); soloReplay = {seed,actions:[]}; engine.start({...config,seed}); profile.select(config); }
+      try { const seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1; const random = GeographyGame.seededRandom(seed); engine.random = () => random.next(); soloReplay = {seed,actions:[]}; queuedText = null; queuedCountry = null; engine.start({...config,seed}); profile.select(config); }
       catch(error) { app.classList.add('choosing'); document.querySelector('.setup-panel').hidden=false; $('setupError').textContent=error.message; return; }
     }
     function updateHUD(s) {
@@ -252,6 +284,7 @@
       }
     }
     function onEvent(event,s) {
+      tracker?.onEvent(event, s, engine.config || {});
       if (event.type === 'start') {
         document.querySelector('.setup-panel').hidden=true; document.querySelector('.game-hud').hidden=false;
         $('endGame').hidden=false; $('freeMap').hidden=true;
@@ -277,7 +310,12 @@
           app.classList.add('flag-platform');
           $('questionPanel').hidden = true;
           app.classList.remove('map-question');
+          const nextText = queuedText; queuedText = null;
           renderFlagQuestion(q, s);
+          if (q.type === TYPES.FLAG_RECALL && nextText !== null) setTimeout(() => {
+            if (remote || engine.state.gameStatus !== 'playing' || engine.state.feedbackUntil !== null) return;
+            input.value = nextText; window.gameController.handleText(nextText);
+          }, 0);
           updateHUD(s);
           return;
         }
@@ -297,19 +335,30 @@
         } else textFeedback('Name a new country. Aliases and country codes work too.');
         input.placeholder = conquest ? 'Type a country name' : 'Type a capital name'; input.setAttribute('aria-label',input.placeholder);
         voice.setAttribute('aria-label',conquest?'Say country name':'Say capital name');
-        input.value=''; if (typing) focusTyping();
+        input.value='';
+        const nextCountry = queuedCountry; queuedCountry = null;
+        const nextText = queuedText; queuedText = null;
+        if (nextCountry !== null || nextText !== null) setTimeout(() => {
+          if (remote || engine.state.gameStatus !== 'playing' || engine.state.feedbackUntil !== null) return;
+          if (!typing && nextCountry !== null) engine.submitCountry(nextCountry);
+          else if (typing && nextText !== null) { input.value = nextText; window.gameController.handleText(nextText); }
+        }, 0);
+        if (typing) focusTyping();
       } else if (event.type === 'correct') {
         const c=byId.get(event.countryId);
         if (engine.config.family === 'flag') {
           flagView.classList.remove('flag-answer-bad'); flagView.classList.add('flag-answer-good');
-          disableFlagAnswers();
+          disableFlagAnswers(engine.config.variant === 'recall');
           textFeedback(`Correct — ${c.canonical_name} · +${event.gained} · ${event.seconds.toFixed(1)}s${event.hintPenalty ? ` · hint −${event.hintPenalty}` : ''}`,'good');
           animate(flagView,'flag-correct');
         } else {
-          map.feedback(event.countryId,'good',engine.config.family==='conquest');
+          if (feedbackController) feedbackController.correct(event.countryId, engine.config, s); else map.mark(event.countryId);
           textFeedback(`${c.canonical_name} · +${event.gained} · ${event.seconds.toFixed(1)}s`,'good');
           animate($('gameScore'),'score-pop');
-          if (engine.config.family!=='conquest') { input.disabled=true; voice.disabled=true; map.enableClick(false); }
+          if (engine.config.family!=='conquest') {
+            const typing = engine.state.currentQuestion?.type === TYPES.CAPITAL_TYPING;
+            input.disabled = !typing; voice.disabled = !typing; map.enableClick(true);
+          }
         }
       } else if (event.type === 'wrong') {
         if (engine.config.family === 'flag') {
@@ -319,7 +368,7 @@
           textFeedback(`Not quite. Try again${event.penalty ? ` · −${event.penalty}` : ''}.`,'bad');
           animate(flagView,'flag-wrong');
         } else {
-          if (event.countryId) map.feedback(event.countryId,'bad');
+          if (event.countryId && feedbackEnabled) map.feedback(event.countryId,'bad');
           const clicked = byId.get(event.countryId)?.canonical_name || event.clickedName;
           textFeedback(engine.config.family==='conquest' ? (event.reason==='region'?'Outside this continent. Streak reset.':'Not recognised. Streak reset.') : `${clicked?clicked+'. ':''}Try again${event.penalty?` · −${event.penalty}`:''}.`,'bad');
           animate(form.closest('.control'),'wrong-answer');
@@ -342,7 +391,8 @@
           $('flagHintText').textContent = `Answer: ${c.canonical_name}.`;
           textFeedback(`${event.reason==='timeout'?'Time up.':'Answer revealed.'} The flag is ${c.canonical_name}.`,'bad');
         } else {
-          map.feedback(event.countryId,'reveal'); map.enableClick(false); input.disabled=true; voice.disabled=true;
+          if (feedbackEnabled) map.feedback(event.countryId,'reveal'); else map.mark(event.countryId);
+          map.enableClick(false); input.disabled=true; voice.disabled=true;
           textFeedback(`${event.reason==='timeout'?'TIME UP':'Answer'} · ${q.type===TYPES.CAPITAL_TYPING?c.capital.map(c=>`${c.name} (${c.role})`).join(' / '):c.canonical_name}`,'bad');
         }
       } else if (event.type === 'milestone') showMilestone(`${event.count} COUNTRIES FOUND`);
@@ -351,7 +401,7 @@
         if (engine.config.family !== 'flag') map.end();
         $('endGame').hidden=true;
         event.result.replay = {config:engine.config,seed:soloReplay?.seed,actions:soloReplay?.actions||[],elapsed:Math.max(s.elapsedTime*1000,soloReplay?.actions.at(-1)?.at||0)};
-        result=profile.record(event.result);showResults(result);
+        if (!suppressResults) { result=profile.record(event.result);showResults(result); }
       }
       updateHUD(s);
     }
@@ -378,6 +428,7 @@
     }
     function menu() {
       startToken++; $('soloCountdown').hidden=true;
+      queuedText = null; queuedCountry = null;
       $('resultsDialog').close(); map.restore(); platform=true;
       app.classList.add('platform','choosing');app.classList.remove('round-ended','map-question','flag-platform');
       document.querySelector('.setup-panel').hidden=false;document.querySelector('.game-hud').hidden=true;
@@ -388,6 +439,7 @@
     }
     function legacy() {
       startToken++; $('soloCountdown').hidden=true;
+      queuedText = null; queuedCountry = null;
       platform=false; app.classList.remove('platform','choosing','round-ended','map-question','flag-platform'); map.restore();
       document.querySelector('.setup-panel').hidden=true; $('questionPanel').hidden=true;
       flagView.hidden=true; flagChoices.replaceChildren(); form.hidden=false;markButton.textContent='Mark';input.disabled=false;voice.disabled=false;
@@ -420,7 +472,9 @@
           });
           return 'pending';
         }
-        tickSolo();if(engine.state.gameStatus==='playing'){if(GeographyGame.normalize(raw))soloReplay?.actions.push({kind:'text',value:raw,at:Date.now()-engine.state.startedAt});engine.submitText(raw);}
+        tickSolo();
+        if (engine.state.feedbackUntil !== null) { queuedText = String(raw); textFeedback('Next answer queued…','pending'); return 'pending'; }
+        if(engine.state.gameStatus==='playing'){if(GeographyGame.normalize(raw))soloReplay?.actions.push({kind:'text',value:raw,at:Date.now()-engine.state.startedAt});engine.submitText(raw);}
         input.value='';focusTyping();return true;
       },
       connectRemote(hooks) { remote=hooks;engine.now=()=>remote?remote.now():Date.now(); },
@@ -428,7 +482,7 @@
         if(!remote||!data.game)return;
         startToken++; $('soloCountdown').hidden=true;
         const s={...data.game,completedCountries:new Set(data.game.completedCountries)};
-        const key=data.match.id+':'+s.startedAt,previous=engine.state.currentQuestion?.id,isNewMatch=remoteKey!==key;
+        const previousStatus=engine.state.gameStatus, key=data.match.id+':'+s.startedAt,previous=engine.state.currentQuestion?.id,isNewMatch=remoteKey!==key;
         engine.config=data.config;engine.pool=countries.filter(c=>data.config.variant!=='continent'||c.continent===data.config.region);engine.state=s;
         platform=true;app.classList.add('platform');app.classList.remove('choosing','round-ended');
         if(isNewMatch){remoteKey=key;lastRemoteEvent=null;onEvent({type:'start'},s);if(data.config.family==='conquest')s.completedCountries.forEach(id=>GameMap.mark(id));}
@@ -437,11 +491,14 @@
           else if(previous!==s.currentQuestion?.id)onEvent({type:'question',question:s.currentQuestion},s);
           if(data.event?.id&&lastRemoteEvent!==data.event.id&&(data.config.family==='conquest'||data.event.questionId===s.currentQuestion?.id)){lastRemoteEvent=data.event.id;onEvent(data.event,s);}
           if(s.feedbackUntil===null){const typing=data.config.family==='conquest'||s.currentQuestion?.type===TYPES.CAPITAL_TYPING;input.disabled=!typing;voice.disabled=!typing;if(typing&&previous!==s.currentQuestion?.id)focusTyping();}
-        }else{input.disabled=true;voice.disabled=true;$('endGame').hidden=true;map.end();}
+        }else{
+          if (previousStatus === 'playing' && tracker?.hasActiveSession()) tracker.finish(data.result?.reason || s.result?.reason || 'completed', s, data.result || s.result);
+          input.disabled=true;voice.disabled=true;$('endGame').hidden=true;map.end();
+        }
         $('gameTitle').textContent= families[data.config.family]+' · Friends';updateHUD(s);
       },
       blockRemote(value) {input.disabled=value;voice.disabled=value;},
-      exitRemote() {remote=null;remoteKey=null;engine.state.gameStatus='idle';menu();},
+      exitRemote() { if (tracker?.hasActiveSession()) tracker.finish('abandoned', engine.state); remote=null;remoteKey=null;engine.state.gameStatus='idle';menu(); },
       closeResults() {$('resultsDialog').close();}
 
     };
