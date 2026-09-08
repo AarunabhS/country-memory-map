@@ -43,6 +43,8 @@ body:has(.platform) { overflow: auto; }
 .platform .country.found { fill:#80e3b7; stroke:#11694c; filter:drop-shadow(0 0 3px #52c18a80); }
 .click-game, .click-game .country { cursor:crosshair !important; }
 .game-good { animation:game-correct 500ms ease-out !important; }
+.game-good.feedback-subtle { animation-duration:380ms !important; }
+.game-good.feedback-minimal { animation-duration:240ms !important; }
 .game-bad { animation:game-wrong 400ms ease-out !important; }
 .game-pending { stroke:#176d53 !important;stroke-width:2px !important;filter:drop-shadow(0 0 5px #4fc092) !important;animation:game-pending 700ms ease-in-out infinite alternate !important; }
 .game-reveal { fill:#ffc857 !important; stroke:#98650c !important; filter:drop-shadow(0 0 6px #ffc857) !important; }
@@ -51,6 +53,14 @@ body:has(.platform) { overflow: auto; }
 @keyframes game-wrong { 15%,65% {fill:#ec6669;stroke:#a1212a;stroke-width:2;filter:drop-shadow(0 0 4px #ec6669);} }
 .game-hit-target { fill:#294e6460; stroke:#fff; stroke-width:1.5px; vector-effect:non-scaling-stroke; cursor:crosshair; }
 .game-hit-target:hover {fill:#294e64b0;}
+.game-feedback-ping { fill:none; stroke:#168263; stroke-width:2px; vector-effect:non-scaling-stroke; pointer-events:none; opacity:0; animation:feedback-ping 480ms ease-out forwards; }
+.game-feedback-ping.capital-ping { stroke:#c58b27; stroke-width:2.5px; }
+.game-feedback-ping.feedback-subtle { animation-duration:380ms; }
+@keyframes feedback-ping { 0%{opacity:.7;transform:scale(.35);transform-origin:center} 100%{opacity:0;transform:scale(2.2);transform-origin:center} }
+.counter-pulse { animation:counter-pulse 190ms ease-out; }
+.streak-pulse { animation:streak-pulse 240ms ease-out; }
+@keyframes counter-pulse { 35%{color:#14835c;transform:scale(1.05)} }
+@keyframes streak-pulse { 35%{color:#a56c10;transform:scale(1.07)} }
 .keyboard-cursor { fill:none;stroke:#152fc2;stroke-width:3px;vector-effect:non-scaling-stroke;pointer-events:none; }
 .question-panel { margin-bottom:10px; }
 .question-heading { display:flex; justify-content:space-between; align-items:center; font-size:11px; letter-spacing:1px; font-weight:800; color:#42625b; gap:12px; }
@@ -152,8 +162,9 @@ body:has(.platform) { overflow: auto; }
   .setup-panel {top:62px;max-height:calc(100% - 74px);}
 }
 @media (prefers-reduced-motion:reduce) {
-  .game-good,.game-bad,.game-pending,.score-pop,.milestone-pop {animation:none !important;}
+  .game-good,.game-bad,.game-pending,.game-feedback-ping,.score-pop,.counter-pulse,.streak-pulse,.milestone-pop {animation:none !important;}
   .game-bad {fill:#ec6669 !important;}
+  .game-good {fill:#9ce8bf !important;stroke:#176d53 !important;filter:none !important;}
 }
 
 .click-game:focus { outline:none; }
