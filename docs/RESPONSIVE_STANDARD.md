@@ -9,7 +9,7 @@
 
 **VERIFIED CURRENT DEFECT**
 
-- Previous browser evidence for clean HEAD found root mobile answer-dock/navigation overlap. The final mobile rules place the root input zone 10px above the viewport bottom while the fixed navigation occupies 67px plus the safe-area inset. Governance v1 records this; it does not change layout.
+- Current source establishes root mobile answer-dock/navigation overlap. The final mobile rules place the root input zone 10px above the viewport bottom at z-index 9 while the fixed navigation occupies 67px plus the safe-area inset at z-index 20. Governance v1 records this; it does not change layout.
 
 ## Required review for user-facing work
 

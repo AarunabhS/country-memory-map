@@ -17,14 +17,14 @@ Use the QA evidence labels defined in [`MASTER_PROJECT_INDEX.md`](MASTER_PROJECT
 | Multiplayer rooms/challenges | **AUTOMATED VERIFIED** — server engine | **MANUAL VERIFICATION REQUIRED** | Two browsers/devices, reconnect, host transfer, DNF, and results |
 | Multiplayer source/snapshot parity | **PLANNED AUTOMATION** | **KNOWN DEFECT** | Reconcile the stale committed snapshots before parity becomes a CI gate |
 | Desktop layout | **AUTOMATED VERIFIED** — selected CSS contracts | **MANUAL VERIFICATION REQUIRED** | Root plus every game family and result layer |
-| Mobile portrait | **AUTOMATED VERIFIED** — selected CSS contracts | **KNOWN DEFECT**; **MANUAL VERIFICATION REQUIRED** | Prior browser evidence found root answer-dock/navigation overlap; retest after implementation |
+| Mobile portrait | **AUTOMATED VERIFIED** — selected CSS contracts | **KNOWN DEFECT**; **MANUAL VERIFICATION REQUIRED** | Current CSS establishes root answer-dock/navigation overlap; retest in a browser after implementation |
 | Mobile landscape / short viewport | No automated check | **MANUAL VERIFICATION REQUIRED** | Stage, HUD, input, bottom navigation, and dialogs |
 | Keyboard-only | No automated check | **MANUAL VERIFICATION REQUIRED** | All routes/actions, focus order, map alternative, and dialogs |
 | Screen-reader semantics | No automated check | **MANUAL VERIFICATION REQUIRED** | Landmarks, names, live regions, and dialog focus/return |
 | Reduced motion | **AUTOMATED VERIFIED** — selected CSS presence | **MANUAL VERIFICATION REQUIRED** | All motion feedback remains understandable |
 | 3D globe available | **AUTOMATED VERIFIED** — source contract only | **KNOWN DEFECT**; **MANUAL VERIFICATION REQUIRED** | Browser-delivered key restrictions, production-origin load, selection, attribution, and gestures |
 | 3D failure/slow state | No automated check | **KNOWN DEFECT**; **MANUAL VERIFICATION REQUIRED** | Root must expose the retained playable 2D implementation before the fallback can be verified |
-| Retained 2D app | **AUTOMATED VERIFIED** — retained route/source contracts | **MANUAL VERIFICATION REQUIRED** | Verify the retained route independently; this does not prove root fallback exposure |
+| Retained 2D app | **AUTOMATED VERIFIED** — retained source/iframe-linkage contracts | **MANUAL VERIFICATION REQUIRED** | Verify the retained route independently; this does not prove root fallback exposure or per-game deep links |
 | Root playable 2D fallback | No automated check | **KNOWN DEFECT** | Failure path keeps the retained iframe hidden; implement before verification |
 | API/error/offline states | **AUTOMATED VERIFIED** — selected multiplayer server errors | **MANUAL VERIFICATION REQUIRED** | Friends unavailable/expired/rate-limited, profile mismatch, and storage failure |
 | Accessibility contrast/touch/zoom | No automated check | **MANUAL VERIFICATION REQUIRED** | WCAG AA review, 44px targets, and 200% zoom/reflow |
