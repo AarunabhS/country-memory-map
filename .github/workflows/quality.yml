@@ -1,0 +1,38 @@
+name: Repository quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  governance-and-root-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-governance.mjs
+      - run: node --test tests/*.test.cjs
+
+  multiplayer-tests-and-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: multiplayer-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: multiplayer-server/package-lock.json
+      - run: npm ci
+      # Test the committed snapshot first. Source/snapshot parity remains a documented,
+      # non-blocking follow-up until its baseline is deliberately reconciled.
+      - run: npm test
+      - run: npm run build
