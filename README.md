@@ -1,6 +1,6 @@
 # Country Memory Map
 
-Static geography games, published from `main` at https://www.arunabhosom.com/country-memory-map/. The main page progressively enhances the retained game with Google 3D Earth and falls back to the original map when the live renderer is unavailable. No account is required; run `python3 -m http.server 8000` for local testing.
+Static geography games, published from `main` at https://www.arunabhosom.com/country-memory-map/. The main page uses Google 3D Earth when available and retains a playable 2D implementation at `legacy/`. The current root failure path shows a cinematic Earth preview but does not expose that retained app as a playable fallback. No account is required; run `python3 -m http.server 8000` for local testing.
 
 ## Games
 
@@ -15,7 +15,7 @@ All games use the same 195-country classification as the original checker. Small
 
 ## Architecture
 
-- `index.html`, `styles.css`, `src/`: cinematic shell, responsive full-workspace Google 3D renderer, and the narrow bridge into the retained game.
+- `index.html`, `styles.css`, `src/`: cinematic shell, responsive full-workspace Google 3D renderer, and the narrow typed-answer bridge into the retained game. Several root controls and game modes remain staged rather than complete route-backed flows.
 - `legacy/index.html`: retained map renderer and free checker; a document base keeps its existing scripts, flags, profiles, and multiplayer modules at their canonical root paths.
 - `game-data.js`: projects the existing map/capital sources into one country model. Capitals are arrays of name, aliases, role and coordinates. Geography, capital, flag and shape difficulty fields are independent. Editorial v1 difficulty metadata can be replaced by performance statistics without changing question logic.
 - `game-core.js`: DOM-independent `Engine`, shared question types, scoring, state, deadlines, result aggregation and `LocalProfile` persistence. Clock and randomness are injectable. Future question types can reuse `submitCountry`, `resolveQuestion`, and the results model.
@@ -45,4 +45,4 @@ These checks complement the existing dataset's 2026-09-01 validation. They are n
 
 ## Validation
 
-Run `node --test tests/*.test.cjs`. The tests cover every mode, all 195 canonical answers, every accepted capital spelling, timing/scoring thresholds, third-error elimination, duplicates, practice, region and difficulty coverage, persistence failure, flag-answer aliases, flag distractor uniqueness, hint penalties, local SVG coverage and native flag ratios. Browser QA covers phone, tablet and desktop layouts, actual map clicks, game selection, shared results, retries, free-map compatibility, countdown locking, Flag Recall, Flag Match and the complete flag gallery. Physical-device microphone permissions remain browser-controlled; no voice recordings are stored by this app. See [AUDIT.md](AUDIT.md) for the pre-change inventory and reuse record.
+Run `node --test tests/*.test.cjs`. The tests cover every mode, all 195 canonical answers, every accepted capital spelling, timing/scoring thresholds, third-error elimination, duplicates, practice, region and difficulty coverage, persistence failure, flag-answer aliases, flag distractor uniqueness, hint penalties, local SVG coverage and native flag ratios. Manual browser QA is still required for phone, tablet and desktop layouts, actual map clicks, game selection, shared results, retries, free-map compatibility, countdown locking, Flag Recall, Flag Match and the complete flag gallery. Physical-device microphone permissions remain browser-controlled; no voice recordings are stored by this app. See [AUDIT.md](AUDIT.md) for the pre-change inventory and reuse record, and [CONTRIBUTING.md](CONTRIBUTING.md) for contributor guidance.
