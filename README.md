@@ -1,6 +1,6 @@
 # Country Memory Map
 
-Static geography games, published from `main` at https://www.arunabhosom.com/country-memory-map/. No build step or account is required. Open `index.html` directly, or run `python3 -m http.server 8000` for microphone-capable local testing.
+Static geography games, published from `main` at https://www.arunabhosom.com/country-memory-map/. The main page progressively enhances the retained game with Google 3D Earth and falls back to the original map when the live renderer is unavailable. No account is required; run `python3 -m http.server 8000` for local testing.
 
 ## Games
 
@@ -15,7 +15,8 @@ All games use the same 195-country classification as the original checker. Small
 
 ## Architecture
 
-- `index.html`: retained map renderer and free checker; `GameMap` is its narrow adapter interface.
+- `index.html`, `styles.css`, `src/`: cinematic shell, responsive full-workspace Google 3D renderer, and the narrow bridge into the retained game.
+- `legacy/index.html`: retained map renderer and free checker; a document base keeps its existing scripts, flags, profiles, and multiplayer modules at their canonical root paths.
 - `game-data.js`: projects the existing map/capital sources into one country model. Capitals are arrays of name, aliases, role and coordinates. Geography, capital, flag and shape difficulty fields are independent. Editorial v1 difficulty metadata can be replaced by performance statistics without changing question logic.
 - `game-core.js`: DOM-independent `Engine`, shared question types, scoring, state, deadlines, result aggregation and `LocalProfile` persistence. Clock and randomness are injectable. Future question types can reuse `submitCountry`, `resolveQuestion`, and the results model.
 - `flag-data.js` / `flags/`: curated flag metadata and 195 self-hosted SVG assets using ISO alpha-2 filenames. `flag-component.js` renders each asset in a reserved, native-proportion frame.

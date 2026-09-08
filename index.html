@@ -1,1963 +1,258 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Country Memory Map</title>
-  <style>
-    :root {
-      --bg: #f7f3ea;
-      --water: #d8ecf0;
-      --ink: #243040;
-      --muted: #617082;
-      --border: rgba(27, 43, 61, 0.22);
-      --highlight: #ffdf42;
-      --highlight-stroke: #1c1f24;
-      --africa: #e9a35c;
-      --asia: #d76f6f;
-      --europe: #7fadd9;
-      --north-america: #83b86b;
-      --south-america: #66b7a8;
-      --oceania: #a58cd6;
-      --antarctica: #cfd7df;
-      --other: #bcc4c9;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--ink);
-      background: var(--bg);
-    }
-
-    .app {
-      position: relative;
-      height: 100%;
-      min-height: 100vh;
-      background:
-        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.9), transparent 30%),
-        linear-gradient(180deg, #f9f5ed 0%, #efe7d8 100%);
-    }
-
-    .topbar {
-      position: absolute;
-      z-index: 5;
-      top: 18px;
-      left: 18px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 12px;
-      border: 1px solid rgba(36, 48, 64, 0.12);
-      border-radius: 8px;
-      background: rgba(255, 252, 246, 0.88);
-      box-shadow: 0 12px 34px rgba(63, 49, 27, 0.12);
-      backdrop-filter: blur(10px);
-    }
-
-    .mode-switch {
-      display: inline-flex;
-      gap: 2px;
-      padding: 2px;
-      border: 1px solid rgba(36, 48, 64, 0.14);
-      border-radius: 7px;
-      background: rgba(36, 48, 64, 0.05);
-    }
-
-    .mode-switch button {
-      padding: 6px 9px;
-      border: 0;
-      background: transparent;
-      box-shadow: none;
-      color: var(--muted);
-    }
-
-    .mode-switch button.active {
-      color: #ffffff;
-      background: #2f6f91;
-    }
-
-    .continentbar {
-      position: absolute;
-      z-index: 5;
-      top: 78px;
-      left: 18px;
-      right: 18px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      pointer-events: none;
-    }
-
-    .continentbar button {
-      pointer-events: auto;
-      padding: 7px 10px;
-      color: var(--muted);
-      background: rgba(255, 252, 246, 0.9);
-    }
-
-    .continentbar button.active {
-      color: var(--ink);
-      border-color: rgba(36, 48, 64, 0.34);
-      background: #ffffff;
-      box-shadow: inset 0 0 0 2px var(--continent-color, rgba(36, 48, 64, 0.12));
-    }
-
-    .zoom-controls {
-      position: absolute;
-      z-index: 5;
-      top: 18px;
-      right: 18px;
-      display: flex;
-      gap: 8px;
-      padding: 8px;
-      border: 1px solid rgba(36, 48, 64, 0.12);
-      border-radius: 8px;
-      background: rgba(255, 252, 246, 0.88);
-      box-shadow: 0 12px 34px rgba(63, 49, 27, 0.12);
-      backdrop-filter: blur(10px);
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 16px;
-      line-height: 1.1;
-      font-weight: 760;
-    }
-
-    .score {
-      min-width: 98px;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 650;
-    }
-
-    button,
-    input {
-      font: inherit;
-    }
-
-    button {
-      border: 1px solid rgba(36, 48, 64, 0.16);
-      border-radius: 7px;
-      padding: 8px 10px;
-      color: var(--ink);
-      background: #fffaf0;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 700;
-      box-shadow: 0 2px 0 rgba(36, 48, 64, 0.08);
-    }
-
-    button:hover {
-      background: #ffffff;
-    }
-
-    button:active {
-      transform: translateY(1px);
-      box-shadow: none;
-    }
-
-    button.listening {
-      color: #ffffff;
-      border-color: rgba(165, 64, 49, 0.4);
-      background: #b64637;
-    }
-
-    button:disabled {
-      cursor: not-allowed;
-      opacity: 0.55;
-      transform: none;
-    }
-
-    .map-shell {
-      height: 100%;
-      padding: 116px 18px 76px;
-    }
-
-    svg {
-      display: block;
-      width: 100%;
-      height: 100%;
-      border: 1px solid rgba(36, 48, 64, 0.12);
-      border-radius: 8px;
-      background: var(--water);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6);
-      cursor: grab;
-      touch-action: none;
-      user-select: none;
-    }
-
-    svg.panning {
-      cursor: grabbing;
-    }
-
-    .graticule {
-      fill: none;
-      stroke: rgba(62, 98, 125, 0.18);
-      stroke-width: 0.6;
-      vector-effect: non-scaling-stroke;
-      pointer-events: none;
-    }
-
-    .country {
-      stroke: rgba(24, 37, 49, 0.42);
-      stroke-width: 0.55;
-      vector-effect: non-scaling-stroke;
-      transition: fill 150ms ease, opacity 150ms ease, filter 150ms ease;
-      cursor: default;
-    }
-
-    .country:hover {
-      filter: brightness(1.05);
-    }
-
-    .country.found {
-      fill: var(--highlight);
-      stroke: var(--highlight-stroke);
-      stroke-width: 1.5;
-      filter: drop-shadow(0 0 6px rgba(255, 197, 37, 0.9));
-    }
-
-    .country.dimmed {
-      opacity: 0.52;
-    }
-
-    .country.hidden-continent,
-    .label.hidden-continent,
-    .label-leader.hidden-continent,
-    .label-anchor.hidden-continent {
-      display: none;
-    }
-
-    .country.territory {
-      stroke-dasharray: 2 1.5;
-    }
-
-    .country.disputed-region {
-      fill: url(#unTerritoryPattern);
-      opacity: 1;
-      stroke: rgba(76, 68, 58, 0.78);
-      stroke-dasharray: 4 3;
-    }
-
-    .country.integrated-country,
-    .country.integrated-country.found {
-      stroke: none;
-      filter: none;
-    }
-
-    .country.un-territory,
-    .country.un-territory.found {
-      fill: url(#unTerritoryPattern);
-      filter: none;
-    }
-
-    .label {
-      display: none;
-      fill: #15202b;
-      paint-order: stroke;
-      stroke: rgba(255, 255, 255, 0.96);
-      stroke-width: 2.4px;
-      stroke-linejoin: round;
-      font-size: 5.2px;
-      font-weight: 800;
-      text-anchor: middle;
-      dominant-baseline: central;
-      pointer-events: none;
-    }
-
-    .label.territory-label {
-      fill: #3d4d5e;
-      font-style: italic;
-      font-weight: 720;
-    }
-
-    .label-leader {
-      display: none;
-      fill: none;
-      stroke: rgba(34, 50, 64, 0.6);
-      stroke-width: 1px;
-      stroke-linecap: round;
-      vector-effect: non-scaling-stroke;
-      pointer-events: none;
-    }
-
-    .label-anchor {
-      display: none;
-      fill: #ffffff;
-      stroke: #1d2b38;
-      stroke-width: 1.4px;
-      vector-effect: non-scaling-stroke;
-      pointer-events: none;
-    }
-
-    .capital-marker {
-      display: none;
-      fill: #ffffff;
-      stroke: #18384b;
-      stroke-width: 1.5px;
-      vector-effect: non-scaling-stroke;
-      pointer-events: none;
-    }
-
-    .capital-marker.found {
-      fill: var(--highlight);
-      stroke: var(--highlight-stroke);
-      stroke-width: 2px;
-    }
-
-    .capital-label {
-      fill: #173f56;
-    }
-
-    .labels-on .label,
-    .labels-on .label-leader,
-    .labels-on .label-anchor {
-      display: block;
-    }
-
-    .capital-mode .capital-marker.found,
-    .capital-mode.labels-on .capital-marker {
-      display: block;
-    }
-
-    .country-mode .capital-label,
-    .country-mode .capital-label-leader,
-    .country-mode .capital-marker,
-    .capital-mode .country-label,
-    .capital-mode .country-label-leader,
-    .capital-mode .country-label-anchor {
-      display: none !important;
-    }
-
-    .labels-on .label.suppressed,
-    .labels-on .label.hidden-continent,
-    .labels-on .label-leader.suppressed,
-    .labels-on .label-leader.hidden-continent,
-    .labels-on .label-anchor.suppressed,
-    .labels-on .label-anchor.hidden-continent,
-    .capital-marker.suppressed,
-    .capital-marker.hidden-continent {
-      display: none;
-    }
-
-    .capital-marker.hidden-continent {
-      display: none !important;
-    }
-
-    .legend {
-      position: absolute;
-      z-index: 4;
-      left: 18px;
-      bottom: 18px;
-      display: flex;
-      flex-wrap: wrap;
-      max-width: min(680px, calc(100vw - 390px));
-      gap: 6px 10px;
-      padding: 10px 12px;
-      border: 1px solid rgba(36, 48, 64, 0.12);
-      border-radius: 8px;
-      background: rgba(255, 252, 246, 0.86);
-      box-shadow: 0 10px 30px rgba(63, 49, 27, 0.10);
-      backdrop-filter: blur(10px);
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .legend-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      white-space: nowrap;
-      font-weight: 650;
-    }
-
-    .legend-note {
-      padding-left: 4px;
-      color: #415266;
-      font-weight: 750;
-      white-space: nowrap;
-    }
-
-    .swatch {
-      width: 12px;
-      height: 12px;
-      border: 1px solid rgba(36, 48, 64, 0.22);
-      border-radius: 3px;
-    }
-
-    .swatch.un-territory {
-      background: repeating-linear-gradient(135deg, #d8cbb5 0 4px, #a58f72 4px 6px);
-    }
-
-    .control {
-      position: absolute;
-      z-index: 6;
-      right: 18px;
-      bottom: 18px;
-      width: min(390px, calc(100vw - 36px));
-      padding: 12px;
-      border: 1px solid rgba(36, 48, 64, 0.14);
-      border-radius: 8px;
-      background: rgba(255, 252, 246, 0.94);
-      box-shadow: 0 18px 46px rgba(63, 49, 27, 0.18);
-      backdrop-filter: blur(10px);
-    }
-
-    form {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto auto;
-      gap: 8px;
-      margin: 0;
-      align-items: stretch;
-    }
-
-    input {
-      width: 100%;
-      min-width: 0;
-      border: 1px solid rgba(36, 48, 64, 0.18);
-      border-radius: 7px;
-      padding: 10px 11px;
-      color: var(--ink);
-      background: #ffffff;
-      outline: none;
-      font-size: 15px;
-      font-weight: 650;
-    }
-
-    input:focus {
-      border-color: rgba(41, 107, 142, 0.7);
-      box-shadow: 0 0 0 3px rgba(41, 107, 142, 0.12);
-    }
-
-    .voice-button {
-      min-width: 58px;
-      padding-right: 9px;
-      padding-left: 9px;
-      white-space: nowrap;
-    }
-
-    .message {
-      min-height: 20px;
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 650;
-    }
-
-    .message.good {
-      color: #1f7a41;
-    }
-
-    .message.bad {
-      color: #a54031;
-    }
-
-    .loading {
-      position: absolute;
-      inset: 0;
-      z-index: 10;
-      display: grid;
-      place-items: center;
-      background: rgba(247, 243, 234, 0.78);
-      font-weight: 800;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    .label.answered, .label-leader.answered, .label-anchor.answered { display: block; }
-    .label.suppressed, .label-leader.suppressed, .label-anchor.suppressed,
-    .label.hidden-continent, .label-leader.hidden-continent, .label-anchor.hidden-continent { display: none; }
-    .country.answer-pulse { animation: country-pulse 850ms ease-out; }
-    @keyframes country-pulse {
-      0%, 100% { fill: var(--highlight); }
-      35% { fill: #fffbd0; stroke: #fff5a0; stroke-width: 4; filter: drop-shadow(0 0 10px #ffc529); }
-      65% { fill: #ffca28; stroke-width: 2.5; }
-    }
-    .control.wrong-answer { animation: wrong-answer 360ms ease-out; }
-    @keyframes wrong-answer {
-      0%, 100% { transform: translateX(0); }
-      25% { transform: translateX(-3px); background: #ffe0dd; border-color: #bd4034; }
-      50% { transform: translateX(3px); background: #ffe0dd; }
-      75% { transform: translateX(-2px); }
-    }
-    button:focus-visible, summary:focus-visible { outline: 3px solid #2f6f91; outline-offset: 3px; }
-    .legend-panel summary { cursor: pointer; font-weight: 700; }
-    .legend-panel { position: absolute; bottom: 18px; left: 18px; z-index: 7;
-      padding: 10px 12px; border-radius: 8px; background: #fffaf0; font-size: 14px; }
-    .legend-panel .legend { position: static; max-width: 560px; margin-top: 8px; box-shadow: none; }
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { animation: none !important; transition: none !important; }
-      .control.wrong-answer { border-color: #bd4034; }
-    }
-    @media (max-width: 1100px), (max-height: 600px) {
-      html, body { overflow: auto; }
-      .app { height: var(--app-height, 100dvh); min-height: 440px; display: grid;
-        grid-template-rows: auto auto minmax(150px, 1fr) auto;
-        padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); gap: 6px; }
-      button, .mode-switch button, .continentbar button { min-height: 44px; font-size: 14px; }
-      .topbar { position: static; display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
-        gap: 6px; padding: 8px; box-shadow: none; }
-      .topbar h1 { grid-column: 1; font-size: 15px; }
-      .topbar .score { grid-column: 2 / 4; grid-row: 1; min-width: 0; max-width: 180px; text-align: right; font-size: 12px; }
-      .topbar .mode-switch { grid-column: 1; grid-row: 2; }
-      .mode-switch button { flex: 1; padding: 5px; }
-      .topbar #revealButton { grid-column: 2; grid-row: 2; padding: 6px; }
-      .topbar #resetButton { grid-column: 3; grid-row: 2; padding: 6px; }
-      .continentbar { position: static; flex-wrap: nowrap; overflow-x: auto; pointer-events: auto; gap: 6px; padding-bottom: 2px; }
-      .continentbar button { flex: 0 0 auto; }
-      .map-shell { padding: 0; min-height: 0; position: relative; }
-      .zoom-controls { top: 8px; right: 8px; padding: 4px; gap: 4px; box-shadow: none; }
-      .zoom-controls button { min-width: 44px; }
-      .control { position: static; width: auto; padding: 8px; box-shadow: none; }
-      input { font-size: 16px; min-height: 44px; }
-      .message { font-size: 13px; margin-top: 6px; }
-      .legend-panel { left: 8px; bottom: 8px; padding: 0; max-width: calc(100% - 16px); }
-      .legend-panel summary { padding: 12px; min-height: 44px; }
-      .legend-panel .legend { max-height: 130px; overflow-y: auto; margin: 0; padding: 8px; }
-      .legend-note { white-space: normal; }
-    }
-    @media (max-height: 500px) and (min-width: 600px) {
-      .app { min-height: 340px; }
-      .topbar { display: flex; }
-      .topbar h1 { flex: 1; }
-      .topbar .score { max-width: 130px; }
-      .topbar .mode-switch { flex: 0 0 auto; }
-      .message { min-height: 16px; }
-    }
-    @media (max-width: 360px) {
-      .topbar { grid-template-columns: minmax(0, 1fr) auto; }
-      .topbar h1 { font-size: 14px; }
-      .topbar .score { grid-column: 2; max-width: 140px; }
-      .topbar .mode-switch { grid-column: 1 / -1; }
-      .topbar #revealButton { grid-column: 1; grid-row: 3; }
-      .topbar #resetButton { grid-column: 2; grid-row: 3; }
-    }
-  </style>
-  <link rel="stylesheet" href="game.css?v=20260908-profiles2">
-  <link rel="stylesheet" href="flag-game.css?v=20260908-flags5">
-  <link rel="stylesheet" href="multiplayer.css?v=20260907-friends1">
-  <link rel="stylesheet" href="player-profile.css?v=20260908-profiles2">
-</head>
-<body>
-  <main class="app">
-    <div class="topbar">
-      <button type="button" id="openGames">Games</button>
-      <h1 id="appTitle">Country Memory Map</h1>
-      <div class="mode-switch" role="group" aria-label="Choose quiz type">
-        <button type="button" id="countryModeButton" class="active" aria-pressed="true">Countries</button>
-        <button type="button" id="capitalModeButton" aria-pressed="false">Capitals</button>
-      </div>
-      <div class="score" id="score">0 found</div>
-      <button type="button" id="revealButton">Reveal names</button>
-      <button type="button" id="resetButton">Reset</button>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#020813" />
+    <meta
+      name="description"
+      content="Country Memory Map — explore, remember, and conquer the world."
+    />
+    <title>Country Memory Map</title>
+    <link rel="icon" href="./public/earth-preview.webp" type="image/webp" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to game</a>
+    <div class="universe" aria-hidden="true">
+      <div class="star-field star-field-one"></div>
+      <div class="star-field star-field-two"></div>
+      <div class="nebula nebula-one"></div>
+      <div class="nebula nebula-two"></div>
+      <div class="horizon-wash"></div>
     </div>
 
-    <div class="continentbar" id="continentButtons" aria-label="Choose continent"></div>
+    <div class="app-shell" id="app-shell">
+      <header class="topbar" aria-label="Site header">
+        <a class="brand" href="#main-content" aria-label="Country Memory Map home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48" role="presentation">
+              <defs>
+                <radialGradient id="brand-ocean" cx="35%" cy="28%">
+                  <stop offset="0" stop-color="#64d9ff" />
+                  <stop offset="0.48" stop-color="#1688d5" />
+                  <stop offset="1" stop-color="#072b66" />
+                </radialGradient>
+              </defs>
+              <circle cx="24" cy="24" r="20" fill="url(#brand-ocean)" />
+              <path d="M12 18c4-4 8-4 11-2l2 3-5 2-3 5-5-1zM27 25l6-4 5 4-4 5-1 7-7-5z" fill="#5ca66e" opacity=".9" />
+              <circle cx="24" cy="24" r="20" fill="none" stroke="#92dfff" stroke-width="1.5" opacity=".75" />
+              <path d="M8 24h32M24 5c-5 6-7 12-7 19s2 13 7 19M24 5c5 6 7 12 7 19s-2 13-7 19" fill="none" stroke="#c8efff" stroke-width=".75" opacity=".28" />
+            </svg>
+          </span>
+          <span class="brand-copy">
+            <span class="brand-title">Country Memory Map</span>
+            <span class="brand-tagline">Explore · Remember · Conquer the world</span>
+          </span>
+        </a>
 
-    <div class="map-shell">
-    <div class="zoom-controls" aria-label="Map zoom controls">
-      <button type="button" id="zoomOutButton" aria-label="Zoom out">-</button>
-      <button type="button" id="zoomResetButton">Reset zoom</button>
-      <button type="button" id="zoomInButton" aria-label="Zoom in or focus islands" title="Zoom in or focus an island group">+</button>
+        <nav class="primary-nav" aria-label="Primary navigation">
+          <button class="nav-item is-active" type="button" data-nav="home">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>Home</span>
+          </button>
+          <button class="nav-item" type="button" data-nav="progress">
+            <span class="nav-icon" aria-hidden="true">▥</span>
+            <span>Progress</span>
+          </button>
+          <button class="nav-item" type="button" data-nav="friends">
+            <span class="nav-icon" aria-hidden="true">♟</span>
+            <span>Friends</span>
+          </button>
+          <button class="nav-item" type="button" data-nav="settings">
+            <span class="nav-icon" aria-hidden="true">⚙</span>
+            <span>Settings</span>
+          </button>
+        </nav>
+
+        <div class="topbar-actions">
+          <div class="renderer-chip" id="renderer-chip" aria-live="polite">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="renderer-chip-label">Legacy preview</span>
+          </div>
+          <button class="session-select" type="button" id="session-select" aria-expanded="false" aria-controls="session-menu">
+            <span class="session-dot" aria-hidden="true"></span>
+            <span>Solo exploration</span>
+            <span class="chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="session-menu" id="session-menu" hidden>
+            <button type="button" data-session="solo">Solo exploration <span>Active</span></button>
+            <button type="button" data-session="practice">Practice mode <span>Preview</span></button>
+          </div>
+        </div>
+
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" type="button" aria-label="Open play menu" aria-expanded="false" aria-controls="mobile-sheet">
+          <span></span><span></span><span></span>
+        </button>
+      </header>
+
+      <main id="main-content" class="main-content">
+        <section class="map-workspace" aria-label="Country Memory Map game">
+          <aside class="glass-panel left-rail" aria-label="Game modes and world progress">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Choose your game</p>
+                <h1>Build your knowledge.</h1>
+                <p class="panel-subtitle">One country at a time.</p>
+              </div>
+            </div>
+
+            <div class="mode-list" role="list" aria-label="Game modes">
+              <button class="mode-row is-active" type="button" data-mode="Explore" data-note="Free exploration mode">
+                <span class="mode-icon" aria-hidden="true">◈</span>
+                <span class="mode-copy"><strong>Explore</strong><small>Free exploration mode</small></span>
+                <span class="mode-arrow" aria-hidden="true">›</span>
+              </button>
+              <button class="mode-row" type="button" data-mode="Countries" data-note="Name the countries">
+                <span class="mode-icon" aria-hidden="true">⚑</span>
+                <span class="mode-copy"><strong>Countries</strong><small>Name the countries</small></span>
+                <span class="mode-arrow" aria-hidden="true">›</span>
+              </button>
+              <button class="mode-row" type="button" data-mode="Capitals" data-note="Name the capitals">
+                <span class="mode-icon" aria-hidden="true">▥</span>
+                <span class="mode-copy"><strong>Capitals</strong><small>Name the capitals</small></span>
+                <span class="mode-arrow" aria-hidden="true">›</span>
+              </button>
+              <button class="mode-row" type="button" data-mode="Flag Sprint" data-note="Recognize flags fast">
+                <span class="mode-icon" aria-hidden="true">⚑</span>
+                <span class="mode-copy"><strong>Flag Sprint</strong><small>Recognize flags fast</small></span>
+                <span class="mode-arrow" aria-hidden="true">›</span>
+              </button>
+              <button class="mode-row" type="button" data-mode="World Conquest" data-note="Build your streak">
+                <span class="mode-icon" aria-hidden="true">♜</span>
+                <span class="mode-copy"><strong>World Conquest</strong><small>Build your streak</small></span>
+                <span class="mode-arrow" aria-hidden="true">›</span>
+              </button>
+              <button class="mode-row" type="button" data-mode="Play with Friends" data-note="Up to 8 players">
+                <span class="mode-icon" aria-hidden="true">♟</span>
+                <span class="mode-copy"><strong>Play with Friends</strong><small>Up to 8 players</small></span>
+                <span class="mode-arrow" aria-hidden="true">›</span>
+              </button>
+            </div>
+
+            <div class="progress-card">
+              <div class="progress-title">World Progress</div>
+              <div class="progress-summary">
+                <div class="progress-ring" aria-hidden="true"><span>0</span></div>
+                <div>
+                  <div class="progress-number"><strong id="progress-count">0</strong><span>/ 195</span></div>
+                  <p>countries explored</p>
+                </div>
+              </div>
+              <div class="mini-stats">
+                <div class="mini-stat">
+                  <span class="mini-stat-icon flame" aria-hidden="true">♨</span>
+                  <span><strong id="streak-count">0</strong><small>Day Streak</small></span>
+                </div>
+                <div class="mini-stat">
+                  <span class="mini-stat-icon target" aria-hidden="true">◎</span>
+                  <span><strong id="accuracy-count">0%</strong><small>Accuracy</small></span>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <section class="globe-stage" aria-label="Interactive Earth">
+            <div class="globe-backdrop" aria-hidden="true"></div>
+            <div class="globe-core">
+              <div class="globe-mount" id="globe-mount">
+                <iframe class="legacy-map-frame" id="legacy-map-frame" title="Standard map fallback" src="about:blank" data-src="./legacy/index.html" aria-hidden="true" tabindex="-1"></iframe>
+                <div class="earth-preview-wrap" id="earth-preview-wrap">
+                  <div class="earth-halo earth-halo-outer"></div>
+                  <div class="earth-halo earth-halo-inner"></div>
+                  <img class="earth-preview" src="./public/earth-preview.webp" alt="Earth viewed from space with Europe and Africa facing forward" draggable="false" />
+                  <div class="sun-flare" aria-hidden="true"><span></span></div>
+                </div>
+                <div class="live-globe" id="live-globe" hidden></div>
+                <div class="attribution-safe-zone" id="attribution-safe-zone" hidden>Google Maps · imagery attribution</div>
+                <div class="globe-loading" id="globe-loading" hidden>
+                  <span class="loading-orbit" aria-hidden="true"></span>
+                  <span>Connecting to Earth…</span>
+                </div>
+              </div>
+
+              <div class="compass-controls" aria-label="Globe controls">
+                <div class="compass" aria-hidden="true"><span>N</span><i></i><b></b></div>
+                <div class="zoom-controls">
+                  <button type="button" class="control-button" data-globe-control="zoom-in" aria-label="Zoom in">+</button>
+                  <button type="button" class="control-button" data-globe-control="zoom-out" aria-label="Zoom out">−</button>
+                </div>
+                <button type="button" class="control-button reset-button" data-globe-control="reset" aria-label="Recenter Earth">⌾</button>
+              </div>
+            </div>
+
+            <div class="planet-hud glass-panel">
+              <div class="hud-planet-icon" aria-hidden="true"><span>🌎</span></div>
+              <div class="hud-copy">
+                <strong id="hud-title">Planet Earth</strong>
+                <span id="hud-subtitle">Drag to rotate · Scroll to zoom · Click a country</span>
+              </div>
+            </div>
+
+            <div class="globe-input-zone">
+              <form class="answer-dock" id="answer-form">
+                <label class="sr-only" for="country-input">Type a country name</label>
+                <div class="input-shell">
+                  <span class="search-icon" aria-hidden="true"></span>
+                  <input id="country-input" name="country" type="text" autocomplete="off" placeholder="Type a country name…" />
+                </div>
+                <button class="answer-button" type="submit">Mark Country <span aria-hidden="true">→</span></button>
+              </form>
+              <p class="answer-hint" id="answer-hint">Try India, Brazil, Japan, France or Australia</p>
+            </div>
+          </section>
+
+          <aside class="right-rail" aria-label="Challenge and session details">
+            <section class="glass-panel challenge-card">
+              <div class="challenge-header">
+                <span class="challenge-flame" aria-hidden="true">♨</span>
+                <div><p class="eyebrow">Daily Challenge</p><h2>Around the World</h2></div>
+              </div>
+              <p>Locate 5 countries before the globe completes a rotation.</p>
+              <button class="primary-button" type="button" data-action="challenge">Start Challenge <span aria-hidden="true">→</span></button>
+            </section>
+
+            <section class="glass-panel session-card">
+              <div class="card-title-row"><h2><span class="online-dot" aria-hidden="true"></span>Your session</h2><span class="card-link">Local</span></div>
+              <div class="session-stat-list">
+                <div class="session-stat"><span>Countries this session</span><strong id="session-count">0</strong></div>
+                <div class="session-stat"><span>Best streak</span><strong id="session-streak">0</strong></div>
+                <div class="session-stat"><span>Last activity</span><strong id="session-last">Not started</strong></div>
+              </div>
+              <p class="session-footnote">Connect the existing profile engine to restore saved progress.</p>
+            </section>
+
+            <section class="glass-panel learn-card">
+              <div class="learn-image" aria-hidden="true"><div class="learn-orbit"></div><span>WORLD<br />IN VIEW</span></div>
+              <h2>A more beautiful world</h2>
+              <p>195 countries · immersive learning</p>
+              <button class="outline-button" type="button" data-action="learn">Learn more <span aria-hidden="true">→</span></button>
+            </section>
+          </aside>
+        </section>
+
+        <div class="mobile-sheet" id="mobile-sheet" hidden>
+          <div class="sheet-handle" aria-hidden="true"></div>
+          <div class="sheet-content" id="sheet-content"></div>
+        </div>
+      </main>
+
+      <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
+        <button class="mobile-tab is-active" type="button" data-mobile-tab="play"><span aria-hidden="true">◈</span><small>Play</small></button>
+        <button class="mobile-tab" type="button" data-mobile-tab="progress"><span aria-hidden="true">▥</span><small>Progress</small></button>
+        <button class="mobile-tab" type="button" data-mobile-tab="challenge"><span aria-hidden="true">♨</span><small>Challenge</small></button>
+        <button class="mobile-tab" type="button" data-mobile-tab="friends"><span aria-hidden="true">♟</span><small>Friends</small></button>
+      </nav>
+
+      <footer class="site-footer">
+        <div class="footer-brand"><span class="footer-mark" aria-hidden="true">◉</span><span>Country Memory Map</span><span>© 2026</span></div>
+        <div class="footer-links"><button type="button" data-footer="about">About</button><button type="button" data-footer="feedback">Feedback</button><button type="button" data-footer="privacy">Privacy</button><span>Made with <span class="heart" aria-hidden="true">♥</span> for explorers</span></div>
+      </footer>
     </div>
 
-
-      <svg id="map" class="country-mode" viewBox="0 0 1000 520" role="img" aria-label="Interactive world map with country names hidden">
-        <defs>
-          <pattern id="unTerritoryPattern" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="8" height="8" fill="#d8cbb5"></rect>
-            <line x1="0" y1="0" x2="0" y2="8" stroke="#a58f72" stroke-width="2"></line>
-          </pattern>
-        </defs>
-        <g id="mapViewport">
-          <g id="grid"></g>
-          <g id="countries"></g>
-          <g id="capitalMarkers"></g>
-          <g id="labelLeaders"></g>
-          <g id="labelAnchors"></g>
-          <g id="labels"></g>
-        </g>
-      </svg>
-      <details class="legend-panel"><summary>Map key</summary><div class="legend" id="legend" aria-label="Continent colour legend"></div></details>
-    </div>
-
-    <section class="control" aria-label="Country input">
-      <form id="guessForm" autocomplete="off">
-        <input id="guessInput" type="text" enterkeyhint="go" autocapitalize="words" spellcheck="false" placeholder="Type a country name" aria-label="Type a country name">
-        <button type="button" id="voiceButton" class="voice-button" aria-label="Say country name" title="Say country name">Speak</button>
-        <button type="submit" id="markButton">Mark</button>
-      </form>
-      <div class="message" id="message" role="status" aria-live="polite" aria-atomic="true">Name a country to begin. Pinch to zoom; drag to explore.</div>
-    </section>
-
-    <div class="loading" id="loading">Loading map...</div>
-  </main>
-
-  <script src="flag-data.js?v=20260908-flags1"></script>
-  <script src="game-core.js?v=20260908-flags1"></script>
-  <script src="countries-data.js"></script>
-  <script src="capitals-data.js"></script>
-  <script>
-    const svg = document.getElementById("map");
-    const grid = document.getElementById("grid");
-    const mapViewport = document.getElementById("mapViewport");
-    const countriesGroup = document.getElementById("countries");
-    const capitalMarkersGroup = document.getElementById("capitalMarkers");
-    const labelLeadersGroup = document.getElementById("labelLeaders");
-    const labelAnchorsGroup = document.getElementById("labelAnchors");
-    const labelsGroup = document.getElementById("labels");
-    const legend = document.getElementById("legend");
-    const continentButtons = document.getElementById("continentButtons");
-    const input = document.getElementById("guessInput");
-    const voiceButton = document.getElementById("voiceButton");
-    const form = document.getElementById("guessForm");
-    const markButton = document.getElementById("markButton");
-    const message = document.getElementById("message");
-    const score = document.getElementById("score");
-    const appTitle = document.getElementById("appTitle");
-    const countryModeButton = document.getElementById("countryModeButton");
-    const capitalModeButton = document.getElementById("capitalModeButton");
-    const revealButton = document.getElementById("revealButton");
-    const resetButton = document.getElementById("resetButton");
-    const zoomInButton = document.getElementById("zoomInButton");
-    const zoomOutButton = document.getElementById("zoomOutButton");
-    const zoomResetButton = document.getElementById("zoomResetButton");
-    const loading = document.getElementById("loading");
-
-    const width = 1000;
-    const height = 520;
-    const padX = 26;
-    const padY = 24;
-
-    const colors = {
-      "Africa": "var(--africa)",
-      "Asia": "var(--asia)",
-      "Europe": "var(--europe)",
-      "North America": "var(--north-america)",
-      "South America": "var(--south-america)",
-      "Oceania": "var(--oceania)",
-      "Antarctica": "var(--antarctica)",
-      "Seven seas (open ocean)": "var(--other)"
-    };
-
-    const continentOrder = ["World", "Africa", "Asia", "Europe", "North America", "South America", "Oceania"];
-    const countryOnlyAdminNames = new Set([
-      "Australia",
-      "China",
-      "Cuba",
-      "Denmark",
-      "Finland",
-      "France",
-      "Israel",
-      "Kazakhstan",
-      "Netherlands",
-      "New Zealand",
-      "Palestine",
-      "United Kingdom",
-      "United States of America"
-    ]);
-    const nonCountryAdminNames = new Set([
-      "Northern Cyprus",
-      "Somaliland",
-      "Taiwan"
-    ]);
-    const continentOverrides = {
-      "Maldives": "Asia",
-      "Mauritius": "Africa",
-      "Seychelles": "Africa"
-    };
-    const continentLonLatBounds = {
-      "Africa": { minLon: -20, maxLon: 55, minLat: -37, maxLat: 38 },
-      "Asia": { minLon: 25, maxLon: 180, minLat: -12, maxLat: 82 },
-      "Europe": { minLon: -25, maxLon: 45, minLat: 34, maxLat: 72 },
-      "North America": { minLon: -170, maxLon: -50, minLat: 5, maxLat: 84 },
-      "South America": { minLon: -85, maxLon: -30, minLat: -58, maxLat: 15 },
-      "Oceania": { minLon: 110, maxLon: 180, minLat: -50, maxLat: 12 }
-    };
-    const continentIslandFocus = {
-      "North America": {
-        name: "Caribbean islands",
-        bounds: { minLon: -86, maxLon: -58, minLat: 8, maxLat: 26 }
-      }
-    };
-
-    const manualAliases = {
-      "United States of America": ["United States", "USA", "US", "America", "U.S.A.", "U.S."],
-      "United Kingdom": ["UK", "U.K.", "Britain", "Great Britain"],
-      "Republic of Serbia": ["Serbia"],
-      "Czechia": ["Czech Republic"],
-      "Ivory Coast": ["Cote d'Ivoire", "Côte d’Ivoire", "Côte d'Ivoire"],
-      "Democratic Republic of the Congo": ["DRC", "D.R.C.", "Congo Kinshasa", "Congo-Kinshasa", "Democratic Congo"],
-      "Republic of the Congo": ["Congo", "Congo Brazzaville", "Congo-Brazzaville"],
-      "United Republic of Tanzania": ["Tanzania"],
-      "eSwatini": ["Eswatini", "Swaziland"],
-      "Cabo Verde": ["Cape Verde"],
-      "East Timor": ["Timor Leste", "Timor-Leste"],
-      "Myanmar": ["Burma"],
-      "Laos": ["Lao PDR", "Lao People's Democratic Republic"],
-      "Syria": ["Syrian Arab Republic"],
-      "Russia": ["Russian Federation"],
-      "South Korea": ["Republic of Korea", "Korea South"],
-      "North Korea": ["DPRK", "Democratic People's Republic of Korea", "Korea North"],
-      "United Arab Emirates": ["UAE", "U.A.E."],
-      "Vatican": ["Vatican City", "Holy See"],
-      "The Bahamas": ["Bahamas"],
-      "Federated States of Micronesia": ["Micronesia"],
-      "São Tomé and Principe": ["Sao Tome and Principe", "Sao Tome", "São Tomé"],
-      "Bosnia and Herzegovina": ["Bosnia"],
-      "North Macedonia": ["Macedonia"],
-      "Palestine": ["State of Palestine"],
-      "Macao S.A.R": ["Macau", "Macao"],
-      "Hong Kong S.A.R.": ["Hong Kong"],
-      "Aland": ["Åland", "Aland Islands", "Åland Islands"],
-      "Brunei": ["Brunei Darussalam"],
-      "Moldova": ["Republic of Moldova"],
-      "Bolivia": ["Plurinational State of Bolivia"],
-      "Venezuela": ["Bolivarian Republic of Venezuela"],
-      "Vietnam": ["Viet Nam"],
-      "Iran": ["Islamic Republic of Iran"],
-      "Turkey": ["Turkiye", "Türkiye"],
-      "Gambia": ["The Gambia"],
-      "Saint Barthelemy": ["St Barthelemy", "St. Barthelemy", "Saint Barthélemy"],
-      "Saint Kitts and Nevis": ["St Kitts and Nevis", "St. Kitts and Nevis"],
-      "Saint Lucia": ["St Lucia", "St. Lucia"],
-      "Saint Martin": ["St Martin", "St. Martin"],
-      "Saint Pierre and Miquelon": ["St Pierre and Miquelon", "St. Pierre and Miquelon"],
-      "Saint Vincent and the Grenadines": ["St Vincent and the Grenadines", "St. Vincent and the Grenadines"],
-      "South Georgia and the Islands": ["South Georgia and South Sandwich Islands"],
-      "French Southern and Antarctic Lands": ["French Southern Territories"],
-      "British Virgin Islands": ["Virgin Islands British"],
-      "United States Virgin Islands": ["US Virgin Islands", "U.S. Virgin Islands"],
-      "Northern Cyprus": ["Turkish Republic of Northern Cyprus"],
-      "Somaliland": ["Somaliland Region"]
-    };
-
-    const foundIds = new Set();
-    const foundTerritoryIds = new Set();
-    const foundCapitalCountryIds = new Set();
-    const foundCapitalCityIds = new Set();
-    const countryByAlias = new Map();
-    const countryById = new Map();
-    let countryAnswerValidator = null;
-    const countryIdByName = new Map();
-    const capitalByAlias = new Map();
-    const countryRecords = [];
-    const regionRecords = [];
-    const labelRecords = [];
-    const capitalRecords = [];
-    const continentCounts = new Map();
-    let countryCount = 0;
-    let labelsVisible = false;
-    let quizMode = "countries";
-    let selectedContinent = "World";
-    let viewBox = { x: 0, y: 0, w: width, h: height };
-    let recognition = null;
-    let isListening = false;
-    let legendNote = null;
-
-    function normalize(value) {
-      return GeographyGame.normalize(value);
-    }
-
-    function project(coord) {
-      const lon = coord[0];
-      const lat = coord[1];
-      const x = padX + ((lon + 180) / 360) * (width - padX * 2);
-      const y = padY + ((90 - lat) / 180) * (height - padY * 2);
-      return [x, y];
-    }
-
-    function ringToPath(ring) {
-      return ring.map((point, index) => {
-        const [x, y] = project(point);
-        return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
-      }).join(" ") + " Z";
-    }
-
-    function geometryToPath(geometry) {
-      if (!geometry) return "";
-      if (geometry.type === "Polygon") {
-        return geometry.coordinates.map(ringToPath).join(" ");
-      }
-      if (geometry.type === "MultiPolygon") {
-        return geometry.coordinates.flatMap(poly => poly.map(ringToPath)).join(" ");
-      }
-      return "";
-    }
-
-    function coordinatesForGeometry(geometry) {
-      if (geometry.type === "Polygon") return geometry.coordinates.flat(1);
-      if (geometry.type === "MultiPolygon") return geometry.coordinates.flat(2);
-      return [];
-    }
-
-    function labelPosition(feature) {
-      const labelLon = Number(feature.properties?.LABEL_X);
-      const labelLat = Number(feature.properties?.LABEL_Y);
-      if (Number.isFinite(labelLon) && Number.isFinite(labelLat)) {
-        return project([labelLon, labelLat]);
-      }
-      const geometry = feature.geometry;
-      const points = coordinatesForGeometry(geometry);
-      if (!points.length) return [width / 2, height / 2];
-      let minLon = Infinity;
-      let maxLon = -Infinity;
-      let minLat = Infinity;
-      let maxLat = -Infinity;
-      for (const [lon, lat] of points) {
-        if (lon < minLon) minLon = lon;
-        if (lon > maxLon) maxLon = lon;
-        if (lat < minLat) minLat = lat;
-        if (lat > maxLat) maxLat = lat;
-      }
-      return project([(minLon + maxLon) / 2, (minLat + maxLat) / 2]);
-    }
-
-    function geometryBounds(geometry) {
-      const points = coordinatesForGeometry(geometry).map(project);
-      if (!points.length) return { minX: 0, minY: 0, maxX: width, maxY: height };
-      return points.reduce((bounds, [x, y]) => ({
-        minX: Math.min(bounds.minX, x),
-        minY: Math.min(bounds.minY, y),
-        maxX: Math.max(bounds.maxX, x),
-        maxY: Math.max(bounds.maxY, y)
-      }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
-    }
-
-    function mergeBounds(boundsList) {
-      return boundsList.reduce((bounds, item) => ({
-        minX: Math.min(bounds.minX, item.minX),
-        minY: Math.min(bounds.minY, item.minY),
-        maxX: Math.max(bounds.maxX, item.maxX),
-        maxY: Math.max(bounds.maxY, item.maxY)
-      }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
-    }
-
-    function makeSvgElement(name, attrs = {}) {
-      const element = document.createElementNS("http://www.w3.org/2000/svg", name);
-      for (const [key, value] of Object.entries(attrs)) {
-        element.setAttribute(key, value);
-      }
-      return element;
-    }
-
-    function drawGrid() {
-      for (let lon = -180; lon <= 180; lon += 30) {
-        const [x1, y1] = project([lon, -90]);
-        const [x2, y2] = project([lon, 90]);
-        grid.appendChild(makeSvgElement("path", {
-          class: "graticule",
-          d: `M${x1.toFixed(2)} ${y1.toFixed(2)}L${x2.toFixed(2)} ${y2.toFixed(2)}`
-        }));
-      }
-      for (let lat = -60; lat <= 60; lat += 30) {
-        const [x1, y1] = project([-180, lat]);
-        const [x2, y2] = project([180, lat]);
-        grid.appendChild(makeSvgElement("path", {
-          class: "graticule",
-          d: `M${x1.toFixed(2)} ${y1.toFixed(2)}L${x2.toFixed(2)} ${y2.toFixed(2)}`
-        }));
-      }
-    }
-
-    function splitAliases(value) {
-      return String(value || "")
-        .split(/[|,;]+/)
-        .map(part => part.trim())
-        .filter(Boolean);
-    }
-
-    function aliasesFor(feature) {
-      const p = feature.properties || {};
-      const base = [
-        p.ADMIN, p.NAME, p.NAME_LONG, p.BRK_NAME, p.SOVEREIGNT,
-        p.NAME_EN, p.ISO_A2, p.ISO_A3, p.ADM0_A3
-      ].filter(Boolean);
-      const fromAlt = splitAliases(p.NAME_ALT);
-      const manual = manualAliases[p.ADMIN] || manualAliases[p.NAME] || [];
-      const expanded = [...base, ...fromAlt, ...manual];
-      const saintExpanded = expanded.flatMap(name => {
-        const n = String(name);
-        if (/^Saint /.test(n)) return [n, n.replace(/^Saint /, "St "), n.replace(/^Saint /, "St. ")];
-        return [n];
-      });
-      return [...new Set(saintExpanded.map(normalize).filter(Boolean))];
-    }
-
-    function displayName(feature) {
-      const name = feature.properties.ADMIN || feature.properties.NAME || "Unnamed";
-      return name === "Vatican" ? "Vatican City" : name;
-    }
-
-    function adminName(feature) {
-      return feature.properties.ADMIN || feature.properties.NAME || "";
-    }
-
-    function countryContinent(feature) {
-      const name = adminName(feature);
-      return continentOverrides[name] || feature.properties.CONTINENT || "Seven seas (open ocean)";
-    }
-
-    function isCountryFeature(feature) {
-      if (!feature.geometry || !feature.properties) return false;
-      const name = adminName(feature);
-      const type = feature.properties.TYPE;
-      if (displayName(feature) === "Antarctica") return false;
-      if (nonCountryAdminNames.has(name)) return false;
-      return type === "Sovereign country" || countryOnlyAdminNames.has(name);
-    }
-
-    function isNamedTerritory(feature) {
-      if (!feature.geometry || !feature.properties || isCountryFeature(feature)) return false;
-      if (displayName(feature) === "Antarctica") return false;
-      return feature.properties.TYPE === "Country" || feature.properties.TYPE === "Dependency";
-    }
-
-    function isLabelFeature(feature) {
-      return isCountryFeature(feature) || isNamedTerritory(feature);
-    }
-
-    function isIntegratedCountryFeature(feature) {
-      const name = adminName(feature);
-      return name === "Somalia" || name === "Somaliland" ||
-        name === "Cyprus" || name === "Northern Cyprus";
-    }
-
-    function isWesternSaharaFeature(feature) {
-      return adminName(feature) === "Western Sahara";
-    }
-
-    function ownerCountryName(feature) {
-      const owners = {
-        "Somaliland": "Somalia",
-        "Northern Cyprus": "Cyprus"
-      };
-      return owners[adminName(feature)] || null;
-    }
-
-    function registerSearchableRegion(feature, id, isCountry) {
-      countryById.set(id, { feature, isCountry });
-      const sovereignAlias = normalize(feature.properties.SOVEREIGNT);
-      for (const alias of aliasesFor(feature)) {
-        if (!isCountry && alias === sovereignAlias) continue;
-        if (!countryByAlias.has(alias)) {
-          countryByAlias.set(alias, id);
-        }
-      }
-    }
-
-    function setMessage(text, type = "") {
-      message.textContent = text;
-      message.className = `message ${type}`.trim();
-    }
-
-    function updateScore() {
-      const visibleRecords = countryRecords.filter(record => isRecordVisible(record));
-      const activeFoundIds = quizMode === "capitals" ? foundCapitalCountryIds : foundIds;
-      const visibleFound = visibleRecords.filter(record => activeFoundIds.has(record.id)).length;
-      const noun = quizMode === "capitals" ? "capitals" : "countries";
-      if (selectedContinent === "World") {
-        const territoryText = quizMode === "countries" && foundTerritoryIds.size
-          ? ` · ${foundTerritoryIds.size} territories`
-          : "";
-        score.textContent = `${activeFoundIds.size} / ${countryCount} ${noun} found${territoryText}`;
-      } else {
-        score.textContent = `${visibleFound} / ${visibleRecords.length} ${selectedContinent} ${noun} found`;
-      }
-    }
-
-    function refreshFoundStyles() {
-      const activeFoundIds = quizMode === "capitals" ? foundCapitalCountryIds : foundIds;
-      for (const record of regionRecords) {
-        const ownerId = record.ownerId || record.id;
-        const found = activeFoundIds.has(ownerId) ||
-          (quizMode === "countries" && foundTerritoryIds.has(record.id));
-        record.path.classList.toggle("found", found);
-      }
-      for (const record of capitalRecords) {
-        record.anchor.classList.toggle("found", foundCapitalCityIds.has(record.capitalId));
-      }
-      updateLabelLayout();
-    }
-
-    function isRecordVisible(record) {
-      if (window.GameMap?.gameActive) return true;
-      return selectedContinent === "World" || record.continent === selectedContinent;
-    }
-
-    function zoomScale() {
-      return width / viewBox.w;
-    }
-
-    let viewFrame = 0;
-    function paintViewBox() {
-      viewFrame = 0;
-      svg.setAttribute("viewBox", `${viewBox.x.toFixed(2)} ${viewBox.y.toFixed(2)} ${viewBox.w.toFixed(2)} ${viewBox.h.toFixed(2)}`);
-      updateLabelLayout();
-      window.dispatchEvent(new Event("mapviewchange"));
-    }
-
-    function applyViewBox(interactive = false) {
-      if (!interactive) {
-        if (viewFrame) cancelAnimationFrame(viewFrame);
-        paintViewBox();
-        return;
-      }
-      if (!viewFrame) viewFrame = requestAnimationFrame(paintViewBox);
-    }
-
-    function clampViewBox(box) {
-      const w = Math.min(width, Math.max(20, box.w));
-      const h = Math.min(height, Math.max(11, box.h));
-      return {
-        x: Math.max(0, Math.min(width - w, box.x)),
-        y: Math.max(0, Math.min(height - h, box.y)),
-        w,
-        h
-      };
-    }
-
-    function setViewBox(nextViewBox, interactive = false) {
-      viewBox = clampViewBox(nextViewBox);
-      applyViewBox(interactive);
-    }
-
-    function worldViewBox() {
-      return { x: 0, y: 0, w: width, h: height };
-    }
-
-    function viewBoxForBounds(bounds, padding = 34) {
-      let minX = Math.max(0, bounds.minX - padding);
-      let minY = Math.max(0, bounds.minY - padding);
-      let maxX = Math.min(width, bounds.maxX + padding);
-      let maxY = Math.min(height, bounds.maxY + padding);
-      let boxW = Math.max(80, maxX - minX);
-      let boxH = Math.max(70, maxY - minY);
-      const targetRatio = svg.clientWidth / Math.max(1, svg.clientHeight);
-      const boxRatio = boxW / boxH;
-
-      if (boxRatio > targetRatio) {
-        const neededH = boxW / targetRatio;
-        const extra = neededH - boxH;
-        minY -= extra / 2;
-        maxY += extra / 2;
-        boxH = neededH;
-      } else {
-        const neededW = boxH * targetRatio;
-        const extra = neededW - boxW;
-        minX -= extra / 2;
-        maxX += extra / 2;
-        boxW = neededW;
-      }
-
-      minX = Math.max(0, Math.min(width - boxW, minX));
-      minY = Math.max(0, Math.min(height - boxH, minY));
-      return { x: minX, y: minY, w: Math.min(width, boxW), h: Math.min(height, boxH) };
-    }
-
-    function boundsForLonLat(bounds) {
-      const [minX, maxY] = project([bounds.minLon, bounds.minLat]);
-      const [maxX, minY] = project([bounds.maxLon, bounds.maxLat]);
-      return { minX, minY, maxX, maxY };
-    }
-
-    function fitSelectedContinent() {
-      if (selectedContinent === "World") {
-        setViewBox(worldViewBox());
-        return;
-      }
-      if (continentLonLatBounds[selectedContinent]) {
-        setViewBox(viewBoxForBounds(boundsForLonLat(continentLonLatBounds[selectedContinent])));
-        return;
-      }
-      const visibleBounds = countryRecords
-        .filter(record => isRecordVisible(record))
-        .map(record => record.bounds);
-      if (!visibleBounds.length) {
-        setViewBox(worldViewBox());
-        return;
-      }
-      setViewBox(viewBoxForBounds(mergeBounds(visibleBounds)));
-    }
-
-    function zoomBy(factor) {
-      const centerX = viewBox.x + viewBox.w / 2;
-      const centerY = viewBox.y + viewBox.h / 2;
-      const minW = 20;
-      const maxW = width;
-      const nextW = Math.max(minW, Math.min(maxW, viewBox.w / factor));
-      const nextH = nextW * viewBox.h / viewBox.w;
-      setViewBox({
-        x: Math.max(0, Math.min(width - nextW, centerX - nextW / 2)),
-        y: Math.max(0, Math.min(height - nextH, centerY - nextH / 2)),
-        w: nextW,
-        h: nextH
-      });
-    }
-
-    function focusIslandGroup() {
-      const focus = continentIslandFocus[selectedContinent];
-      if (!focus || !labelsVisible) return false;
-      const focusBox = viewBoxForBounds(boundsForLonLat(focus.bounds), 8);
-      const focusScale = width / focusBox.w;
-      if (zoomScale() >= focusScale * 0.9) return false;
-      setViewBox(focusBox);
-      setMessage(`${focus.name} isolated. Dots mark exact island positions and lines connect each name.`);
-      return true;
-    }
-
-    function canPan() {
-      return viewBox.w < width || viewBox.h < height;
-    }
-
-    function panBy(screenDx, screenDy) {
-      if (!canPan()) return;
-      const rect = svg.getBoundingClientRect();
-      const scale = Math.max(viewBox.w / rect.width, viewBox.h / rect.height);
-      const dx = screenDx * scale;
-      const dy = screenDy * scale;
-      setViewBox({
-        x: viewBox.x + dx,
-        y: viewBox.y + dy,
-        w: viewBox.w,
-        h: viewBox.h
-      });
-    }
-
-    const pointers = new Map();
-    let gesture = null;
-    function mapPoint(x, y) {
-      return new DOMPoint(x, y).matrixTransform(svg.getScreenCTM().inverse());
-    }
-    function beginGesture() {
-      const points = [...pointers.values()];
-      if (!points.length) { gesture = null; return; }
-      const a = points[0], b = points[1] || a;
-      gesture = { box: { ...viewBox }, point: mapPoint((a.x + b.x) / 2, (a.y + b.y) / 2),
-        distance: points.length > 1 ? Math.hypot(a.x - b.x, a.y - b.y) : 0 };
-    }
-    function startPan(event) {
-      if (event.button !== 0) return;
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      svg.setPointerCapture(event.pointerId);
-      svg.classList.add("panning");
-      beginGesture();
-    }
-    function movePan(event) {
-      if (!pointers.has(event.pointerId) || !gesture) return;
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      const points = [...pointers.values()], a = points[0], b = points[1] || a;
-      const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
-      const rect = svg.getBoundingClientRect();
-      const factor = gesture.distance ? Math.max(0.1, Math.hypot(a.x - b.x, a.y - b.y) / gesture.distance) : 1;
-      const w = Math.max(20, Math.min(width, gesture.box.w / factor));
-      const h = Math.max(11, Math.min(height, gesture.box.h * w / gesture.box.w));
-      const screenX = Math.max(0, Math.min(1, (midX - rect.left) / Math.max(1, rect.width)));
-      const screenY = Math.max(0, Math.min(1, (midY - rect.top) / Math.max(1, rect.height)));
-      setViewBox({ x: gesture.point.x - screenX * w, y: gesture.point.y - screenY * h, w, h }, true);
-    }
-    function stopPan(event) {
-      pointers.delete(event.pointerId);
-      if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
-      svg.classList.toggle("panning", pointers.size > 0);
-      if (!pointers.size && viewFrame) { cancelAnimationFrame(viewFrame); paintViewBox(); }
-      beginGesture();
-    }
-
-    function updateLabelLayout() {
-      const svgRect = svg.getBoundingClientRect();
-      const unitsPerPixel = Math.max(viewBox.w / Math.max(1, svgRect.width), viewBox.h / Math.max(1, svgRect.height));
-      const fontSize = 12 * unitsPerPixel;
-      const gap = 3 * unitsPerPixel;
-      const placed = [];
-      const matrix = svg.getScreenCTM();
-      if (matrix) {
-        for (const control of document.querySelectorAll(".zoom-controls, .legend-panel")) {
-          const box = control.getBoundingClientRect();
-          const start = new DOMPoint(box.left, box.top).matrixTransform(matrix.inverse());
-          const end = new DOMPoint(box.right, box.bottom).matrixTransform(matrix.inverse());
-          placed.push({ minX: start.x - gap, minY: start.y - gap, maxX: end.x + gap, maxY: end.y + gap });
-        }
-      }
-      const mainlandCandidates = [
-        [0, 0], [0, -17], [0, 17], [26, 0], [-26, 0],
-        [24, -17], [-24, -17], [24, 17], [-24, 17],
-        [0, -34], [0, 34], [42, 0], [-42, 0],
-        [38, -28], [-38, -28], [38, 28], [-38, 28],
-        [0, -52], [0, 52], [58, 0], [-58, 0]
-      ];
-      const islandCandidates = [
-        [0, -24], [0, 24], [36, 0], [-36, 0],
-        [30, -24], [-30, -24], [30, 24], [-30, 24],
-        [0, -42], [0, 42], [58, 0], [-58, 0],
-        [52, -34], [-52, -34], [52, 34], [-52, 34],
-        [0, -64], [0, 64], [82, 0], [-82, 0]
-      ];
-
-      for (const record of labelRecords) {
-        if ((record.mode || "countries") !== quizMode) {
-          record.label.classList.add("suppressed");
-          record.leader.classList.add("suppressed");
-          record.anchor.classList.add("suppressed");
-        }
-      }
-
-      const ordered = labelRecords
-        .filter(record => (record.mode || "countries") === quizMode)
-        .sort((a, b) =>
-        Number((b.capitalId || b.id) === latestAnswerId) - Number((a.capitalId || a.id) === latestAnswerId) ||
-        Number(isAnswered(b)) - Number(isAnswered(a)) ||
-        Number(b.isCountry) - Number(a.isCountry) ||
-        a.labelRank - b.labelRank ||
-        b.area - a.area ||
-        a.name.localeCompare(b.name)
-      );
-      let shown = 0;
-      let hidden = 0;
-      const islandAnchors = ordered
-        .filter(record => record.isIsland && isRecordVisible(record))
-        .map(record => ({ x: record.labelX, y: record.labelY }));
-
-      for (const record of ordered) {
-        const label = record.label;
-        const leader = record.leader;
-        const anchor = record.anchor;
-        label.classList.remove("suppressed");
-        leader.classList.remove("suppressed");
-        anchor.classList.remove("suppressed");
-        const foundCapital = record.mode === "capitals" && foundCapitalCityIds.has(record.capitalId);
-        anchor.classList.toggle("found", foundCapital);
-        if (record.mode !== "capitals" && !record.isIsland) anchor.classList.add("suppressed");
-        label.style.fontSize = `${fontSize.toFixed(2)}px`;
-        label.style.strokeWidth = `${(2.4 * unitsPerPixel).toFixed(2)}px`;
-        const markerRadius = record.mode === "capitals" ? (foundCapital ? 3.5 : 2.8) : 2.4;
-        anchor.setAttribute("r", (markerRadius * unitsPerPixel).toFixed(2));
-        label.setAttribute("x", record.labelX.toFixed(2));
-        label.setAttribute("y", record.labelY.toFixed(2));
-        leader.setAttribute("x1", record.labelX.toFixed(2));
-        leader.setAttribute("y1", record.labelY.toFixed(2));
-        leader.setAttribute("x2", record.labelX.toFixed(2));
-        leader.setAttribute("y2", record.labelY.toFixed(2));
-
-        const answered = isAnswered(record);
-        if (record.mode === "capitals") label.textContent = answered ? `${record.name} · ${record.country}` : record.name;
-        for (const element of [label, leader, anchor]) element.classList.toggle("answered", answered);
-        if ((!labelsVisible && !answered) || !isRecordVisible(record)) {
-          label.classList.add("suppressed");
-          leader.classList.add("suppressed");
-          if (!foundCapital || !isRecordVisible(record)) anchor.classList.add("suppressed");
-          continue;
-        }
-
-        const measuredWidth = label.getComputedTextLength();
-        const textWidth = Math.max(28 * unitsPerPixel, measuredWidth) + 8 * unitsPerPixel;
-        const textHeight = fontSize + 7 * unitsPerPixel;
-        let chosen = null;
-
-        const candidates = record.isIsland ? islandCandidates : mainlandCandidates;
-        for (const [dxScreen, dyScreen] of candidates) {
-          const dx = dxScreen * unitsPerPixel;
-          const dy = dyScreen * unitsPerPixel;
-          const rect = {
-            minX: record.labelX + dx - textWidth / 2 - gap,
-            maxX: record.labelX + dx + textWidth / 2 + gap,
-            minY: record.labelY + dy - textHeight / 2 - gap,
-            maxY: record.labelY + dy + textHeight / 2 + gap
-          };
-          const withinView = rect.minX >= viewBox.x && rect.maxX <= viewBox.x + viewBox.w &&
-            rect.minY >= viewBox.y && rect.maxY <= viewBox.y + viewBox.h;
-          const overlaps = placed.some(item =>
-            rect.minX < item.maxX &&
-            rect.maxX > item.minX &&
-            rect.minY < item.maxY &&
-            rect.maxY > item.minY
-          );
-          const coversIsland = islandAnchors.some(point =>
-            point.x > rect.minX - gap && point.x < rect.maxX + gap &&
-            point.y > rect.minY - gap && point.y < rect.maxY + gap
-          );
-          if (withinView && !overlaps && !coversIsland) {
-            chosen = { dx, dy, rect };
-            break;
-          }
-        }
-
-        if (!chosen) {
-          label.classList.add("suppressed");
-          leader.classList.add("suppressed");
-          if (record.mode !== "capitals") anchor.classList.add("suppressed");
-          hidden += 1;
-          continue;
-        }
-
-        const finalX = record.labelX + chosen.dx;
-        const finalY = record.labelY + chosen.dy;
-        label.setAttribute("x", finalX.toFixed(2));
-        label.setAttribute("y", finalY.toFixed(2));
-        if (record.isIsland || Math.hypot(chosen.dx, chosen.dy) > 8 * unitsPerPixel) {
-          leader.setAttribute("x2", finalX.toFixed(2));
-          leader.setAttribute("y2", finalY.toFixed(2));
-        } else {
-          leader.classList.add("suppressed");
-        }
-        placed.push(chosen.rect);
-        shown += 1;
-      }
-      return { shown, hidden };
-    }
-
-    function playAnimation(element, className) {
-      element.classList.remove(className);
-      void element.getBoundingClientRect();
-      element.classList.add(className);
-      element.addEventListener("animationend", () => element.classList.remove(className), { once: true });
-    }
-
-    function celebrateCountry(id) {
-      const label = labelRecords.find(record => (record.capitalId || record.id) === latestAnswerId);
-      if (label && (label.labelX < viewBox.x || label.labelX > viewBox.x + viewBox.w ||
-          label.labelY < viewBox.y || label.labelY > viewBox.y + viewBox.h)) {
-        setViewBox({ ...viewBox, x: label.labelX - viewBox.w / 2, y: label.labelY - viewBox.h / 2 });
-      }
-      for (const record of regionRecords) {
-        if ((record.ownerId || record.id) === id) playAnimation(record.path, "answer-pulse");
-      }
-    }
-
-    let latestAnswerId = null;
-
-    function isAnswered(record) {
-      return record.mode === "capitals" ? foundCapitalCityIds.has(record.capitalId)
-        : foundIds.has(record.id) || foundTerritoryIds.has(record.id);
-    }
-
-    function focusInput() {
-      if (matchMedia("(hover: hover) and (pointer: fine)").matches) input.focus({ preventScroll: true });
-    }
-
-    function markCountry(id, name) {
-      const entry = countryById.get(id);
-      if (!entry) return;
-      const record = regionRecords.find(item => item.id === id);
-      if (!record) return;
-      const targetSet = entry.isCountry ? foundIds : foundTerritoryIds;
-      const alreadyFound = targetSet.has(id);
-      targetSet.add(id);
-      latestAnswerId = id;
-      record.path.classList.remove("dimmed");
-      refreshFoundStyles();
-      updateScore();
-      if (entry.isCountry) {
-        setMessage(alreadyFound ? `${name} was already marked.` : `Marked ${name}.`, "good");
-      } else {
-        const sovereign = entry.feature.properties.SOVEREIGNT;
-        const note = sovereign && sovereign !== name ? `, part of ${sovereign}` : "";
-        setMessage(`${name} is shown and highlighted as a territory${note}; it is not counted in the 195-country score.`, "good");
-      }
-      celebrateCountry(id);
-    }
-
-    function handleCountryGuess(raw) {
-      const alias = normalize(raw);
-      if (!alias) return;
-      const id = countryAnswerValidator?.resolveId(raw) || countryByAlias.get(alias);
-      if (!id) {
-        setMessage(`No match for "${raw}". Try a common country name or ISO code.`, "bad");
-        return;
-      }
-      const feature = countryById.get(id).feature;
-      const continent = countryContinent(feature);
-      if (selectedContinent !== "World" && continent !== selectedContinent) {
-        setMessage(`${displayName(feature)} is in ${continent}. Select that continent first.`, "bad");
-        return;
-      }
-      markCountry(id, displayName(feature));
-    }
-
-    function markCapital(record) {
-      const alreadyFound = foundCapitalCountryIds.has(record.countryId);
-      foundCapitalCountryIds.add(record.countryId);
-      foundCapitalCityIds.add(record.capitalId);
-      latestAnswerId = record.capitalId;
-      refreshFoundStyles();
-      updateScore();
-      const roleText = record.role === "capital" ? "" : ` (${record.role})`;
-      setMessage(
-        alreadyFound
-          ? `${record.name}${roleText} belongs to ${record.country}; that country was already scored.`
-          : `Marked ${record.name}${roleText}, ${record.country}.`,
-        "good"
-      );
-      celebrateCountry(record.countryId);
-    }
-
-    function handleCapitalGuess(raw) {
-      const alias = normalize(raw);
-      if (!alias) return;
-      if (alias === normalize("Malabo")) {
-        setMessage("Malabo was replaced by Ciudad de la Paz as Equatorial Guinea's capital in January 2026.", "bad");
-        return;
-      }
-      const record = capitalByAlias.get(alias);
-      if (!record) {
-        setMessage(`No capital match for "${raw}". Try the current capital's common English name.`, "bad");
-        return;
-      }
-      if (selectedContinent !== "World" && record.continent !== selectedContinent) {
-        setMessage(`${record.name} is the capital of ${record.country} in ${record.continent}. Select that continent first.`, "bad");
-        return;
-      }
-      markCapital(record);
-    }
-
-    function handleGuess(raw) {
-      const handled = window.gameController?.handleText(raw);
-      if (handled) return handled;
-      if (!normalize(raw)) return;
-      if (quizMode === "capitals") handleCapitalGuess(raw);
-      else handleCountryGuess(raw);
-      if (message.classList.contains("bad")) playAnimation(form.closest("section"), "wrong-answer");
-    }
-
-    function setupVoiceInput() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        voiceButton.setAttribute("aria-label", "Voice input unavailable; tap for help");
-        voiceButton.title = "Voice input is not supported in this browser.";
-        return;
-      }
-
-      recognition = new SpeechRecognition();
-      recognition.lang = "en-US";
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 5;
-
-      recognition.addEventListener("start", () => {
-        isListening = true;
-        voiceButton.classList.add("listening");
-        voiceButton.setAttribute("aria-pressed", "true");
-        voiceButton.textContent = "● Listening";
-        setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`);
-      });
-
-      recognition.addEventListener("end", () => {
-        isListening = false;
-        voiceButton.classList.remove("listening");
-        voiceButton.setAttribute("aria-pressed", "false");
-        voiceButton.textContent = "Speak";
-      });
-
-      recognition.addEventListener("error", event => {
-        const reason = event.error === "not-allowed"
-          ? "Microphone permission was blocked."
-          : `Voice input did not work. Try again or type the ${quizMode === "capitals" ? "capital" : "country"}.`;
-        setMessage(reason, "bad");
-      });
-
-      recognition.addEventListener("result", event => {
-        const result = event.results[event.results.length - 1];
-        const alternatives = [...result].map(item => item.transcript.trim()).filter(Boolean);
-        const heard = alternatives[0] || "";
-        input.value = heard;
-        if (!result.isFinal) {
-          const handled = window.gameController?.previewVoice?.(heard);
-          if (!handled) setMessage(`Hearing: “${heard}”…`);
-          return;
-        }
-        const gameHandled = window.gameController?.handleVoice?.(alternatives);
-        if (gameHandled) return;
-        const transcript = quizMode === "capitals"
-          ? alternatives.find(value => capitalByAlias.has(normalize(value))) || alternatives[0] || ""
-          : alternatives.find(value => countryAnswerValidator?.resolve(value)) || alternatives[0] || "";
-        input.value = transcript;
-        if (transcript) {
-          handleGuess(transcript);
-          input.value = "";
-        }
-        focusInput();
-      });
-    }
-
-    function startVoiceInput() {
-      if (location.protocol === "file:") {
-        setMessage("For one-time microphone permission, open this map at http://127.0.0.1:8000/ and choose Allow while visiting this site.", "bad");
-        return;
-      }
-      if (!recognition) {
-        setMessage("This browser does not support voice input. Use your keyboard’s microphone or type an answer.", "bad");
-        return;
-      }
-      if (isListening) {
-        recognition.stop();
-        return;
-      }
-      try {
-        recognition.start();
-      } catch (error) {
-        setMessage("Voice input is already starting. Try again in a moment.", "bad");
-      }
-    }
-
-    function createLegend() {
-      const order = ["Africa", "Asia", "Europe", "North America", "South America", "Oceania", "Antarctica", "Seven seas (open ocean)"];
-      for (const name of order) {
-        const item = document.createElement("span");
-        item.className = "legend-item";
-        const swatch = document.createElement("span");
-        swatch.className = "swatch";
-        swatch.style.background = colors[name] || colors["Seven seas (open ocean)"];
-        const label = document.createElement("span");
-        label.textContent = name === "Seven seas (open ocean)" ? "Other" : name;
-        item.append(swatch, label);
-        legend.appendChild(item);
-      }
-      const statusItem = document.createElement("span");
-      statusItem.className = "legend-item";
-      const statusSwatch = document.createElement("span");
-      statusSwatch.className = "swatch un-territory";
-      const statusLabel = document.createElement("span");
-      statusLabel.textContent = "UN territory / unresolved status";
-      statusItem.append(statusSwatch, statusLabel);
-      legend.appendChild(statusItem);
-
-      legendNote = document.createElement("span");
-      legendNote.className = "legend-note";
-      legendNote.title = "Country status follows the 193 UN member states plus the Holy See and State of Palestine. Western Sahara follows its United Nations Non-Self-Governing Territory status. Boundary geometry uses Natural Earth 1:10m v5.1.1.";
-      legend.appendChild(legendNote);
-      updateLegendNote();
-    }
-
-    function updateLegendNote() {
-      if (!legendNote) return;
-      legendNote.textContent = quizMode === "capitals"
-        ? "195-country capital score · official and administrative variants accepted"
-        : "195-country score · territories shown";
-    }
-
-    function createContinentButtons() {
-      for (const name of continentOrder) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = name;
-        button.dataset.continent = name;
-        if (colors[name]) {
-          button.style.setProperty("--continent-color", colors[name]);
-        }
-        if (name === selectedContinent) button.classList.add("active");
-        button.addEventListener("click", () => selectContinent(name));
-        continentButtons.appendChild(button);
-      }
-    }
-
-    function setQuizMode(mode) {
-      quizMode = mode === "capitals" ? "capitals" : "countries";
-      labelsVisible = false;
-      svg.classList.remove("labels-on");
-      svg.classList.toggle("capital-mode", quizMode === "capitals");
-      svg.classList.toggle("country-mode", quizMode === "countries");
-      revealButton.textContent = "Reveal names";
-
-      countryModeButton.classList.toggle("active", quizMode === "countries");
-      capitalModeButton.classList.toggle("active", quizMode === "capitals");
-      countryModeButton.setAttribute("aria-pressed", String(quizMode === "countries"));
-      capitalModeButton.setAttribute("aria-pressed", String(quizMode === "capitals"));
-
-      const isCapitalMode = quizMode === "capitals";
-      appTitle.textContent = isCapitalMode ? "Capital Memory Map" : "Country Memory Map";
-      document.title = appTitle.textContent;
-      input.placeholder = isCapitalMode ? "Type a capital name" : "Type a country name";
-      input.setAttribute("aria-label", input.placeholder);
-      voiceButton.setAttribute("aria-label", isCapitalMode ? "Say capital name" : "Say country name");
-      voiceButton.title = voiceButton.getAttribute("aria-label");
-      form.closest("section").setAttribute("aria-label", isCapitalMode ? "Capital input" : "Country input");
-
-      refreshFoundStyles();
-      updateScore();
-      updateLegendNote();
-      setMessage(
-        isCapitalMode
-          ? "Capital quiz ready. Name a capital to highlight its country and exact location."
-          : "Country quiz ready. Name a country to highlight it."
-      );
-      focusInput();
-    }
-
-    function selectContinent(name) {
-      selectedContinent = name;
-      labelsVisible = false;
-      svg.classList.remove("labels-on");
-      revealButton.textContent = "Reveal names";
-
-      document.querySelectorAll("[data-continent]").forEach(button => {
-        button.classList.toggle("active", button.dataset.continent === selectedContinent);
-      });
-
-      applyContinentFilter();
-      fitSelectedContinent();
-      updateScore();
-      setMessage(
-        selectedContinent === "World"
-          ? "World view restored. Choose a continent before revealing names."
-          : `${selectedContinent} selected. Other continents are hidden.`
-      );
-      focusInput();
-    }
-
-    function applyContinentFilter() {
-      for (const record of regionRecords) {
-        const visible = isRecordVisible(record);
-        record.path.classList.toggle("hidden-continent", !visible);
-        record.path.classList.toggle("outside-target", !!window.GameMap?.gameActive && window.GameMap.gameRegion !== "World" && record.continent !== window.GameMap.gameRegion);
-      }
-      for (const record of labelRecords) {
-        const visible = isRecordVisible(record);
-        record.label.classList.toggle("hidden-continent", !visible);
-        record.leader.classList.toggle("hidden-continent", !visible);
-        record.anchor.classList.toggle("hidden-continent", !visible);
-      }
-      updateLabelLayout();
-    }
-
-    function renderCapitals(capitals) {
-      for (const [index, capital] of capitals.entries()) {
-        const countryId = countryIdByName.get(capital.country);
-        const countryRecord = countryRecords.find(record => record.id === countryId);
-        if (!countryRecord) {
-          console.warn(`Capital data has no matching country: ${capital.country}`);
-          continue;
-        }
-
-        const [x, y] = project([capital.lon, capital.lat]);
-        const capitalId = `capital-${index}`;
-        const marker = makeSvgElement("circle", {
-          class: "capital-marker suppressed",
-          cx: x.toFixed(2),
-          cy: y.toFixed(2),
-          r: "2.8",
-          "data-capital-id": capitalId,
-          "data-country-id": countryId,
-          "data-continent-name": countryRecord.continent,
-          "aria-label": `${capital.name}, ${capital.role} of ${capital.country}`
-        });
-        const title = makeSvgElement("title");
-        title.textContent = `${capital.name} — ${capital.role} of ${capital.country}`;
-        marker.appendChild(title);
-        capitalMarkersGroup.appendChild(marker);
-
-        const leader = makeSvgElement("line", {
-          class: "label-leader capital-label-leader suppressed",
-          x1: x.toFixed(2),
-          y1: y.toFixed(2),
-          x2: x.toFixed(2),
-          y2: y.toFixed(2),
-          "data-continent-name": countryRecord.continent
-        });
-        labelLeadersGroup.appendChild(leader);
-
-        const label = makeSvgElement("text", {
-          class: "label capital-label suppressed",
-          x: x.toFixed(2),
-          y: y.toFixed(2),
-          "data-continent-name": countryRecord.continent,
-          "data-label-id": capitalId
-        });
-        label.textContent = capital.name;
-        labelsGroup.appendChild(label);
-
-        const record = {
-          ...countryRecord,
-          name: capital.name,
-          country: capital.country,
-          countryId,
-          capitalId,
-          role: capital.role,
-          mode: "capitals",
-          label,
-          leader,
-          anchor: marker,
-          labelX: x,
-          labelY: y,
-          labelRank: 1,
-          area: Math.max(0, (countryRecord.bounds.maxX - countryRecord.bounds.minX) *
-            (countryRecord.bounds.maxY - countryRecord.bounds.minY)),
-          isIsland: true
-        };
-        capitalRecords.push(record);
-        labelRecords.push(record);
-
-        for (const alias of [capital.name, ...(capital.aliases || [])].map(normalize).filter(Boolean)) {
-          if (!capitalByAlias.has(alias)) capitalByAlias.set(alias, record);
-        }
-      }
-    }
-
-    function renderMap(data, capitals = []) {
-      const features = data.features
-        .filter(feature => feature.geometry && feature.properties)
-        .sort((a, b) => Number(a.properties.TYPE === "Disputed" || a.properties.TYPE === "Indeterminate") -
-          Number(b.properties.TYPE === "Disputed" || b.properties.TYPE === "Indeterminate"));
-      countryCount = features.filter(isCountryFeature).length;
-
-      for (const [index, feature] of features.entries()) {
-        const name = displayName(feature);
-        const id = `${feature.properties.ADM0_A3 || feature.properties.ISO_A3 || "region"}-${feature.properties.NE_ID || index}`;
-        const continent = countryContinent(feature);
-        const isCountry = isCountryFeature(feature);
-        const isTerritory = isNamedTerritory(feature);
-        const integratedCountry = isIntegratedCountryFeature(feature);
-        const westernSahara = isWesternSaharaFeature(feature);
-        const disputed = feature.properties.TYPE === "Disputed" || feature.properties.TYPE === "Indeterminate";
-        if (isCountry) continentCounts.set(continent, (continentCounts.get(continent) || 0) + 1);
-        const path = makeSvgElement("path", {
-          class: `country${isTerritory ? " territory" : ""}${disputed ? " disputed-region" : ""}${integratedCountry ? " integrated-country" : ""}${westernSahara ? " un-territory" : ""}`,
-          d: geometryToPath(feature.geometry),
-          fill: westernSahara ? "url(#unTerritoryPattern)" : colors[continent] || colors["Seven seas (open ocean)"],
-          "data-region-id": id,
-          "data-region-name": name,
-          "data-continent-name": continent,
-          "aria-label": westernSahara
-            ? "Western Sahara, United Nations Non-Self-Governing Territory; not a quiz country"
-            : adminName(feature) === "Somaliland"
-              ? "Northern Somalia"
-              : adminName(feature) === "Northern Cyprus"
-                ? "Northern Cyprus region of Cyprus"
-              : isCountry ? name : `${name}, mapped region`
-        });
-        countriesGroup.appendChild(path);
-
-        const bounds = geometryBounds(feature.geometry);
-        const regionRecord = {
-          id,
-          name,
-          continent,
-          path,
-          bounds,
-          isCountry,
-          isTerritory,
-          ownerName: ownerCountryName(feature),
-          ownerId: null
-        };
-        regionRecords.push(regionRecord);
-
-        if (isCountry) {
-          countryRecords.push(regionRecord);
-          countryIdByName.set(adminName(feature), id);
-          countryIdByName.set(name, id);
-        }
-        if (isCountry || isTerritory) registerSearchableRegion(feature, id, isCountry);
-
-        if (isLabelFeature(feature)) {
-          const [x, y] = labelPosition(feature);
-          const leader = makeSvgElement("line", {
-            class: "label-leader country-label-leader suppressed",
-            x1: x.toFixed(2),
-            y1: y.toFixed(2),
-            x2: x.toFixed(2),
-            y2: y.toFixed(2),
-            "data-continent-name": continent
-          });
-          labelLeadersGroup.appendChild(leader);
-          const anchor = makeSvgElement("circle", {
-            class: "label-anchor country-label-anchor suppressed",
-            cx: x.toFixed(2),
-            cy: y.toFixed(2),
-            r: "2",
-            "data-continent-name": continent
-          });
-          labelAnchorsGroup.appendChild(anchor);
-          const label = makeSvgElement("text", {
-            class: `label country-label${isTerritory ? " territory-label" : ""}`,
-            x: x.toFixed(2),
-            y: y.toFixed(2),
-            "data-continent-name": continent,
-            "data-label-id": id
-          });
-          label.textContent = name;
-          labelsGroup.appendChild(label);
-          labelRecords.push({
-            ...regionRecord,
-            label,
-            leader,
-            anchor,
-            mode: "countries",
-            labelX: x,
-            labelY: y,
-            labelRank: Number(feature.properties.LABELRANK) || 9,
-            area: Math.max(0, (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY)),
-            isIsland: feature.properties.SUBREGION === "Caribbean" ||
-              feature.properties.REGION_UN === "Oceania" || Number(feature.properties.TINY) > 0
-          });
-        }
-      }
-
-      for (const record of regionRecords) {
-        if (record.ownerName) record.ownerId = countryIdByName.get(record.ownerName) || null;
-      }
-      countryAnswerValidator = new window.GeographyGame.AnswerValidator(countryRecords.map(record => {
-        const feature = countryById.get(record.id)?.feature;
-        return {
-          id: record.id,
-          canonicalName: record.name,
-          aliases: feature ? aliasesFor(feature) : []
-        };
-      }));
-      renderCapitals(capitals);
-      capitalModeButton.disabled = !capitalRecords.length;
-
-      createContinentButtons();
-      applyContinentFilter();
-      refreshFoundStyles();
-      updateScore();
-      loading.classList.add("hidden");
-      focusInput();
-      window.dispatchEvent(new Event("mapready"));
-    }
-
-    form.addEventListener("submit", event => {
-      event.preventDefault();
-      const handled = handleGuess(input.value);
-      if (handled !== "pending") input.value = "";
-    });
-
-    markButton.addEventListener("touchend", event => {
-      event.preventDefault();
-      form.requestSubmit(markButton);
-    }, { passive: false });
-
-    countryModeButton.addEventListener("click", () => setQuizMode("countries"));
-    capitalModeButton.addEventListener("click", () => setQuizMode("capitals"));
-    voiceButton.addEventListener("click", startVoiceInput);
-
-    revealButton.addEventListener("click", () => {
-      if (selectedContinent === "World") {
-        labelsVisible = false;
-        svg.classList.remove("labels-on");
-        revealButton.textContent = "Reveal names";
-        setMessage("Choose a continent first, then reveal names for that continent.", "bad");
-        return;
-      }
-      labelsVisible = !labelsVisible;
-      svg.classList.toggle("labels-on", labelsVisible);
-      revealButton.textContent = labelsVisible ? "Hide names" : "Reveal names";
-      const layout = updateLabelLayout();
-      setMessage(
-        labelsVisible
-          ? `${layout.shown} names shown without overlap${layout.hidden ? `; zoom in for ${layout.hidden} more` : ""}.`
-          : `${quizMode === "capitals" ? "Capital" : "Country"} names are hidden again.`
-      );
-    });
-
-    resetButton.addEventListener("click", () => {
-      if (quizMode === "capitals") {
-        foundCapitalCountryIds.clear();
-        foundCapitalCityIds.clear();
-      } else {
-        foundIds.clear();
-        foundTerritoryIds.clear();
-      }
-      refreshFoundStyles();
-      updateScore();
-      setMessage(`${quizMode === "capitals" ? "Capital" : "Country"} quiz reset. Names remain hidden unless revealed.`);
-      focusInput();
-    });
-
-    zoomInButton.addEventListener("click", () => {
-      if (focusIslandGroup()) return;
-      zoomBy(1.5);
-      setMessage("Zoomed in. Drag the map or scroll sideways to pan; island dots stay connected to their names.");
-    });
-    zoomOutButton.addEventListener("click", () => {
-      zoomBy(1 / 1.35);
-      setMessage("Zoomed out. Drag the map or scroll sideways to pan.");
-    });
-    zoomResetButton.addEventListener("click", () => {
-      fitSelectedContinent();
-      setMessage("Zoom reset for the current view.");
-    });
-
-    svg.addEventListener("pointerdown", startPan);
-    svg.addEventListener("pointermove", movePan);
-    svg.addEventListener("pointerup", stopPan);
-    svg.addEventListener("pointercancel", stopPan);
-    svg.addEventListener("lostpointercapture", stopPan);
-    svg.addEventListener("wheel", event => {
-      if (!canPan()) return;
-      event.preventDefault();
-      const horizontal = event.deltaX || (event.shiftKey ? event.deltaY : 0);
-      const vertical = event.shiftKey ? 0 : event.deltaY;
-      panBy(horizontal, vertical);
-    }, { passive: false });
-
-    async function init() {
-      drawGrid();
-      createLegend();
-      setupVoiceInput();
-      try {
-        if (window.COUNTRIES_GEOJSON) {
-          renderMap(window.COUNTRIES_GEOJSON, window.CAPITALS_DATA || []);
-          return;
-        }
-        const response = await fetch("countries.geojson");
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        renderMap(await response.json(), window.CAPITALS_DATA || []);
-      } catch (error) {
-        loading.classList.add("hidden");
-        setMessage("Could not load the embedded country map data. Reload the page or reopen index.html.", "bad");
-        console.error(error);
-      }
-    }
-
-    let lastMapWidth = 0;
-    new ResizeObserver(() => {
-      if (lastMapWidth && Math.abs(svg.clientWidth - lastMapWidth) > 10) fitSelectedContinent();
-      lastMapWidth = svg.clientWidth;
-      updateLabelLayout();
-    }).observe(svg);
-    document.querySelector(".legend-panel").addEventListener("toggle", updateLabelLayout);
-    function syncViewport() {
-      document.documentElement.style.setProperty("--app-height", `${window.visualViewport?.height || window.innerHeight}px`);
-    }
-    window.visualViewport?.addEventListener("resize", syncViewport);
-    window.addEventListener("resize", syncViewport);
-    syncViewport();
-    window.GameMap = {
-      svg, countryRecords, regionRecords, labelRecords, capitalRecords,
-      countries: countryRecords, capitals: capitalRecords, gameActive: false, gameRegion: "World",
-      stopVoice: () => { if (isListening) recognition?.abort(); },
-      feature: id => countryById.get(id)?.feature,
-      countryId: name => countryIdByName.get(name),
-      aliases: id => [...countryByAlias].filter(([, value]) => value === id).map(([alias]) => alias),
-      getView: () => ({ ...viewBox }), setView: setViewBox, point: mapPoint, project,
-      selectRegion: selectContinent,
-      setMode: setQuizMode,
-      clear: () => { foundIds.clear(); foundTerritoryIds.clear(); foundCapitalCountryIds.clear(); foundCapitalCityIds.clear(); latestAnswerId = null; refreshFoundStyles(); },
-      mark: id => { foundIds.add(id); latestAnswerId = id; refreshFoundStyles(); },
-      filter: applyContinentFilter, layout: updateLabelLayout,
-      focusRegion: (name) => { selectedContinent = name; fitSelectedContinent(); },
-      refresh: refreshFoundStyles
-    };
-    init();
-  </script>
-  <script src="country-borders.js"></script>
-  <script src="game-data.js?v=20260908-flags1"></script>
-  <script src="game-map.js?v=20260908-profiles2"></script>
-  <script src="flag-component.js?v=20260908-flags1"></script>
-  <script src="country-outline.js?v=20260908-flags1"></script>
-  <script src="multiplayer-config.js?v=20260908-profiles2"></script>
-  <script src="player-system.js?v=20260908-profiles2"></script>
-  <script src="game-ui.js?v=20260908-profiles2"></script>
-  <script src="multiplayer-service.js?v=20260907-friends1"></script>
-  <script src="multiplayer-ui.js?v=20260907-mobile2"></script>
-</body>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    <div class="sr-only" id="app-status" aria-live="polite"></div>
+    <script src="./public/runtime-config.js"></script>
+    <script type="module" src="./src/main.js"></script>
+  </body>
 </html>
