@@ -30,7 +30,7 @@ The GameShell is a future shared presentation contract. Governance v1 does not i
 - Game state remains authoritative through transitions; shell animation cannot delay deadlines or accept late answers.
 - Shell components expose semantic names, live-region behavior, visible focus, keyboard order, touch sizing, contrast, and reduced-motion variants.
 - Mobile portrait and landscape define separate space allocations for header, stage, HUD, answer dock, and bottom navigation so they cannot overlap.
-- Existing routes and deep links remain stable during incremental migration unless a separately approved routing decision says otherwise.
+- Existing verified routes and deep links remain stable during incremental migration unless a separately approved routing decision says otherwise. No per-game legacy deep-link contract is current; adding one requires that routing decision.
 
 ## Adoption gates
 

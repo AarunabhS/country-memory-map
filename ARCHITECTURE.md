@@ -8,7 +8,7 @@ Status date: 2026-09-09. This map describes verified repository structure. Label
 
 - The frontend is static HTML, CSS, and browser JavaScript with no frontend framework, router, bundler, or root dependency-install step.
 - `index.html` is the GitHub Pages entry. It renders the cinematic root shell and loads `styles.css`, `public/runtime-config.js`, and ES modules under `src/`.
-- `legacy/index.html` uses `<base href="../">` and loads canonical root scripts/styles. Direct retained-game URLs may use `legacy/?game=<slug>`, which `game-ui.js` interprets.
+- `legacy/index.html` uses `<base href="../">` and loads canonical root scripts/styles. `legacy/` is the retained-app route. Current `game-ui.js` does not parse a `game` query parameter, so `legacy/?game=<slug>` does not select a game.
 - Root `Explore` and `Countries` use the retained country checker through the hidden iframe bridge; root `Capitals` selects the retained capital checker. The typed answer dock submits through that bridge.
 - `flag-gallery.html` is a separate internal flag-inventory QA page, not a production game route.
 - Root navigation, session choices, daily challenge, learning, progress, friends, and settings are buttons that currently update shell state or show staging messages; they are not complete route-backed product surfaces.
@@ -56,7 +56,7 @@ Status date: 2026-09-09. This map describes verified repository structure. Label
 
 - The clean HEAD adapter can emit country clicks, and `src/main.js` supplies `handleGlobeCountryClick` to `createMapAdapter`. However, the factory signature does not accept or forward `onCountryClick` into `Google3DAdapter`, so the live 3D click callback is disconnected in the effective root flow.
 - When Google 3D initialization fails, the root keeps the cinematic Earth preview visible and explicitly keeps the retained iframe hidden. The cinematic root therefore does not expose the retained playable 2D implementation as the required failure fallback.
-- Previous browser evidence for clean HEAD found the root answer dock overlapping the fixed mobile bottom navigation. The current final mobile CSS positions the input zone 10px from the viewport bottom while the navigation occupies 67px plus the safe-area inset.
+- Current source establishes that the root answer dock overlaps the fixed mobile bottom navigation: the final mobile CSS positions the input zone 10px from the viewport bottom at z-index 9 while the navigation occupies 67px plus the safe-area inset at z-index 20.
 
 **NEEDS QA**
 

@@ -7,7 +7,7 @@ This file records actual governance decisions and identifies candidates that sti
 Status: accepted governance decision.
 
 - Established the repository precedence chain, canonical architecture/delivery and QA evidence vocabularies, protected behaviors, impact assessment, risk routing, QA matrix, performance/accessibility/responsive standards, ADR process, execution-plan lifecycle, PR template, and dependency-free governance check.
-- Recorded defects verified against clean HEAD or accepted browser evidence without repairing or redesigning production behavior: dropped Google 3D callback forwarding, no root-exposed playable 2D failure fallback, mobile answer-dock/navigation overlap, staged root surfaces, profile API mismatch, duplicated classification, partial shell integration, and stale multiplayer snapshots.
+- Recorded defects verified against clean HEAD source without repairing or redesigning production behavior: dropped Google 3D callback forwarding, no root-exposed playable 2D failure fallback, mobile answer-dock/navigation overlap, staged root surfaces, profile API mismatch, duplicated classification, partial shell integration, and stale multiplayer snapshots.
 - Classified the Universal Cinematic GameShell as **PROPOSED TARGET ARCHITECTURE** with **APPROVED FUTURE WORK** direction only; no shell implementation or game migration was approved by this change.
 - Kept generated multiplayer snapshot parity as a non-blocking follow-up until the baseline is deliberately reconciled.
 - Added CI for current dependency-free governance/root tests and existing multiplayer tests/build. CI does not assert source/generated snapshot parity.
