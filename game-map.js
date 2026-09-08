@@ -2,12 +2,14 @@
 window.createGameMap = function (bridge, onPick) {
   const svg = bridge.svg;
   const hitLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  hitLayer.id = 'gameHitTargets'; svg.querySelector('#mapViewport').append(hitLayer);
+  const feedbackLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  hitLayer.id = 'gameHitTargets'; feedbackLayer.id = 'gameFeedbackLayer'; svg.querySelector('#mapViewport').append(hitLayer, feedbackLayer);
   let clickMode = false, countries = [], lastRegion = null, gesture = null, pointerCount = 0;
   let keyboardCountries = [], keyboardIndex = -1, lastPointerUp = -Infinity;
   function units() { const v = bridge.getView(), box = svg.getBoundingClientRect(); return Math.max(v.w / box.width, v.h / box.height); }
   function clearFeedback() {
     for (const r of bridge.regionRecords) r.path.classList.remove('game-good', 'game-bad', 'game-reveal', 'game-pending');
+    feedbackLayer.replaceChildren();
   }
   function pending(id) {
     clearPending();
@@ -19,7 +21,7 @@ window.createGameMap = function (bridge, onPick) {
   function clearPending() {
     for (const r of bridge.regionRecords) r.path.classList.remove('game-pending');
   }
-  function feedback(id, kind, permanent = false) {
+  function feedback(id, kind, permanent = false, intensity = 'full') {
     clearPending();
     if (kind === 'reveal') {
       const label = bridge.labelRecords.find(r => r.mode === 'countries' && r.id === id), view = bridge.getView();
@@ -30,12 +32,26 @@ window.createGameMap = function (bridge, onPick) {
     if (kind !== 'bad') bridge.mark(id);
     for (const r of bridge.regionRecords) {
       if ((r.ownerId || r.id) !== id) continue;
-      r.path.classList.remove('game-good', 'game-bad', 'game-reveal');
+      r.path.classList.remove('game-good', 'game-bad', 'game-reveal', 'feedback-full', 'feedback-subtle', 'feedback-minimal');
       void r.path.getBoundingClientRect();
       r.path.classList.add(`game-${kind}`);
+      if (kind === 'good' && intensity !== 'off') r.path.classList.add(`feedback-${intensity}`);
       if (kind === 'bad') setTimeout(() => r.path.classList.remove('game-bad'), 450);
+      if (kind === 'good' && !permanent) setTimeout(() => r.path.classList.remove('game-good', 'feedback-full', 'feedback-subtle', 'feedback-minimal'), intensity === 'minimal' ? 320 : intensity === 'subtle' ? 420 : 560);
     }
   }
+  function pulseTarget(id, type = 'country', intensity = 'full') {
+    if (intensity === 'off' || intensity === 'minimal') return;
+    const record = bridge.labelRecords.find(value => (value.mode === (type === 'capital' ? 'capitals' : 'countries')) && (value.id === id || value.countryId === id));
+    if (!record) return;
+    const scale = units(), ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    ring.setAttribute('class', `game-feedback-ping ${type === 'capital' ? 'capital-ping' : 'country-ping'} feedback-${intensity}`);
+    ring.setAttribute('cx', record.labelX); ring.setAttribute('cy', record.labelY); ring.setAttribute('r', Math.max(2, 6 * scale));
+    feedbackLayer.append(ring);
+    setTimeout(() => ring.remove(), intensity === 'subtle' ? 380 : 480);
+  }
+  function flashCountry(id, intensity = 'full') { feedback(id, 'good', false, intensity); pulseTarget(id, 'country', intensity); }
+  function pulseCapital(id, intensity = 'full') { pulseTarget(id, 'capital', intensity); }
   function renderTargets() {
     hitLayer.replaceChildren();
     if (!clickMode) return;
@@ -126,7 +142,8 @@ window.createGameMap = function (bridge, onPick) {
   new ResizeObserver(renderTargets).observe(svg);
   return {
     start(region, dataset) { countries = dataset; bridge.gameActive = true; bridge.gameRegion = region; bridge.setMode('countries'); bridge.clear(); bridge.selectRegion(region); lastRegion = region; },
-    prepare, feedback, pending, clearPending, clearFeedback,
+    prepare, feedback, flashCountry, pulseCapital, pending, clearPending, clearFeedback,
+    mark(id) { bridge.mark(id); },
     end() { clickMode = false; svg.classList.remove('click-game'); hitLayer.replaceChildren(); svg.removeAttribute('tabindex'); },
     restore() { this.end(); clearFeedback(); bridge.gameActive = false; bridge.gameRegion = 'World'; bridge.clear(); bridge.selectRegion('World'); },
     enableClick(value) { clickMode = value; renderTargets(); }
