@@ -59,6 +59,26 @@
     shell.insertAdjacentHTML('beforeend','<div id="soloCountdown" class="solo-countdown" role="status" hidden></div>');
     form.insertAdjacentHTML('beforebegin','<div id="questionPanel" class="question-panel" hidden><div class="question-heading"><span id="questionLabel"></span><span id="questionTime"></span></div><h2 id="questionPrompt"></h2><p id="questionHint"></p><div class="question-track"><div id="questionBar"></div></div></div>');
     const $ = id => document.getElementById(id);
+    // The Engine remains authoritative. This maps its already-rendered state to
+    // a shallow, serializable presentation snapshot for the shared shell.
+    function renderShell(phase = 'setup', question = engine?.state?.currentQuestion) {
+      if (!window.GameShell) return;
+      const config = engine.config || {};
+      const type = question?.type || '';
+      const stage = config.family === 'flag' ? 'flag' : type.endsWith?.('_CLICK') ? 'map-answer' : 'map';
+      window.GameShell.render({ root: app, display: {
+        phase, family: config.family || family, variant: config.variant || $('gameVariant').value,
+        stage, timed: typeof engine.state?.remainingTime === 'number', lives: typeof engine.state?.lives === 'number',
+        answerDescription: type === TYPES.CAPITAL_TYPING ? 'Enter a capital and submit.' :
+          type.endsWith?.('_CLICK') ? 'Use the interactive map to choose a country.' :
+          config.family === 'conquest' ? 'Enter a country name and submit.' : 'Choose a game format and start.'
+      }, callbacks: {
+        home: () => window.CountryMemoryRetained?.requestHostNavigation?.({ type: 'home' }),
+        endRound: () => remote ? remote.finish() : engine.finish('manual'),
+        submitAnswer: raw => window.gameController?.handleText(raw)
+      } });
+    }
+    window.GameShell?.mount(app);
     const flagView = $('flagGameView'), flagStage = $('flagStage'), flagPrompt = $('flagPrompt'), flagOutlineStage = $('flagOutlineStage'), flagChoices = $('flagChoices');
     const engine = new Engine(countries, { onEvent });
     const map = createGameMap(GameMap, (id, regionName) => {
@@ -251,6 +271,7 @@
       const token=++startToken;
       remote = null; remoteKey = null; lastConfig = {...config}; result = null;
       platform = true; app.classList.add('platform'); app.classList.remove('choosing','round-ended');
+      renderShell('countdown');
       const flagGame = config.family === 'flag';
       app.classList.toggle('flag-platform', flagGame);
       $('resultsDialog').close(); $('setupError').textContent='';
@@ -303,6 +324,7 @@
           form.hidden = false;
         }
         $('milestone').hidden=true;
+        renderShell('playing');
       } else if (event.type === 'question') {
         GameMap.stopVoice();
         const q = event.question, conquest = engine.config.family==='conquest';
@@ -317,6 +339,7 @@
             input.value = nextText; window.gameController.handleText(nextText);
           }, 0);
           updateHUD(s);
+          renderShell('playing', q);
           return;
         }
         const typing = conquest || q.type===TYPES.CAPITAL_TYPING;
@@ -344,6 +367,7 @@
           else if (typing && nextText !== null) { input.value = nextText; window.gameController.handleText(nextText); }
         }, 0);
         if (typing) focusTyping();
+        renderShell('playing', q);
       } else if (event.type === 'correct') {
         const c=byId.get(event.countryId);
         if (engine.config.family === 'flag') {
@@ -360,6 +384,7 @@
             input.disabled = !typing; voice.disabled = !typing; map.enableClick(true);
           }
         }
+        renderShell('feedback');
       } else if (event.type === 'wrong') {
         if (engine.config.family === 'flag') {
           flagView.classList.remove('flag-answer-good'); flagView.classList.add('flag-answer-bad');
@@ -373,6 +398,7 @@
           textFeedback(engine.config.family==='conquest' ? (event.reason==='region'?'Outside this continent. Streak reset.':'Not recognised. Streak reset.') : `${clicked?clicked+'. ':''}Try again${event.penalty?` · −${event.penalty}`:''}.`,'bad');
           animate(form.closest('.control'),'wrong-answer');
         }
+        renderShell('feedback');
       } else if (event.type === 'duplicate') textFeedback('Already found.');
       else if (event.type === 'hint') {
         if (engine.config.family === 'flag') {
@@ -395,6 +421,7 @@
           map.enableClick(false); input.disabled=true; voice.disabled=true;
           textFeedback(`${event.reason==='timeout'?'TIME UP':'Answer'} · ${q.type===TYPES.CAPITAL_TYPING?c.capital.map(c=>`${c.name} (${c.role})`).join(' / '):c.canonical_name}`,'bad');
         }
+        renderShell('feedback', q);
       } else if (event.type === 'milestone') showMilestone(`${event.count} COUNTRIES FOUND`);
       else if (event.type === 'end') {
         GameMap.stopVoice();input.disabled=true;voice.disabled=true;
@@ -402,11 +429,13 @@
         $('endGame').hidden=true;
         event.result.replay = {config:engine.config,seed:soloReplay?.seed,actions:soloReplay?.actions||[],elapsed:Math.max(s.elapsedTime*1000,soloReplay?.actions.at(-1)?.at||0)};
         if (!suppressResults) { result=profile.record(event.result);showResults(result); }
+        renderShell('results');
       }
       updateHUD(s);
     }
     function showResults(r) {
       app.classList.add('round-ended');
+      renderShell('results');
       $('resultsMode').textContent=`${families[r.config.family]} · ${variants[r.config.variant]}`;
       $('resultsTitle').textContent=r.config.family==='conquest'&&r.completed ? (r.total===195?'WORLD CONQUERED':'REGION CONQUERED') : r.reason==='time'?'Time’s up':r.reason==='lives'?'Out of lives':'Round complete';
       $('personalBest').hidden=!r.personalBest;
@@ -436,6 +465,7 @@
       $('gameTitle').textContent='Choose your game'; document.title='Country Memory Map';
       flagView.hidden=true; flagChoices.replaceChildren(); $('flagHintText').textContent=''; $('flagHintButton').disabled=false;
       form.hidden=false; markButton.textContent='Mark'; input.disabled=true; updateRecent();
+      renderShell('setup');
     }
     function legacy() {
       startToken++; $('soloCountdown').hidden=true;
@@ -444,6 +474,7 @@
       document.querySelector('.setup-panel').hidden=true; $('questionPanel').hidden=true;
       flagView.hidden=true; flagChoices.replaceChildren(); form.hidden=false;markButton.textContent='Mark';input.disabled=false;voice.disabled=false;
       textFeedback('Free map: the original country and capital checkers.');
+      renderShell('free-map');
     }
     function hostDeactivate({ reason = 'mode_change' } = {}) {
       startToken++;
@@ -519,6 +550,7 @@
         const previousStatus=engine.state.gameStatus, key=data.match.id+':'+s.startedAt,previous=engine.state.currentQuestion?.id,isNewMatch=remoteKey!==key;
         engine.config=data.config;engine.pool=countries.filter(c=>data.config.variant!=='continent'||c.continent===data.config.region);engine.state=s;
         platform=true;app.classList.add('platform');app.classList.remove('choosing','round-ended');
+        renderShell(s.gameStatus === 'playing' ? 'playing' : 'results', s.currentQuestion);
         if(isNewMatch){remoteKey=key;lastRemoteEvent=null;onEvent({type:'start'},s);if(data.config.family==='conquest')s.completedCountries.forEach(id=>GameMap.mark(id));}
         if(s.gameStatus==='playing'){
           if(data.config.family==='conquest'){if(isNewMatch||form.hidden){onEvent({type:'question',question:{type:TYPES.COUNTRY_TYPING}},s);}}

@@ -1,0 +1,44 @@
+/* Shared cinematic presentation only. Rules and controller state live elsewhere. */
+.game-shell {
+  --shell-ink: #eaf7ff;
+  --shell-muted: #9bb6ca;
+  --shell-panel: rgba(8, 24, 45, .84);
+  --shell-panel-strong: rgba(5, 16, 33, .94);
+  --shell-line: rgba(122, 211, 255, .25);
+  --shell-cyan: #65d5ff;
+  --shell-green: #8ce6bd;
+  --shell-danger: #ff929d;
+  position: relative;
+  isolation: isolate;
+  color: var(--shell-ink);
+  background:
+    radial-gradient(circle at 76% 14%, rgba(53, 137, 239, .22), transparent 31%),
+    radial-gradient(circle at 17% 88%, rgba(34, 177, 142, .14), transparent 30%),
+    linear-gradient(145deg, #020914, #071a32 54%, #061323);
+}
+.game-shell-atmosphere { position:absolute; z-index:-1; inset:0; pointer-events:none; overflow:hidden; background-image:radial-gradient(circle at 18% 22%,rgba(255,255,255,.75) 0 1px,transparent 1.5px),radial-gradient(circle at 82% 35%,rgba(129,219,255,.75) 0 1px,transparent 1.5px),radial-gradient(circle at 44% 70%,rgba(255,255,255,.45) 0 1px,transparent 1.5px); background-size:170px 170px,240px 240px,310px 310px; opacity:.55; }
+.game-shell .platform-header, .game-shell .game-hud, .game-shell .control, .game-shell .setup-panel, .game-shell #resultsDialog, .game-shell #friendsPanel { border-color:var(--shell-line); background:var(--shell-panel); color:var(--shell-ink); box-shadow:0 18px 55px rgba(0,0,0,.23); }
+.game-shell .platform-header { border-radius:16px; padding:10px 14px; border:1px solid var(--shell-line); }
+.game-shell .brand-kicker, .game-shell .question-heading, .game-shell .flag-round-heading, .game-shell .eyebrow { color:var(--shell-cyan); }
+.game-shell .game-hud { backdrop-filter:blur(14px); }
+.game-shell .hud-stat { border-color:rgba(166,226,255,.14); }
+.game-shell .hud-stat span, .game-shell .question-panel p, .game-shell .game-rules, .game-shell .storage-note, .game-shell .flag-hint { color:var(--shell-muted); }
+.game-shell .platform #map { border-color:var(--shell-line); background:#b7d8e6; box-shadow:0 20px 48px rgba(0,0,0,.27); }
+.game-shell .control { border:1px solid var(--shell-line); backdrop-filter:blur(14px); }
+.game-shell .platform input, .game-shell .platform select, .game-shell .platform button, .game-shell #resultsDialog button { border-color:rgba(157,220,249,.28); background:rgba(255,255,255,.94); color:#133048; }
+.game-shell .platform .primary-button, .game-shell #resultsDialog .primary-button, .game-shell #friendsPanel .primary-button { color:#021827; border-color:#8ee6c0; background:linear-gradient(135deg,#87e9c1,#69d3ff); }
+.game-shell .setup-panel, .game-shell #friendsPanel { backdrop-filter:blur(18px); }
+.game-shell .setup-panel h2, .game-shell #resultsDialog h2, .game-shell .flag-prompt, .game-shell .question-panel h2 { color:var(--shell-ink); }
+.game-shell .game-choices button.selected { border-color:var(--shell-cyan); background:rgba(101,213,255,.15); color:var(--shell-ink); }
+.game-shell .game-choices span, .game-shell .setup-fields label { color:var(--shell-muted); }
+.game-shell .flag-frame, .game-shell .flag-option { border-color:var(--shell-line); background:rgba(238,250,255,.97); }
+.game-shell .flag-option:focus-visible, .game-shell button:focus-visible, .game-shell input:focus-visible, .game-shell select:focus-visible, .game-shell summary:focus-visible { outline:3px solid var(--shell-cyan); outline-offset:3px; }
+.game-shell #resultsDialog { background:var(--shell-panel-strong); }
+.game-shell #resultsDialog::backdrop { background:rgba(0,7,18,.75); }
+.game-shell .result-stats > div { background:rgba(111,205,240,.12); }
+.game-shell .result-stats span, .game-shell #resultRegions, .game-shell .result-note { color:var(--shell-muted); }
+.game-shell .milestone, .game-shell .solo-countdown { background:rgba(3,18,36,.88); color:var(--shell-green); border:1px solid var(--shell-line); backdrop-filter:blur(12px); }
+.game-shell[data-game-shell-stage="flag"] .flag-game-view { background:rgba(3,15,30,.32); border:1px solid rgba(122,211,255,.16); border-radius:18px; }
+@media (max-width:760px) { .game-shell .platform-header { padding:8px 10px; } .game-shell .platform .game-hud { background:rgba(6,22,42,.9); } .game-shell .setup-panel, .game-shell #friendsPanel { background:rgba(5,19,37,.97); } .game-shell .platform .control { background:rgba(5,19,37,.95); } }
+@media (max-height:500px) and (min-width:600px) { .game-shell .platform-header { padding:5px 10px; } .game-shell .game-hud { background:rgba(6,22,42,.9); } }
+@media (prefers-reduced-motion:reduce) { .game-shell *, .game-shell *::before, .game-shell *::after { scroll-behavior:auto !important; transition-duration:0.01ms !important; } }
