@@ -5,14 +5,14 @@
     if (!window.GameMap?.countries.length || window.gameController) return;
     const { Engine, LocalProfile, TYPES, MODES } = GeographyGame;
     const { ProfileService, ProfileManager, StatsSyncQueue, GameTracker, MapFeedbackAdapter, GameplayFeedbackController, ProfileUI } = window.CountryMemoryPlayers || {};
-    const flags = window.COUNTRY_MEMORY_FLAGS || {}, profilesEnabled = flags.PLAYER_PROFILES_ENABLED !== false, statsEnabled = flags.PLAYER_STATS_ENABLED !== false, feedbackEnabled = flags.ANSWER_FEEDBACK_ENABLED !== false;
+    const flags = window.COUNTRY_MEMORY_FLAGS || {}, profilesEnabled = flags.PLAYER_PROFILES_ENABLED !== false, statsEnabled = flags.PLAYER_STATS_ENABLED !== false, remoteProfileSyncEnabled = flags.REMOTE_PROFILE_SYNC_ENABLED === true, feedbackEnabled = flags.ANSWER_FEEDBACK_ENABLED !== false;
     const countries = buildGameCountries(GameMap), byId = new Map(countries.map(c => [c.country_id, c]));
     let storage; try { storage = window.localStorage; } catch { storage = null; }
     const profile = new LocalProfile(storage);
-    const playerService = profilesEnabled && ProfileService ? new ProfileService({ baseUrl: window.FRIENDS_API }) : null;
-    const players = profilesEnabled && ProfileManager ? new ProfileManager(storage, playerService) : null;
-    const syncQueue = profilesEnabled && statsEnabled && players && StatsSyncQueue ? new StatsSyncQueue(storage, playerService, players) : null;
-    const tracker = profilesEnabled && statsEnabled && players && syncQueue && GameTracker ? new GameTracker(players, syncQueue) : null;
+    const playerService = profilesEnabled && remoteProfileSyncEnabled && ProfileService ? new ProfileService({ baseUrl: window.FRIENDS_API }) : null;
+    const players = profilesEnabled && ProfileManager ? new ProfileManager(storage, playerService, { remoteSyncEnabled: remoteProfileSyncEnabled }) : null;
+    const syncQueue = profilesEnabled && statsEnabled && remoteProfileSyncEnabled && players && playerService && StatsSyncQueue ? new StatsSyncQueue(storage, playerService, players) : null;
+    const tracker = profilesEnabled && statsEnabled && players && GameTracker ? new GameTracker(players, syncQueue) : null;
     const app = document.querySelector('.app'), input = document.querySelector('#guessInput'), form = document.querySelector('#guessForm');
     const voice = document.querySelector('#voiceButton'), message = document.querySelector('#message');
     const families = { conquest: 'World Conquest', find: 'Find the Country', capital: 'Capital Clash', flag: 'Flag Games' };
@@ -105,6 +105,7 @@
       animateHud(target) { const element = target === 'streak' ? $('gameStreak') : $('gameProgress'); animate(element, target === 'streak' ? 'streak-pulse' : 'counter-pulse'); }
     }) : null;
     const profileUI = profilesEnabled && ProfileUI && players ? new ProfileUI(app, players, {
+      remoteProfileSyncEnabled,
       async beforeSwitch() {
         if (!tracker?.hasActiveSession()) return;
         suppressResults = true;

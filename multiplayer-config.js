@@ -3,6 +3,7 @@ window.FRIENDS_API = ['127.0.0.1','localhost'].includes(location.hostname)
 const defaultCountryMemoryFlags = Object.freeze({
   PLAYER_PROFILES_ENABLED: true,
   PLAYER_STATS_ENABLED: true,
+  REMOTE_PROFILE_SYNC_ENABLED: false,
   ANSWER_FEEDBACK_ENABLED: true
 });
 window.COUNTRY_MEMORY_FLAGS = Object.freeze({

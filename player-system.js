@@ -94,8 +94,9 @@
   }
 
   class ProfileManager {
-    constructor(storage, service = null, { clock = now } = {}) {
-      this.storage = storage; this.service = service; this.clock = clock; this.listeners = new Set(); this.pendingPins = new Map(); this.syncState = 'idle';
+    constructor(storage, service = null, { clock = now, remoteSyncEnabled = false } = {}) {
+      this.remoteSyncEnabled = remoteSyncEnabled === true && Boolean(service);
+      this.storage = storage; this.service = this.remoteSyncEnabled ? service : null; this.clock = clock; this.listeners = new Set(); this.pendingPins = new Map(); this.syncState = this.remoteSyncEnabled ? 'idle' : 'local';
       const fallbackDevice = id();
       const savedDevice = readJson(storage, DEVICE_KEY, null);
       this.deviceToken = typeof savedDevice === 'string' && savedDevice.length >= 20 ? savedDevice : fallbackDevice;
@@ -112,7 +113,7 @@
     save() { try { this.storage?.setItem(PLAYERS_KEY, JSON.stringify(this.data)); } catch {} }
     async initialize() {
       this.emit();
-      if (!this.service) return this.active;
+      if (!this.remoteSyncEnabled) return this.active;
       try { this.syncState = 'syncing'; this.emit(); const response = await this.service.listProfiles(); this.mergeRemote(response.profiles || []); this.syncState = 'idle'; this.emit(); await this.syncPending(); }
       catch { this.syncState = 'offline'; this.emit(); }
       return this.active;
@@ -125,13 +126,13 @@
       if (!this.active && this.data.profiles.length) this.data.activeProfileId = this.data.profiles[0].id;
     }
     async syncPending() {
-      if (!this.service) return;
+      if (!this.remoteSyncEnabled) return;
       for (const profile of [...this.data.profiles]) {
         if (profile.sync === 'pending' || profile.sync === 'dirty') await this.syncProfile(profile);
       }
     }
     async syncProfile(profile) {
-      if (!this.service) return;
+      if (!this.remoteSyncEnabled) return;
       try {
         let response;
         if (profile.sync === 'pending') response = await this.service.createProfile({ id: profile.id, realName: profile.realName, nickname: profile.nickname, ...(this.pendingPins.has(profile.id) ? { pin: this.pendingPins.get(profile.id) } : {}) });
@@ -142,24 +143,24 @@
     }
     create(fields) {
       const data = validateProfileFields(fields), profile = emptyProfile({ id: id(), realName: data.realName, nickname: data.nickname });
-      if (data.pin) this.pendingPins.set(profile.id, data.pin);
-      this.data.profiles.unshift(profile); this.data.activeProfileId = profile.id; this.syncState = this.service ? 'syncing' : 'offline'; this.emit();
-      this.syncProfile(profile);
+      if (data.pin && this.remoteSyncEnabled) this.pendingPins.set(profile.id, data.pin);
+      this.data.profiles.unshift(profile); this.data.activeProfileId = profile.id; this.syncState = this.remoteSyncEnabled ? 'syncing' : 'local'; this.emit();
+      if (this.remoteSyncEnabled) this.syncProfile(profile);
       return profile;
     }
     switchTo(profileId) { if (!this.data.profiles.some(profile => profile.id === profileId)) throw new Error('Player not found on this device.'); this.data.activeProfileId = profileId; this.emit(); return this.active; }
     update(profileId, fields) {
       const profile = this.data.profiles.find(value => value.id === profileId); if (!profile) throw new Error('Player not found on this device.');
-      const data = validateProfileFields({ realName: fields.realName ?? profile.realName, nickname: fields.nickname ?? profile.nickname }); Object.assign(profile, data, { initials: initialsFor(data.realName, data.nickname), updatedAt: new Date(this.clock()).toISOString(), sync: 'dirty' }); this.emit(); this.syncProfile(profile); return profile;
+      const data = validateProfileFields({ realName: fields.realName ?? profile.realName, nickname: fields.nickname ?? profile.nickname }); Object.assign(profile, data, { initials: initialsFor(data.realName, data.nickname), updatedAt: new Date(this.clock()).toISOString(), sync: 'dirty' }); this.emit(); if (this.remoteSyncEnabled) this.syncProfile(profile); return profile;
     }
     async changePin(profileId, pin) {
-      if (!/^\d{6}$/.test(String(pin || ''))) throw new Error('Recovery PINs use six digits.');
       const profile = this.data.profiles.find(value => value.id === profileId); if (!profile) throw new Error('Player not found on this device.');
-      if (!this.service) throw new Error('Connect once to set a recovery PIN.');
+      if (!this.remoteSyncEnabled) return profile;
+      if (!/^\d{6}$/.test(String(pin || ''))) throw new Error('Recovery PINs use six digits.');
       const response = await this.service.changePin(profileId, String(pin)); if (response.profile) Object.assign(profile, normalizeRemoteProfile(response.profile)); this.emit(); return profile;
     }
     async recover(playerCode, pin) {
-      if (!this.service) throw new Error('Recovery is unavailable while offline.');
+      if (!this.remoteSyncEnabled) return null;
       const response = await this.service.recover(String(playerCode || '').trim(), String(pin || '').trim());
       if (!response.profile) throw new Error('Player Code or PIN is incorrect.');
       const profile = normalizeRemoteProfile(response.profile), existing = this.data.profiles.find(value => value.id === profile.id); if (existing) Object.assign(existing, profile); else this.data.profiles.unshift(profile); this.data.activeProfileId = profile.id; this.emit(); return profile;
@@ -171,7 +172,8 @@
     }
     async removePermanently(profileId) {
       const index = this.data.profiles.findIndex(profile => profile.id === profileId); if (index < 0) return;
-      if (this.service) await this.service.deleteProfile(profileId);
+      if (!this.remoteSyncEnabled) return this.data.profiles[index];
+      await this.service.deleteProfile(profileId);
       this.data.profiles.splice(index, 1); if (this.data.activeProfileId === profileId) this.data.activeProfileId = this.data.profiles[0]?.id || null; this.emit();
     }
     setEffects(value) { if (EFFECTS.includes(value)) { this.data.settings.answerEffects = value; this.emit(); } }
@@ -232,14 +234,14 @@
       const sessionId = id(), mode = `${config.family}:${config.variant}`;
       this.session = { sessionId, profileId: profile.id, mode, difficulty: config.difficulty || 'medium', startedAt: Number(state.startedAt || this.clock()), correctCount: 0, incorrectCount: 0, duplicateCount: 0, bestStreak: 0, finalScore: 0, assisted: false };
       this.manager.applySessionStart(profile.id, mode);
-      this.queue.enqueue({ type: 'session_start', id: sessionId, sessionId, profileId: profile.id, mode, difficulty: this.session.difficulty, startedAt: this.session.startedAt, gameVersion: 'country-memory-map-v1' });
+      this.queue?.enqueue?.({ type: 'session_start', id: sessionId, sessionId, profileId: profile.id, mode, difficulty: this.session.difficulty, startedAt: this.session.startedAt, gameVersion: 'country-memory-map-v1' });
     }
     answer(result, event, state) {
       if (!this.session || !this.manager.active || this.session.profileId !== this.manager.active.id) return;
       const entityCode = event.entityCode || event.countryId || state?.currentQuestion?.countryId || null;
       const answerEvent = { type: 'answer', clientEventId: id(), sessionId: this.session.sessionId, profileId: this.session.profileId, result, entityCode, responseMs: event.seconds == null ? null : Math.round(Number(event.seconds) * 1000), scoreDelta: Number(event.gained || 0), streak: Number(state?.streak || 0), occurredAt: this.clock() };
       if (result === 'correct') this.session.correctCount += 1; else if (result === 'incorrect') this.session.incorrectCount += 1; else this.session.duplicateCount += 1;
-      this.session.bestStreak = Math.max(this.session.bestStreak, Number(state?.bestStreak || state?.streak || 0)); this.session.finalScore = Number(state?.score || 0); this.manager.applyAnswer(this.session.profileId, this.session.mode, answerEvent); this.queue.enqueue(answerEvent);
+      this.session.bestStreak = Math.max(this.session.bestStreak, Number(state?.bestStreak || state?.streak || 0)); this.session.finalScore = Number(state?.score || 0); this.manager.applyAnswer(this.session.profileId, this.session.mode, answerEvent); this.queue?.enqueue?.(answerEvent);
     }
     onEvent(event, state, config) {
       if (event.type === 'start') { this.start(config, state); return; }
@@ -254,7 +256,7 @@
       const session = this.session; if (!session) return;
       this.session = null; const durationMs = Math.max(0, Math.round(Number(result?.elapsedTime || state?.elapsedTime || 0) * 1000) || this.clock() - session.startedAt);
       const ended = { type: 'session_end', sessionId: session.sessionId, profileId: session.profileId, endReason, durationMs, finalScore: Number(result?.score ?? state?.score ?? session.finalScore), bestStreak: session.bestStreak, correctCount: session.correctCount, incorrectCount: session.incorrectCount, duplicateCount: session.duplicateCount, assisted: session.assisted };
-      this.manager.applySessionEnd(session.profileId, session.mode, ended); this.queue.enqueue(ended);
+      this.manager.applySessionEnd(session.profileId, session.mode, ended); this.queue?.enqueue?.(ended);
     }
     hasActiveSession() { return !!this.session; }
   }
@@ -282,12 +284,16 @@
     }
   }
 
+  function profileDialogMarkup(remoteSync) {
+    return `<dialog id="profileDialog" class="profile-dialog" aria-labelledby="profileDialogTitle"><div class="profile-dialog-content"><div class="profile-dialog-header"><div><p class="eyebrow">PLAYER MEMORY</p><h2 id="profileDialogTitle">Your profile</h2></div><button id="profileClose" type="button" class="profile-icon-button" aria-label="Close profile">×</button></div><p id="profileStatus" class="profile-status" role="status"></p><section id="profileView" class="profile-view"><div class="profile-hero"><div id="profileLargeAvatar" class="profile-large-avatar">P</div><div><h3 id="profileNickname"></h3><p id="profileRealName"></p><p id="profileMemberSince" class="profile-muted"></p></div></div><div id="profileLifetime" class="profile-stat-grid"></div><div class="profile-mastery"><div><span>Countries</span><strong id="profileCountryMastery">0</strong></div><div><span>Capitals</span><strong id="profileCapitalMastery">0</strong></div></div><div><h3 class="profile-section-title">Modes</h3><div id="profileModes" class="profile-mode-grid"></div></div>${remoteSync ? '<div id="profileCodeBox" class="profile-code-box"></div>' : '<p class="profile-local-note">Saved on this device.</p>'}<div class="profile-actions"><button id="profileEdit" type="button">Edit profile</button><button id="profileSwitch" type="button">Switch player</button><button id="profileAdd" type="button">Add player</button>${remoteSync ? '<button id="profileRecover" type="button">Recover player</button>' : ''}<button id="profileSettings" type="button">Settings</button></div><button id="profileRemove" type="button" class="profile-danger-link">Remove from this device</button>${remoteSync ? '<button id="profileDelete" type="button" class="profile-danger-link">Delete player permanently</button>' : ''}</section><section id="profileCreateView" class="profile-view" hidden><h3>Create Player</h3><p class="profile-muted">Your nickname is what other players will see.</p><form id="profileCreateForm" class="profile-form"><label>Your name<input name="realName" autocomplete="name" maxlength="80" required></label><label>Nickname<input name="nickname" autocomplete="nickname" maxlength="24" minlength="2" required></label>${remoteSync ? '<label>Recovery PIN <span>(optional)</span><input name="pin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" type="password" placeholder="6 digits"></label>' : ''}<p class="profile-form-error" id="profileCreateError"></p><button type="submit" class="primary-button">CREATE PLAYER</button></form></section><section id="profileSwitchView" class="profile-view" hidden><h3>Switch player</h3><div id="profileList" class="profile-list"></div><button id="profileSwitchAdd" type="button">Add player</button></section>${remoteSync ? '<section id="profileRecoverView" class="profile-view" hidden><h3>Recover Player</h3><p class="profile-muted">Use the Player Code and six-digit PIN from that profile.</p><form id="profileRecoverForm" class="profile-form"><label>Player Code<input name="playerCode" autocapitalize="characters" placeholder="CM-7K4P-2M9Q" required></label><label>Recovery PIN<input name="pin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" type="password" required></label><p class="profile-form-error" id="profileRecoverError"></p><button type="submit" class="primary-button">RECOVER PLAYER</button></form></section>' : ''}<section id="profileSettingsView" class="profile-view" hidden><h3>Profile settings</h3><form id="profileEditForm" class="profile-form"><label>Your name<input name="realName" maxlength="80" required></label><label>Nickname<input name="nickname" maxlength="24" minlength="2" required></label><p class="profile-form-error" id="profileEditError"></p><button type="submit" class="primary-button">SAVE PROFILE</button></form>${remoteSync ? '<form id="profilePinForm" class="profile-form"><label>New recovery PIN<input name="pin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" type="password" required></label><p class="profile-form-error" id="profilePinError"></p><button type="submit">CHANGE PIN</button></form>' : ''}<label class="profile-setting-row">Answer effects<select id="profileEffects"><option value="normal">Normal</option><option value="reduced">Reduced</option><option value="off">Off</option></select></label><button id="profileBack" type="button">Back to profile</button></section></div></dialog>`;
+  }
+
   class ProfileUI {
-    constructor(root, manager, { beforeSwitch = async () => {}, onActiveChange = () => {} } = {}) { this.root = root; this.manager = manager; this.beforeSwitch = beforeSwitch; this.onActiveChange = onActiveChange; this.view = 'profile'; this.manager.onChange(active => { this.render(active); this.onActiveChange(active); }); }
+    constructor(root, manager, { beforeSwitch = async () => {}, onActiveChange = () => {}, remoteProfileSyncEnabled = manager?.remoteSyncEnabled === true } = {}) { this.root = root; this.manager = manager; this.remoteProfileSyncEnabled = remoteProfileSyncEnabled === true && manager?.remoteSyncEnabled === true; this.beforeSwitch = beforeSwitch; this.onActiveChange = onActiveChange; this.view = 'profile'; this.manager.onChange(active => { this.render(active); this.onActiveChange(active); }); }
     mount() {
       const header = this.root.querySelector('.platform-header');
       header?.insertAdjacentHTML('beforeend', '<button id="profileChip" class="profile-chip" type="button" aria-haspopup="dialog"><span id="profileAvatar" class="profile-avatar">P</span><span id="profileChipName">Create player</span><span aria-hidden="true">⌄</span></button>');
-      this.root.insertAdjacentHTML('beforeend', `<dialog id="profileDialog" class="profile-dialog" aria-labelledby="profileDialogTitle"><div class="profile-dialog-content"><div class="profile-dialog-header"><div><p class="eyebrow">PLAYER MEMORY</p><h2 id="profileDialogTitle">Your profile</h2></div><button id="profileClose" type="button" class="profile-icon-button" aria-label="Close profile">×</button></div><p id="profileStatus" class="profile-status" role="status"></p><section id="profileView" class="profile-view"><div class="profile-hero"><div id="profileLargeAvatar" class="profile-large-avatar">P</div><div><h3 id="profileNickname"></h3><p id="profileRealName"></p><p id="profileMemberSince" class="profile-muted"></p></div></div><div id="profileLifetime" class="profile-stat-grid"></div><div class="profile-mastery"><div><span>Countries</span><strong id="profileCountryMastery">0</strong></div><div><span>Capitals</span><strong id="profileCapitalMastery">0</strong></div></div><div><h3 class="profile-section-title">Modes</h3><div id="profileModes" class="profile-mode-grid"></div></div><div id="profileCodeBox" class="profile-code-box"></div><div class="profile-actions"><button id="profileEdit" type="button">Edit profile</button><button id="profileSwitch" type="button">Switch player</button><button id="profileAdd" type="button">Add player</button><button id="profileRecover" type="button">Recover player</button><button id="profileSettings" type="button">Settings</button></div><button id="profileRemove" type="button" class="profile-danger-link">Remove from this device</button><button id="profileDelete" type="button" class="profile-danger-link">Delete player permanently</button></section><section id="profileCreateView" class="profile-view" hidden><h3>Create Player</h3><p class="profile-muted">Your nickname is what other players will see.</p><form id="profileCreateForm" class="profile-form"><label>Your name<input name="realName" autocomplete="name" maxlength="80" required></label><label>Nickname<input name="nickname" autocomplete="nickname" maxlength="24" minlength="2" required></label><label>Recovery PIN <span>(optional)</span><input name="pin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" type="password" placeholder="6 digits"></label><p class="profile-form-error" id="profileCreateError"></p><button type="submit" class="primary-button">CREATE PLAYER</button></form></section><section id="profileSwitchView" class="profile-view" hidden><h3>Switch player</h3><div id="profileList" class="profile-list"></div><button id="profileSwitchAdd" type="button">Add player</button></section><section id="profileRecoverView" class="profile-view" hidden><h3>Recover Player</h3><p class="profile-muted">Use the Player Code and six-digit PIN from that profile.</p><form id="profileRecoverForm" class="profile-form"><label>Player Code<input name="playerCode" autocapitalize="characters" placeholder="CM-7K4P-2M9Q" required></label><label>Recovery PIN<input name="pin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" type="password" required></label><p class="profile-form-error" id="profileRecoverError"></p><button type="submit" class="primary-button">RECOVER PLAYER</button></form></section><section id="profileSettingsView" class="profile-view" hidden><h3>Profile settings</h3><form id="profileEditForm" class="profile-form"><label>Your name<input name="realName" maxlength="80" required></label><label>Nickname<input name="nickname" maxlength="24" minlength="2" required></label><p class="profile-form-error" id="profileEditError"></p><button type="submit" class="primary-button">SAVE PROFILE</button></form><form id="profilePinForm" class="profile-form"><label>New recovery PIN<input name="pin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" type="password" required></label><p class="profile-form-error" id="profilePinError"></p><button type="submit">CHANGE PIN</button></form><label class="profile-setting-row">Answer effects<select id="profileEffects"><option value="normal">Normal</option><option value="reduced">Reduced</option><option value="off">Off</option></select></label><button id="profileBack" type="button">Back to profile</button></section></div></dialog>`);
+      this.root.insertAdjacentHTML('beforeend', profileDialogMarkup(this.remoteProfileSyncEnabled));
       this.dialog = this.root.querySelector('#profileDialog'); this.bind(); this.render(this.manager.active);
     }
     bind() {
@@ -306,7 +312,7 @@
       $('profileEditForm')?.addEventListener('submit', event => { event.preventDefault(); this.submitEdit(new FormData(event.currentTarget)); });
       $('profilePinForm')?.addEventListener('submit', event => { event.preventDefault(); this.submitPin(new FormData(event.currentTarget)); });
       $('profileRecoverForm')?.addEventListener('submit', event => { event.preventDefault(); this.submitRecover(new FormData(event.currentTarget)); });
-      $('profileRemove')?.addEventListener('click', () => { if (window.confirm('Remove this player from this device? Their profile can still be recovered with the Player Code and PIN.')) this.manager.remove(this.manager.active?.id).then(() => this.open(this.manager.active ? 'profile' : 'create')); });
+      $('profileRemove')?.addEventListener('click', () => { const message = this.remoteProfileSyncEnabled ? 'Remove this player from this device? Their profile can still be recovered with the Player Code and PIN.' : 'Remove this player from this device? Their local profile and statistics will no longer be available here.'; if (window.confirm(message)) this.manager.remove(this.manager.active?.id).then(() => this.open(this.manager.active ? 'profile' : 'create')); });
       $('profileDelete')?.addEventListener('click', () => { if (window.confirm('Delete this player permanently? Their profile will no longer be recoverable.')) this.manager.removePermanently(this.manager.active?.id).then(() => this.open(this.manager.active ? 'profile' : 'create')).catch(error => this.showError('profileEditError', error)); });
     }
     showError(idValue, error) { const element = this.root.querySelector(`#${idValue}`); if (element) element.textContent = error?.message || String(error); }
@@ -322,7 +328,7 @@
       const $ = idValue => this.root.querySelector(`#${idValue}`), views = { profile: $('profileView'), create: $('profileCreateView'), switch: $('profileSwitchView'), recover: $('profileRecoverView'), settings: $('profileSettingsView') };
       Object.entries(views).forEach(([name, element]) => { if (element) element.hidden = this.view !== name; });
       $('profileDialogTitle').textContent = this.view === 'create' ? 'Create Player' : this.view === 'switch' ? 'Switch player' : this.view === 'recover' ? 'Recover Player' : this.view === 'settings' ? 'Profile settings' : 'Your profile';
-      $('profileStatus').textContent = this.manager.syncState === 'syncing' ? 'Stats syncing…' : this.manager.syncState === 'offline' ? 'Playing offline. Stats will sync when the connection returns.' : '';
+      $('profileStatus').textContent = this.remoteProfileSyncEnabled ? (this.manager.syncState === 'syncing' ? 'Stats syncing…' : this.manager.syncState === 'offline' ? 'Playing offline. Stats will sync when the connection returns.' : '') : 'Saved on this device';
       $('profileAvatar').textContent = active?.initials || 'P'; $('profileChipName').textContent = active?.nickname || 'Create player'; $('profileLargeAvatar').textContent = active?.initials || 'P';
       if (!active) return;
       $('profileNickname').textContent = active.nickname; $('profileRealName').textContent = active.realName; $('profileMemberSince').textContent = active.createdAt ? `Member since ${new Date(active.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}` : '';
@@ -330,7 +336,7 @@
       $('profileLifetime').replaceChildren(...metricValues.map(([label, value]) => { const box = document.createElement('div'), strong = document.createElement('strong'), span = document.createElement('span'); strong.textContent = value; span.textContent = label; box.append(strong, span); return box; }));
       $('profileCountryMastery').textContent = `${active.mastery?.countries?.length || 0} / 195`; $('profileCapitalMastery').textContent = `${active.mastery?.capitals?.length || 0} / 195`;
       const modes = Object.entries(active.modeStats || {}); $('profileModes').replaceChildren(...(modes.length ? modes : [['No rounds yet', { correct: 0, gamesStarted: 0 }]]).map(([mode, value]) => { const card = document.createElement('div'); card.className = 'profile-mode-card'; const title = document.createElement('strong'); title.textContent = mode === 'No rounds yet' ? mode : mode.split(':').map(part => part[0].toUpperCase() + part.slice(1)).join(' · '); const detail = document.createElement('span'); detail.textContent = mode === 'No rounds yet' ? 'Start a round to build your memory.' : `${value.correct || 0} correct · ${value.accuracy ? Number(value.accuracy).toFixed(1) : '0.0'}% accuracy`; card.append(title, detail); return card; }));
-      const codeBox = $('profileCodeBox'); codeBox.replaceChildren(); if (active.playerCode) { const label = document.createElement('span'); label.textContent = 'Player Code'; const code = document.createElement('strong'); code.textContent = active.playerCode; const note = document.createElement('small'); note.textContent = 'Keep this with your six-digit PIN for recovery.'; const copy = document.createElement('button'); copy.type = 'button'; copy.textContent = 'Copy code'; copy.addEventListener('click', async () => { try { await navigator.clipboard?.writeText(active.playerCode); copy.textContent = 'Copied'; setTimeout(() => { copy.textContent = 'Copy code'; }, 1400); } catch { copy.textContent = active.playerCode; } }); codeBox.append(label, code, note, copy); } else { codeBox.textContent = 'Add a recovery PIN in Settings to create a Player Code.'; }
+      const codeBox = $('profileCodeBox'); if (codeBox) { codeBox.replaceChildren(); if (active.playerCode) { const label = document.createElement('span'); label.textContent = 'Player Code'; const code = document.createElement('strong'); code.textContent = active.playerCode; const note = document.createElement('small'); note.textContent = 'Keep this with your six-digit PIN for recovery.'; const copy = document.createElement('button'); copy.type = 'button'; copy.textContent = 'Copy code'; copy.addEventListener('click', async () => { try { await navigator.clipboard?.writeText(active.playerCode); copy.textContent = 'Copied'; setTimeout(() => { copy.textContent = 'Copy code'; }, 1400); } catch { copy.textContent = active.playerCode; } }); codeBox.append(label, code, note, copy); } else { codeBox.textContent = 'Add a recovery PIN in Settings to create a Player Code.'; } }
       $('profileEditForm')?.elements.realName && ($('profileEditForm').elements.realName.value = active.realName); $('profileEditForm')?.elements.nickname && ($('profileEditForm').elements.nickname.value = active.nickname); $('profileEffects').value = this.manager.data.settings.answerEffects;
       $('profileList').replaceChildren(...this.manager.profiles.map(profile => { const button = document.createElement('button'); button.type = 'button'; button.className = `profile-list-item${profile.id === active.id ? ' selected' : ''}`; button.disabled = profile.id === active.id; const avatar = document.createElement('span'); avatar.className = 'profile-avatar'; avatar.textContent = profile.initials; const name = document.createElement('span'); name.textContent = profile.nickname; button.append(avatar, name); button.addEventListener('click', () => this.selectProfile(profile.id)); return button; }));
     }
@@ -338,5 +344,5 @@
 
   function formatDuration(milliseconds) { const total = Math.max(0, Math.floor(Number(milliseconds || 0) / 1000)); const hours = Math.floor(total / 3600), minutes = Math.floor((total % 3600) / 60); return hours ? `${hours}h ${minutes}m` : `${minutes}m`; }
 
-  return { EFFECTS, ProfileService, ProfileManager, StatsSyncQueue, GameTracker, MapFeedbackAdapter, GameplayFeedbackController, ProfileUI, validateProfileFields, initialsFor, emptyStats, formatDuration, UUID_RE };
+  return { EFFECTS, ProfileService, ProfileManager, StatsSyncQueue, GameTracker, MapFeedbackAdapter, GameplayFeedbackController, ProfileUI, profileDialogMarkup, validateProfileFields, initialsFor, emptyStats, formatDuration, UUID_RE };
 });

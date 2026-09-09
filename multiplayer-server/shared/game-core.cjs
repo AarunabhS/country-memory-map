@@ -5,15 +5,125 @@
   else root.GeographyGame = api;
 })(typeof window === 'undefined' ? globalThis : window, function () {
   'use strict';
-  const TYPES = Object.freeze({ COUNTRY_TYPING: 'COUNTRY_TYPING', COUNTRY_CLICK: 'COUNTRY_CLICK', CAPITAL_COUNTRY_CLICK: 'CAPITAL_COUNTRY_CLICK', CAPITAL_TYPING: 'CAPITAL_TYPING' });
+  const TYPES = Object.freeze({
+    COUNTRY_TYPING: 'COUNTRY_TYPING',
+    COUNTRY_CLICK: 'COUNTRY_CLICK',
+    CAPITAL_COUNTRY_CLICK: 'CAPITAL_COUNTRY_CLICK',
+    CAPITAL_TYPING: 'CAPITAL_TYPING',
+    FLAG_RECALL: 'FLAG_RECALL',
+    FLAG_MATCH: 'FLAG_MATCH'
+  });
   const MODES = {
     conquest: { relaxed: {}, sprint: { duration: 180 }, blitz: { duration: 60 }, sudden: { lives: 3 }, continent: {} },
     find: { standard: { questions: 20 }, blitz: { duration: 60 }, continent: { questions: 20 } },
-    capital: { classic: { questions: 20 }, blitz: { duration: 60 }, continent: { questions: 20 } }
+    capital: { classic: { questions: 20 }, blitz: { duration: 60 }, continent: { questions: 20 } },
+    flag: { recall: { questions: 20 }, match: { questions: 20 } }
   };
-  function normalize(value) {
-    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-      .replace(/&/g, ' and ').replace(/\bsaint\b/g, 'st').replace(/\bthe\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+
+  /*
+   * User-entered answers are compared in this canonical form. NFKC handles
+   * compatibility characters, while the punctuation pass keeps names such as
+   * Cote d'Ivoire and Côte d’Ivoire equivalent. Diacritics are optional for
+   * callers that need a stricter locale-sensitive comparison.
+   */
+  function normalize(value, options = {}) {
+    const stripDiacritics = options.diacritics !== false;
+    let text = String(value ?? '').normalize('NFKC')
+      .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
+      .replace(/[\u2010-\u2015\u2212]/g, '-')
+      .replace(/&/g, ' and ')
+      .replace(/\bsaint\b/gi, 'st')
+      .replace(/\bthe\b/gi, ' ');
+    if (stripDiacritics) text = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return text.toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim().replace(/\s+/g, ' ');
+  }
+
+  /*
+   * These groups are deliberately explicit. The country dataset still owns
+   * its canonical display names; this table only guarantees that common,
+   * unambiguous alternatives continue to resolve to the same country.
+   */
+  const COMMON_ALIAS_GROUPS = Object.freeze([
+    ['United States of America', 'USA', 'US', 'United States'],
+    ['United Kingdom', 'UK', 'Britain'],
+    ['South Korea', 'Republic of Korea'],
+    ['North Korea', 'DPRK'],
+    ['Democratic Republic of the Congo', 'DR Congo', 'DRC'],
+    ['Czechia', 'Czech Republic'],
+    ["Côte d'Ivoire", 'Ivory Coast'],
+    ['Cape Verde', 'Cabo Verde'],
+    ['Timor-Leste', 'East Timor'],
+    ['Myanmar', 'Burma'],
+    ['Eswatini', 'Swaziland'],
+    ['Vatican', 'Vatican City', 'Holy See']
+  ]);
+
+  class AnswerValidator {
+    constructor(entries = [], { aliasGroups = COMMON_ALIAS_GROUPS } = {}) {
+      this.entries = new Map();
+      this.aliases = new Map();
+      this.canonicalAliases = new Map();
+      this.aliasGroups = aliasGroups;
+      for (const entry of entries) this.register(entry);
+      this.applyExplicitAliases();
+    }
+
+    register(rawEntry) {
+      const entry = rawEntry || {};
+      const id = entry.id ?? entry.country_id ?? entry.countryId;
+      const canonicalName = entry.canonicalName ?? entry.canonical_name ?? entry.name;
+      if (id == null || !canonicalName) return null;
+      const normalizedCanonical = normalize(canonicalName);
+      const names = [...new Set([
+        canonicalName,
+        ...(Array.isArray(entry.aliases) ? entry.aliases : []),
+        ...(Array.isArray(entry.accepted_names) ? entry.accepted_names : []),
+        ...(Array.isArray(entry.acceptedNames) ? entry.acceptedNames : [])
+      ].map(value => String(value ?? '').trim()).filter(Boolean))];
+      const registered = { ...entry, id, country_id: entry.country_id ?? id, canonicalName, accepted_names: names };
+      this.entries.set(id, registered);
+      for (const name of names) {
+        const key = normalize(name);
+        if (key && !this.aliases.has(key)) this.aliases.set(key, id);
+      }
+      if (normalizedCanonical) {
+        this.canonicalAliases.set(normalizedCanonical, id);
+        this.aliases.set(normalizedCanonical, id);
+      }
+      return registered;
+    }
+
+    applyExplicitAliases() {
+      for (const group of this.aliasGroups || []) {
+        const keys = group.map(normalize).filter(Boolean);
+        let id = keys.map(key => this.canonicalAliases.get(key) ?? this.aliases.get(key)).find(value => value != null);
+        if (!id) continue;
+        for (const key of keys) this.aliases.set(key, id);
+      }
+    }
+
+    resolve(value) {
+      const id = this.aliases.get(normalize(value));
+      return id == null ? null : this.entries.get(id) || null;
+    }
+
+    resolveId(value) {
+      return this.resolve(value)?.id ?? null;
+    }
+
+    matches(value, target) {
+      const targetId = typeof target === 'object' ? target?.id ?? target?.country_id : target;
+      return targetId != null && this.resolveId(value) === targetId;
+    }
+
+    namesFor(id) {
+      const entry = this.entries.get(id);
+      const names = new Set(entry?.accepted_names || []);
+      for (const [alias, aliasId] of this.aliases) if (aliasId === id) names.add(alias);
+      return [...names];
+    }
   }
   function calculateScore(correctness, responseTime, streak, difficulty = 1) {
     if (!correctness) return 0;
@@ -32,13 +142,40 @@
     for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
     return list;
   }
+
+  function flagSimilarity(candidate, target, difficulty) {
+    const confusable = new Set((target.flagConfusableWith || []).map(String).map(value => value.toLowerCase()));
+    const candidateCode = String(candidate.flag_code || candidate.flagCode || '').toLowerCase();
+    const targetColors = new Set((target.flagColors || []).map(String).map(value => value.toLowerCase()));
+    const candidateColors = new Set((candidate.flagColors || []).map(String).map(value => value.toLowerCase()));
+    const sharedColors = [...candidateColors].filter(color => targetColors.has(color)).length;
+    const sameRegion = candidate.continent && target.continent && candidate.continent === target.continent;
+    const isConfusable = confusable.has(candidateCode) || (candidate.flagConfusableWith || []).map(String).map(value => value.toLowerCase()).includes(String(target.flag_code || '').toLowerCase());
+    if (difficulty === 'hard' || difficulty === 'expert') return (isConfusable ? 100 : 0) + (sameRegion ? 16 : 0) + sharedColors * 4;
+    if (difficulty === 'medium') return (sameRegion ? 48 : 0) + (isConfusable ? 12 : 0) + sharedColors * 3;
+    return (!sameRegion ? 48 : 0) + (!isConfusable ? 18 : -12) + (sharedColors === 0 ? 12 : -sharedColors * 3);
+  }
+
+  /* Returns country ids, never country objects, so the question payload stays
+     small and the UI can render each option from the shared country model. */
+  function selectFlagOptions(pool, target, difficulty = 'medium', random = Math.random) {
+    const candidates = pool.filter(country => country.country_id !== target.country_id && country.flag_code);
+    const ranked = candidates.map((country, index) => ({
+      country,
+      score: flagSimilarity(country, target, difficulty) + (candidates.length - index) / Math.max(1, candidates.length) * 0.001 + random() * 0.01
+    })).sort((a, b) => b.score - a.score);
+    const selected = ranked.slice(0, 3).map(item => item.country.country_id);
+    return shuffle([...new Set([target.country_id, ...selected])], random);
+  }
+
   class Engine {
     constructor(countries, { now = () => Date.now(), random = Math.random, onEvent = () => {} } = {}) {
-      this.countries = countries; this.byId = new Map(countries.map(c => [c.country_id, c]));
-      this.aliases = new Map();
-      countries.forEach(c => c.accepted_names.forEach(a => { const key = normalize(a); if (!this.aliases.has(key)) this.aliases.set(key, c.country_id); }));
-      // An alias from another feature can never take over a canonical country name.
-      countries.forEach(c => this.aliases.set(normalize(c.canonical_name), c.country_id));
+      this.countries = countries;
+      this.byId = new Map(countries.map(c => [c.country_id, c]));
+      this.validator = new AnswerValidator(countries);
+      // Keep the old public alias map as a compatibility surface for the
+      // multiplayer adapter and the retained free-map checker.
+      this.aliases = this.validator.aliases;
       this.responseDuration = seconds => seconds; this.now = now; this.random = random; this.onEvent = onEvent; this.state = { gameStatus: 'idle' };
     }
     emit(type, detail = {}) { this.onEvent({ type, ...detail }, this.state); }
@@ -51,14 +188,15 @@
       this.pool = this.countries.filter(c => (!practice || practice.has(c.country_id)) &&
         (config.variant !== 'continent' || c.continent === config.region) &&
         (config.family !== 'capital' || c.capital.length) &&
-        (config.family === 'conquest' || practice || matchesDifficulty(c[config.family === 'capital' ? 'capitalDifficulty' : 'countryLocationDifficulty'], this.config.difficulty)));
+        (config.family === 'conquest' || config.family === 'flag' || practice || matchesDifficulty(c[config.family === 'capital' ? 'capitalDifficulty' : 'countryLocationDifficulty'], this.config.difficulty)) &&
+        (config.family !== 'flag' || c.flag_code));
       if (!this.pool.length) throw new Error('No countries match this selection. Try another difficulty or region.');
       const started = this.now();
       this.state = { mode: `${config.family}:${config.variant}`, score: 0, streak: 0, bestStreak: 0,
         currentQuestion: null, elapsedTime: 0, remainingTime: rules.duration ?? null, correctAnswers: 0, wrongAnswers: 0,
         completedCountries: new Set(), questionHistory: [], lives: rules.lives ?? null, gameStatus: 'playing',
         startedAt: started, deadline: rules.duration ? started + rules.duration * 1000 : null,
-        lastCorrectAt: started, questionStartedAt: null, feedbackUntil: null, mistakes: [],
+        lastCorrectAt: started, questionStartedAt: null, feedbackUntil: null, mistakes: [], hintsUsed: 0, hintPenalty: 0,
         questionNumber: 0, questionLimit: practice ? this.pool.length : rules.questions ? ([10,20,30].includes(config.questionCount) ? config.questionCount : rules.questions) : null, personalBest: null };
       this.targetIds = new Set(this.pool.map(c => c.country_id)); this.queue = []; this.lastCountryId = null;
       this.emit('start');
@@ -75,15 +213,28 @@
         if (this.queue.length > 1 && this.queue[0].country_id === this.lastCountryId) this.queue.push(this.queue.shift());
       }
       const country = this.queue.shift(); this.lastCountryId = country.country_id;
-      const type = this.config.family === 'find' ? TYPES.COUNTRY_CLICK : s.questionNumber % 2 === 0 ? TYPES.CAPITAL_TYPING : TYPES.CAPITAL_COUNTRY_CLICK;
+      const isFlag = this.config.family === 'flag';
+      const type = isFlag
+        ? this.config.variant === 'match' ? TYPES.FLAG_MATCH : TYPES.FLAG_RECALL
+        : this.config.family === 'find' ? TYPES.COUNTRY_CLICK : s.questionNumber % 2 === 0 ? TYPES.CAPITAL_TYPING : TYPES.CAPITAL_COUNTRY_CLICK;
       const capital = country.capital[Math.floor(this.random() * country.capital.length)];
       s.questionNumber++; s.questionStartedAt = at; s.feedbackUntil = null;
-      s.currentQuestion = { id: `${s.startedAt}-${s.questionNumber}`, type, countryId: country.country_id,
-        prompt: type === TYPES.CAPITAL_COUNTRY_CLICK ? capital.name : country.canonical_name,
+      const question = { id: `${s.startedAt}-${s.questionNumber}`, type, countryId: country.country_id,
+        prompt: type === TYPES.CAPITAL_COUNTRY_CLICK ? capital.name : isFlag && type === TYPES.FLAG_MATCH ? country.canonical_name : country.canonical_name,
         role: type === TYPES.CAPITAL_COUNTRY_CLICK ? capital.role : null,
         acceptedAnswers: type === TYPES.CAPITAL_TYPING ? country.capital.flatMap(c => [c.name, ...c.aliases]).map(normalize) : [country.country_id],
-        difficulty: country[this.config.family === 'find' ? 'countryLocationDifficulty' : 'capitalDifficulty'],
-        timeLimit: this.config.questionTime, deadline: at + this.config.questionTime * 1000, wrongAttempts: 0, resolved: false };
+        difficulty: isFlag ? null : country[this.config.family === 'find' ? 'countryLocationDifficulty' : 'capitalDifficulty'],
+        flagCode: isFlag ? country.flag_code : null,
+        timeLimit: this.config.questionTime, deadline: at + this.config.questionTime * 1000, wrongAttempts: 0, resolved: false,
+        hintUsed: false, hintPenalty: 0 };
+      if (isFlag && type === TYPES.FLAG_MATCH) {
+        // Practice and continent pools can be smaller than four. Keep the
+        // target in scope, but borrow global distractors to preserve the
+        // match game's four-card contract.
+        const optionPool = this.pool.length >= 4 ? this.pool : this.countries;
+        question.options = selectFlagOptions(optionPool, country, this.config.difficulty, this.random);
+      }
+      s.currentQuestion = question;
       this.emit('question', { question: s.currentQuestion });
     }
     tick(at = this.now()) {
@@ -104,7 +255,7 @@
       this.tick(); const s = this.state, answer = normalize(raw);
       if (s.gameStatus !== 'playing' || !answer || s.feedbackUntil !== null) return;
       if (this.config.family === 'conquest') {
-        const id = this.aliases.get(answer);
+        const id = this.validator.resolveId(raw);
         if (!id || !this.targetIds.has(id)) { this.failConquest(raw, id); return; }
         if (s.completedCountries.has(id)) { this.emit('duplicate', { countryId: id }); return; }
         const at = this.now(), seconds = this.responseDuration(Math.max(0, (at - s.lastCorrectAt) / 1000));
@@ -113,10 +264,40 @@
         this.emit('correct', { countryId: id, seconds, gained });
         if ([10, 25, 50, 75, 100, 150].includes(s.completedCountries.size)) this.emit('milestone', { count: s.completedCountries.size });
         if (s.completedCountries.size === this.pool.length) this.finish('complete', at);
+      } else if (s.currentQuestion?.type === TYPES.FLAG_RECALL) {
+        if (this.validator.matches(raw, s.currentQuestion.countryId) && this.targetIds.has(s.currentQuestion.countryId)) this.resolveQuestion(true, this.now(), 'correct');
+        else this.failQuestion({ answer: raw });
       } else if (s.currentQuestion?.type === TYPES.CAPITAL_TYPING) {
         if (s.currentQuestion.acceptedAnswers.includes(answer)) this.resolveQuestion(true, this.now(), 'correct');
         else this.failQuestion({ answer: raw });
       }
+    }
+
+    submitFlag(id) {
+      this.tick(); const s = this.state;
+      if (s.gameStatus !== 'playing' || s.feedbackUntil !== null || s.currentQuestion?.type !== TYPES.FLAG_MATCH) return;
+      if (id === s.currentQuestion.countryId) this.resolveQuestion(true, this.now(), 'correct');
+      else this.failQuestion({ countryId: id });
+    }
+
+    useHint() {
+      this.tick(); const s = this.state, q = s.currentQuestion;
+      if (s.gameStatus !== 'playing' || s.feedbackUntil !== null || !q || q.resolved || q.hintUsed) return false;
+      const penalty = 25;
+      q.hintUsed = true; q.hintPenalty = penalty;
+      s.hintsUsed++; s.hintPenalty += penalty; s.score -= penalty;
+      let detail = '';
+      if (q.type === TYPES.FLAG_RECALL) {
+        const country = this.byId.get(q.countryId);
+        const firstLetter = [...country.canonical_name].find(char => /\p{L}/u.test(char)) || '';
+        detail = `Hint: the answer starts with “${firstLetter.toUpperCase()}”.`;
+      } else if (q.type === TYPES.FLAG_MATCH) {
+        const removable = (q.options || []).find(optionId => optionId !== q.countryId);
+        q.hintRemoveId = removable || null;
+        detail = removable ? 'Hint: one incorrect flag has been removed.' : 'Hint unavailable for this question.';
+      }
+      this.emit('hint', { countryId: q.countryId, penalty, hint: detail, removeId: q.hintRemoveId || null, score: s.score });
+      return true;
     }
     submitCountry(id, clickedName = null) {
       this.tick(); const s = this.state;
@@ -151,9 +332,9 @@
       const seconds = correct ? this.responseDuration(Math.max(0, (at - s.questionStartedAt) / 1000)) : Math.max(0, (at - s.questionStartedAt) / 1000);
       const gained = correct ? this.reward(q.countryId, seconds) : 0;
       if (!correct) s.streak = 0;
-      s.questionHistory.push({ countryId: q.countryId, type: q.type, correct, responseTime: seconds, wrongAttempts: q.wrongAttempts, reason });
+      s.questionHistory.push({ countryId: q.countryId, type: q.type, correct, responseTime: seconds, wrongAttempts: q.wrongAttempts, reason, hintPenalty: q.hintPenalty || 0 });
       s.feedbackUntil = this.now() + 700;
-      this.emit(correct ? 'correct' : 'reveal', { countryId: q.countryId, gained, seconds, reason });
+      this.emit(correct ? 'correct' : 'reveal', { countryId: q.countryId, gained, seconds, reason, hintPenalty: q.hintPenalty || 0 });
     }
     finish(reason = 'manual', at = this.now()) {
       const s = this.state; if (s.gameStatus !== 'playing') return;
@@ -162,7 +343,8 @@
       if (s.currentQuestion && !s.currentQuestion.resolved) {
         s.wrongAnswers++; s.streak = 0; s.currentQuestion.resolved = true;
         s.questionHistory.push({ countryId: s.currentQuestion.countryId, type: s.currentQuestion.type, correct: false,
-          responseTime: Math.max(0, (at - s.questionStartedAt) / 1000), wrongAttempts: s.currentQuestion.wrongAttempts, reason });
+          responseTime: Math.max(0, (at - s.questionStartedAt) / 1000), wrongAttempts: s.currentQuestion.wrongAttempts, reason,
+          hintPenalty: s.currentQuestion.hintPenalty || 0 });
       }
       s.gameStatus = 'ended'; s.feedbackUntil = null;
       this.result = this.makeResult(reason); this.emit('end', { result: this.result });
@@ -196,6 +378,7 @@
         strongestRegion: regions.find(r => r.correct > 0) || null,
         weakestRegion: [...regions].reverse().find(r => r.correct < r.total) || null,
         missedCountries: missed, mistakes: [...s.mistakes], questionHistory: [...history],
+        hintsUsed: s.hintsUsed, hintPenalty: s.hintPenalty,
         completed: reason === 'complete', personalBest: false };
     }
   }
@@ -214,5 +397,5 @@
       return result;
     }
   }
-  return { TYPES, MODES, Engine, LocalProfile, calculateScore, normalize, matchesDifficulty, seededRandom };
+  return { TYPES, MODES, Engine, LocalProfile, AnswerValidator, COMMON_ALIAS_GROUPS, calculateScore, normalize, matchesDifficulty, seededRandom, selectFlagOptions };
 });

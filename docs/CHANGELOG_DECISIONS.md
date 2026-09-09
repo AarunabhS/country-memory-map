@@ -2,6 +2,16 @@
 
 This file records actual governance decisions and identifies candidates that still need a decision. It is not a substitute for ADRs.
 
+## 2026-09-09 — Final release candidate profile mode and snapshot refresh
+
+Status: accepted release decision; local implementation **AUTOMATED VERIFIED** and **MANUALLY VERIFIED WITH EVIDENCE** on local origins; production-origin verification remains **MANUAL VERIFICATION REQUIRED**.
+
+- Set `REMOTE_PROFILE_SYNC_ENABLED` default-off for this release. Local profiles, selection, statistics, mastery, settings, recent results, and reload persistence remain supported without changing storage keys or schemas.
+- Disabled mode does not construct the unsupported remote profile service or stats queue, does not send `/profiles`, `/recover`, or `/sessions` traffic, hides remote-only profile controls/copy, and uses device-local wording.
+- Regenerated `multiplayer-server/shared/game-core.cjs` and `multiplayer-server/shared/countries.json` through the documented Worker build. Both outputs match their current canonical root/data sources; no Worker security or routing source changed.
+- Final local checks passed: governance; root tests 64/64; multiplayer tests 16/16 before and after build; Worker build; and `git diff --check`.
+- Remaining production-only checks are production-origin profile persistence and storage failure, Google browser-key referrer/API restrictions, deployed Worker room smoke, physical-device layout/touch/screen-reader/reduced-motion checks, and deployment verification.
+
 ## 2026-09-09 — Google 3D country-click contract
 
 Status: accepted architecture decision; local implementation awaiting review and production verification.

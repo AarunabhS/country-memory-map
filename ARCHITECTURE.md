@@ -71,9 +71,13 @@ Status date: 2026-09-09. This map describes verified repository structure. Label
 - Game session state is in-memory in `Engine`. `LocalProfile` stores recent results, bests, difficulty, and last mode under `country-memory-profile-v1`, with visit-only fallback if storage fails.
 - `player-system.js` separately stores player/profile/device/sync-queue state in browser storage and defines remote `/profiles`, `/recover`, and `/sessions` calls.
 
+**RELEASE-CANDIDATE BEHAVIOR**
+
+- Remote profile synchronization is default-off through `REMOTE_PROFILE_SYNC_ENABLED`. Local profile creation, selection, statistics, mastery, settings, recent results, and refresh persistence remain supported; local-only mode does not construct the remote service or stats queue and presents device-local copy.
+
 **VERIFIED CURRENT DEFECT**
 
-- The current multiplayer Worker exposes room/challenge endpoints, not the profile/session API expected by `player-system.js`. Remote profile synchronization therefore does not match the deployed backend contract; local fallback behavior must be preserved.
+- The current multiplayer Worker exposes room/challenge endpoints, not the profile/session API expected by `player-system.js`. If remote profile synchronization is explicitly re-enabled, it still does not match the deployed backend contract; the release default keeps that unsupported traffic disabled.
 
 ## Flag games
 
