@@ -10,7 +10,7 @@ const runtime = fs.readFileSync('public/runtime-config.js', 'utf8');
 
 test('cinematic shell keeps the production game as its fallback', () => {
   assert.match(html, /class="live-globe"/);
-  assert.match(html, /data-src="\.\/legacy\/index\.html"/);
+  assert.match(html, /data-src="\.\/legacy\/index\.html(?:\?[^\"]+)?"/);
   assert.match(legacy, /<base href="\.\.\/">/);
   assert.match(runtime, /"renderer":"google3d"/);
 });

@@ -98,32 +98,47 @@
             </div>
 
             <div class="mode-list" role="list" aria-label="Game modes">
-              <button class="mode-row is-active" type="button" data-mode="Explore" data-note="Free exploration mode">
+              <button class="mode-row is-active" type="button" data-mode="Explore" data-game="explore" aria-current="page">
                 <span class="mode-icon" aria-hidden="true">◈</span>
                 <span class="mode-copy"><strong>Explore</strong><small>Free exploration mode</small></span>
                 <span class="mode-arrow" aria-hidden="true">›</span>
               </button>
-              <button class="mode-row" type="button" data-mode="Countries" data-note="Name the countries">
+              <button class="mode-row" type="button" data-mode="Countries" data-game="countries">
                 <span class="mode-icon" aria-hidden="true">⚑</span>
                 <span class="mode-copy"><strong>Countries</strong><small>Name the countries</small></span>
                 <span class="mode-arrow" aria-hidden="true">›</span>
               </button>
-              <button class="mode-row" type="button" data-mode="Capitals" data-note="Name the capitals">
+              <button class="mode-row" type="button" data-mode="Capitals" data-game="capitals">
                 <span class="mode-icon" aria-hidden="true">▥</span>
                 <span class="mode-copy"><strong>Capitals</strong><small>Name the capitals</small></span>
                 <span class="mode-arrow" aria-hidden="true">›</span>
               </button>
-              <button class="mode-row" type="button" data-mode="Flag Sprint" data-note="Recognize flags fast">
-                <span class="mode-icon" aria-hidden="true">⚑</span>
-                <span class="mode-copy"><strong>Flag Sprint</strong><small>Recognize flags fast</small></span>
-                <span class="mode-arrow" aria-hidden="true">›</span>
-              </button>
-              <button class="mode-row" type="button" data-mode="World Conquest" data-note="Build your streak">
+              <button class="mode-row" type="button" data-mode="World Conquest" data-game="world-conquest">
                 <span class="mode-icon" aria-hidden="true">♜</span>
                 <span class="mode-copy"><strong>World Conquest</strong><small>Build your streak</small></span>
                 <span class="mode-arrow" aria-hidden="true">›</span>
               </button>
-              <button class="mode-row" type="button" data-mode="Play with Friends" data-note="Up to 8 players">
+              <button class="mode-row" type="button" data-mode="Find the Country" data-game="find-country">
+                <span class="mode-icon" aria-hidden="true">◎</span>
+                <span class="mode-copy"><strong>Find the Country</strong><small>Locate each country on the map</small></span>
+                <span class="mode-arrow" aria-hidden="true">›</span>
+              </button>
+              <button class="mode-row" type="button" data-mode="Capital Clash" data-game="capital-clash">
+                <span class="mode-icon" aria-hidden="true">▥</span>
+                <span class="mode-copy"><strong>Capital Clash</strong><small>Connect capitals and countries</small></span>
+                <span class="mode-arrow" aria-hidden="true">›</span>
+              </button>
+              <button class="mode-row" type="button" data-mode="Flag Recall" data-game="flag-recall">
+                <span class="mode-icon" aria-hidden="true">⚑</span>
+                <span class="mode-copy"><strong>Flag Recall</strong><small>Identify each flag</small></span>
+                <span class="mode-arrow" aria-hidden="true">›</span>
+              </button>
+              <button class="mode-row" type="button" data-mode="Flag Match" data-game="flag-match">
+                <span class="mode-icon" aria-hidden="true">⚐</span>
+                <span class="mode-copy"><strong>Flag Match</strong><small>Choose the matching flag</small></span>
+                <span class="mode-arrow" aria-hidden="true">›</span>
+              </button>
+              <button class="mode-row" type="button" data-mode="Play with Friends" data-game="multiplayer">
                 <span class="mode-icon" aria-hidden="true">♟</span>
                 <span class="mode-copy"><strong>Play with Friends</strong><small>Up to 8 players</small></span>
                 <span class="mode-arrow" aria-hidden="true">›</span>
@@ -156,7 +171,7 @@
             <div class="globe-backdrop" aria-hidden="true"></div>
             <div class="globe-core">
               <div class="globe-mount" id="globe-mount">
-                <iframe class="legacy-map-frame" id="legacy-map-frame" title="Standard map fallback" src="about:blank" data-src="./legacy/index.html" aria-hidden="true" tabindex="-1"></iframe>
+                <iframe class="legacy-map-frame" id="legacy-map-frame" title="Standard map fallback" src="about:blank" data-src="./legacy/index.html?v=20260909-master2" aria-hidden="true" tabindex="-1"></iframe>
                 <div class="earth-preview-wrap" id="earth-preview-wrap">
                   <div class="earth-halo earth-halo-outer"></div>
                   <div class="earth-halo earth-halo-inner"></div>

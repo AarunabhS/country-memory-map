@@ -2,10 +2,11 @@ import { config } from "./config.js";
 import { loadCountryGeometry } from "./country-geometry.js";
 import { createMapAdapter } from "./map-adapter.js";
 import { createRendererRecovery, getRendererPresentation, RENDERER_RECOVERY_STATES } from "./renderer-recovery.js";
+import { GAME_ROUTES, buildGameUrl, parseGameRoute, sameGameRoute } from "./game-routes.js";
+import { createGameLifecycle, GAME_LIFECYCLE_STATES } from "./game-lifecycle.js";
 import {
   createCountryClickHandler,
   createTypedAnswerHandler,
-  prepareRetainedFreeMap,
   submitRetainedFreeMapGuess,
 } from "./root-interactions.js";
 
@@ -58,10 +59,14 @@ const state = {
   sheetTab: "play",
   legacyReady: false,
   legacyLoadPromise: null,
+  currentRoute: null,
+  activeRoute: null,
+  lastLauncher: null,
 };
 
 let mapAdapter;
 let rendererRecovery;
+const gameLifecycle = createGameLifecycle();
 
 function announce(message) {
   dom.appStatus.textContent = message;
@@ -129,29 +134,9 @@ function setLegacyFallbackVisible(visible) {
 }
 
 async function activateRetainedFallback(reason) {
-  // State changes before awaiting the iframe: a late Google callback must not
-  // re-enable the cinematic surface while this handoff is in progress.
-  dom.answerForm.inert = true;
-  dom.answerForm.setAttribute("aria-hidden", "true");
-  dom.countryInput.disabled = true;
-  dom.compassControls.inert = true;
-  dom.liveGlobe.hidden = true;
-  dom.liveGlobe.setAttribute("aria-hidden", "true");
-  dom.earthWrap.hidden = true;
-  dom.attributionSafeZone.hidden = true;
-  dom.globeMount.classList.remove("is-live");
   mapAdapter?.setInteractionEnabled(false);
   setRendererCopy({ warning: true });
-  try {
-    const frameDocument = await loadLegacyEngine();
-    restoreLegacyFrameStyles(frameDocument);
-    setLegacyFallbackVisible(true);
-    frameDocument.querySelector("#guessInput, main, .app")?.focus?.();
-    announce("3D was unavailable. The playable 2D map is now in use.");
-  } catch (error) {
-    announce("3D was unavailable and the playable 2D map could not be loaded.");
-    console.warn("Country Memory Map retained fallback:", error.message);
-  }
+  await applyRoute(state.currentRoute || GAME_ROUTES.explore, { reason: `renderer-${reason}` });
 }
 
 function syncLegacyStats() {
@@ -171,26 +156,21 @@ function loadLegacyEngine() {
 
   state.legacyLoadPromise = new Promise((resolve, reject) => {
     const onLoad = () => {
-      // The iframe load event can precede the retained controller's final
-      // listener wiring. Enter Free Map on the next task after scripts settle.
-      window.setTimeout(async () => {
-        try {
-          const frameDocument = legacyDocument();
-          // Choose the retained checker before leaving its game menu. The
-          // controller's Free Map action must be the final transition so both
-          // submit listeners agree that this is a non-round checker.
-          syncLegacyMode(state.mode);
-          await prepareRetainedFreeMap(frameDocument);
+      const started = Date.now();
+      const waitForHost = () => {
+        const frameDocument = legacyDocument();
+        if (frameDocument?.defaultView?.CountryMemoryRetained) {
           state.legacyReady = true;
-          installLegacyFrameStyles(frameDocument);
-          if (document.activeElement === dom.legacyFrame) dom.legacyFrame.blur();
-          syncLegacyStats();
-          window.setTimeout(syncLegacyStats, 250);
           resolve(frameDocument);
-        } catch (error) {
-          reject(error);
+          return;
         }
-      }, 0);
+        if (Date.now() - started >= 5000) {
+          reject(new Error("The retained game controller did not become ready."));
+          return;
+        }
+        window.setTimeout(waitForHost, 25);
+      };
+      window.setTimeout(waitForHost, 0);
     };
     const onError = () => reject(new Error("The standard game fallback could not be loaded."));
     dom.legacyFrame.addEventListener("load", onLoad, { once: true });
@@ -201,7 +181,7 @@ function loadLegacyEngine() {
 }
 
 async function proxyGuessToLegacy(value) {
-  const frameDocument = await loadLegacyEngine();
+  const frameDocument = await prepareRetainedBridge(state.currentRoute?.checker || "countries");
   submitRetainedFreeMapGuess(frameDocument, value);
   await new Promise(resolve => window.setTimeout(resolve, 120));
   syncLegacyStats();
@@ -209,11 +189,20 @@ async function proxyGuessToLegacy(value) {
   if (message) showToast(message);
 }
 
-function syncLegacyMode(mode) {
-  const frameDocument = legacyDocument();
-  if (!frameDocument) return;
-  const target = mode === "Capitals" ? "#capitalModeButton" : "#countryModeButton";
-  frameDocument.querySelector(target)?.click();
+function retainedHost(frameDocument = legacyDocument()) {
+  return frameDocument?.defaultView?.CountryMemoryRetained || null;
+}
+
+async function prepareRetainedBridge(checker) {
+  const frameDocument = await loadLegacyEngine();
+  const host = retainedHost(frameDocument);
+  if (!host) throw new Error("The retained game controller is unavailable.");
+  if (host.getLifecycleState?.().state !== "free-map") host.openFreeMap({ checker });
+  const requiredChecker = checker === "capitals" ? "#capitalModeButton" : "#countryModeButton";
+  if (!frameDocument.querySelector(requiredChecker)?.classList.contains("active")) host.openFreeMap({ checker });
+  installLegacyFrameStyles(frameDocument);
+  syncLegacyStats();
+  return frameDocument;
 }
 
 const handleGlobeCountryClick = createCountryClickHandler({
@@ -265,16 +254,185 @@ function setRendererCopy({ live = false, warning = false } = {}) {
 function setMode(mode, note) {
   state.mode = mode;
   dom.countryInput.value = "";
-  $$(".mode-row").forEach((row) => row.classList.toggle("is-active", row.dataset.mode === mode));
+  $$(".mode-row").forEach((row) => {
+    const active = row.dataset.mode === mode;
+    row.classList.toggle("is-active", active);
+    row.setAttribute("aria-current", active ? "page" : "false");
+  });
   dom.hudTitle.textContent = mode === "Explore" ? "Planet Earth" : mode;
-  dom.hudSubtitle.textContent = mode === "Explore" ? "Drag to rotate · Scroll to zoom · Click a country" : `${note} · game engine connection pending`;
+  dom.hudSubtitle.textContent = mode === "Explore" ? "Drag to rotate · Scroll to zoom · Click a country" : mode === "Countries" ? "Type a country name to mark it on the map" : mode === "Capitals" ? "Type a capital name to mark it on the map" : `Opening ${note}`;
   const answerKind = mode === "Capitals" ? "capital" : "country";
   dom.answerLabel.textContent = `Type a ${answerKind} name`;
   dom.countryInput.placeholder = `Type a ${answerKind} name…`;
   dom.countryInput.setAttribute("aria-label", `Type a ${answerKind} name`);
   dom.answerButton.innerHTML = `Mark ${answerKind === "capital" ? "Capital" : "Country"} <span aria-hidden="true">→</span>`;
-  syncLegacyMode(mode);
-  if (mode !== "Explore") showToast(`${mode} is staged in the cinematic shell; it will connect to the game engine next.`);
+}
+
+function rendererIsTerminal2d() {
+  return rendererRecovery?.getState() === RENDERER_RECOVERY_STATES.TWO_D_ACTIVE;
+}
+
+function setSurface(surface) {
+  dom.shell.dataset.surface = surface;
+  const retained = surface === "retained";
+  dom.answerForm.inert = retained;
+  dom.answerForm.setAttribute("aria-hidden", String(retained));
+  dom.countryInput.disabled = retained || !(rendererRecovery?.is3dActive() ?? false);
+  dom.compassControls.inert = retained;
+  dom.compassControls.setAttribute("aria-hidden", String(retained));
+  setLegacyFallbackVisible(retained);
+  if (retained) {
+    dom.liveGlobe.hidden = true;
+    dom.liveGlobe.setAttribute("aria-hidden", "true");
+    dom.earthWrap.hidden = true;
+    dom.attributionSafeZone.hidden = true;
+  } else if (rendererRecovery?.is3dActive()) {
+    dom.liveGlobe.hidden = false;
+    dom.liveGlobe.style.visibility = "visible";
+    dom.liveGlobe.style.pointerEvents = "auto";
+    dom.liveGlobe.removeAttribute("aria-hidden");
+    dom.earthWrap.hidden = true;
+    dom.attributionSafeZone.hidden = false;
+  } else {
+    dom.earthWrap.hidden = false;
+  }
+}
+
+function focusHome() {
+  const target = state.lastLauncher?.isConnected ? state.lastLauncher : $(".panel-heading h1");
+  target?.focus?.({ preventScroll: true });
+}
+
+function focusRetained(host) {
+  window.requestAnimationFrame(() => host?.focusPrimary?.());
+}
+
+function routeUrl(route, absolute = false) {
+  return buildGameUrl(route, { pathname: window.location.pathname, origin: absolute ? window.location.origin : "" });
+}
+
+function writeRoute(route, method = "push") {
+  const url = routeUrl(route);
+  if (method === "replace") window.history.replaceState({ game: route?.slug || null }, "", url);
+  else window.history.pushState({ game: route?.slug || null }, "", url);
+}
+
+function normalizeLocationRoute() {
+  const parsed = parseGameRoute(window.location.search);
+  if (!parsed.canonical) {
+    writeRoute(parsed.route, "replace");
+    if (!parsed.route) announce("That game link was unavailable. Returned to Home.");
+    else if (parsed.reason !== "room-ingress") announce("The game link was normalized.");
+  }
+  return parsed.route;
+}
+
+function onRetainedNavigation(payload = {}) {
+  if (payload.type === "invite-url") return routeUrl({ ...GAME_ROUTES.multiplayer, room: payload.room }, true);
+  if (payload.type === "multiplayer-room") {
+    const route = { ...GAME_ROUTES.multiplayer, ...(payload.room ? { room: payload.room } : {}) };
+    if (!sameGameRoute(route, state.currentRoute)) {
+      writeRoute(route, "replace");
+      void applyRoute(route, { reason: "multiplayer-room" });
+    }
+    return null;
+  }
+  if (payload.type === "multiplayer") navigateToRoute(GAME_ROUTES.multiplayer, { reason: "retained-multiplayer" });
+  if (payload.type === "home") navigateToRoute(null, { reason: "retained-home" });
+  return null;
+}
+
+async function getRetainedHost(token) {
+  const frameDocument = await loadLegacyEngine();
+  if (!gameLifecycle.isCurrent(token)) return null;
+  const host = retainedHost(frameDocument);
+  if (!host) throw new Error("The retained game controller is unavailable.");
+  host.setHostNavigationHandler(onRetainedNavigation);
+  return { frameDocument, host };
+}
+
+function homeLifecycleState() {
+  return rendererIsTerminal2d() ? GAME_LIFECYCLE_STATES.HOME_2D : GAME_LIFECYCLE_STATES.HOME_3D;
+}
+
+async function applyRoute(route, { reason = "route" } = {}) {
+  const previous = state.activeRoute;
+  state.currentRoute = route;
+  state.activeRoute = route;
+  const token = gameLifecycle.begin(route?.kind === "free-map" && !rendererIsTerminal2d() ? homeLifecycleState() : GAME_LIFECYCLE_STATES.RETAINED_LOADING);
+
+  try {
+    if (!route) {
+      const retained = state.legacyReady ? { frameDocument: legacyDocument(), host: retainedHost() } : null;
+      if (previous?.kind === "multiplayer") retained?.host?.suspendMultiplayer?.();
+      retained?.host?.deactivate?.({ reason: "mode_change" });
+      if (rendererIsTerminal2d()) {
+        const ready = retained || await getRetainedHost(token);
+        if (!ready || !gameLifecycle.isCurrent(token)) return;
+        ready.host.openFreeMap({ checker: "countries" });
+        restoreLegacyFrameStyles(ready.frameDocument);
+        setSurface("retained");
+        gameLifecycle.commit(token, GAME_LIFECYCLE_STATES.HOME_2D);
+        focusRetained(ready.host);
+      } else {
+        setSurface("root");
+        setMode("Explore", "Free exploration mode");
+        if (state.legacyReady) await prepareRetainedBridge("countries");
+        if (!gameLifecycle.isCurrent(token)) return;
+        gameLifecycle.commit(token, GAME_LIFECYCLE_STATES.HOME_3D);
+        focusHome();
+      }
+      return;
+    }
+
+    setMode(route.label, route.label);
+    if (route.kind === "free-map" && !rendererIsTerminal2d()) {
+      setSurface("root");
+      const frameDocument = await prepareRetainedBridge(route.checker);
+      if (!gameLifecycle.isCurrent(token)) return;
+      installLegacyFrameStyles(frameDocument);
+      gameLifecycle.commit(token, GAME_LIFECYCLE_STATES.HOME_3D);
+      return;
+    }
+
+    const ready = await getRetainedHost(token);
+    if (!ready || !gameLifecycle.isCurrent(token)) return;
+    restoreLegacyFrameStyles(ready.frameDocument);
+    if (previous?.kind === "multiplayer" && route.kind !== "multiplayer") ready.host.suspendMultiplayer?.();
+
+    if (route.kind === "free-map") {
+      ready.host.openFreeMap({ checker: route.checker });
+      setSurface("retained");
+      gameLifecycle.commit(token, GAME_LIFECYCLE_STATES.HOME_2D);
+    } else if (route.kind === "solo") {
+      const lifecycle = ready.host.getLifecycleState?.();
+      const sameActiveRound = sameGameRoute(route, previous) && lifecycle?.state === "playing" && lifecycle.family === route.family && lifecycle.variant === route.variant;
+      if (!sameActiveRound) ready.host.openGame({ family: route.family, variant: route.variant });
+      setSurface("retained");
+      gameLifecycle.commit(token, sameActiveRound ? GAME_LIFECYCLE_STATES.SOLO_PLAYING : GAME_LIFECYCLE_STATES.SOLO_SETUP);
+    } else if (route.kind === "multiplayer") {
+      ready.host.deactivate?.({ reason: "mode_change" });
+      setSurface("retained");
+      await ready.host.openMultiplayer?.({ room: route.room });
+      if (!gameLifecycle.isCurrent(token)) return;
+      gameLifecycle.commit(token, GAME_LIFECYCLE_STATES.MULTIPLAYER);
+    }
+    focusRetained(ready.host);
+  } catch (error) {
+    if (!gameLifecycle.isCurrent(token)) return;
+    console.warn("Country Memory Map route activation:", error.message);
+    gameLifecycle.commit(token, GAME_LIFECYCLE_STATES.FATAL_ROUTE_ERROR);
+    announce("That game could not be opened. Returned to Home.");
+    writeRoute(null, "replace");
+    state.currentRoute = null;
+    state.activeRoute = null;
+    setSurface("root");
+  }
+}
+
+function navigateToRoute(route, { reason = "launch", history = "push" } = {}) {
+  if (history !== "none") writeRoute(route, history);
+  void applyRoute(route, { reason });
 }
 
 function setSheet(tab, open = true) {
@@ -320,6 +478,11 @@ async function initializeRenderer() {
       await adapter.initialize({ container: dom.liveGlobe });
       const usable = await hydrateGoogleCountryGeometry(adapter);
       if (!usable || !rendererRecovery.activate3d()) return adapter;
+      if (dom.shell.dataset.surface === "retained") {
+        adapter.setInteractionEnabled(false);
+        setRendererCopy({ live: true });
+        return adapter;
+      }
       dom.globeLoading.hidden = true;
       dom.liveGlobe.style.visibility = "visible";
       dom.liveGlobe.style.pointerEvents = "auto";
@@ -328,6 +491,7 @@ async function initializeRenderer() {
       dom.attributionSafeZone.hidden = false;
       setLegacyFallbackVisible(false);
       dom.globeMount.classList.add("is-live");
+      setSurface("root");
       setRendererCopy({ live: true });
       announce("Live 3D Earth is ready.");
       return adapter;
@@ -353,7 +517,7 @@ async function initializeRenderer() {
   rendererRecovery.activate3d();
   dom.globeLoading.hidden = true;
   dom.attributionSafeZone.hidden = true;
-  setLegacyFallbackVisible(false);
+  if (dom.shell.dataset.surface !== "retained") setLegacyFallbackVisible(false);
   setRendererCopy();
   return adapter;
 }
@@ -421,12 +585,15 @@ function wireControls() {
 
 function wireInteractions() {
   $$(".mode-row").forEach((row) => {
-    row.addEventListener("click", () => setMode(row.dataset.mode, row.dataset.note));
+    row.addEventListener("click", () => {
+      state.lastLauncher = row;
+      navigateToRoute(GAME_ROUTES[row.dataset.game], { reason: "launcher" });
+    });
   });
 
   dom.answerForm.addEventListener("submit", createTypedAnswerHandler({
     getValue: () => dom.countryInput.value,
-    isActive: () => rendererRecovery?.is3dActive() ?? false,
+    isActive: () => (rendererRecovery?.is3dActive() ?? false) && dom.shell.dataset.surface !== "retained" && state.currentRoute?.kind === "free-map",
     setDisabled: (disabled) => { dom.countryInput.disabled = disabled; },
     clearValue: () => { dom.countryInput.value = ""; },
     focus: () => dom.countryInput.focus(),
@@ -447,7 +614,9 @@ function wireInteractions() {
   $$("[data-nav]").forEach((button) => {
     button.addEventListener("click", () => {
       $$("[data-nav]").forEach((item) => item.classList.toggle("is-active", item === button));
-      if (button.dataset.nav !== "home") showToast(`${button.textContent.trim()} is visible as a shell state while the source game is restored.`);
+      if (button.dataset.nav === "home") navigateToRoute(null, { reason: "navigation" });
+      else if (button.dataset.nav === "friends") navigateToRoute(GAME_ROUTES.multiplayer, { reason: "navigation" });
+      else showToast(`${button.textContent.trim()} is available from the root home surface.`);
     });
   });
 
@@ -471,7 +640,10 @@ function wireInteractions() {
   });
 
   dom.mobileMenuToggle.addEventListener("click", () => setSheet(state.sheetTab, dom.mobileSheet.hidden));
-  $$("[data-mobile-tab]").forEach((button) => button.addEventListener("click", () => setSheet(button.dataset.mobileTab, true)));
+  $$("[data-mobile-tab]").forEach((button) => button.addEventListener("click", () => {
+    if (button.dataset.mobileTab === "friends") navigateToRoute(GAME_ROUTES.multiplayer, { reason: "mobile-navigation" });
+    else setSheet(button.dataset.mobileTab, true);
+  }));
 
   document.addEventListener("click", (event) => {
     if (!dom.topbarActions?.contains(event.target) && !dom.sessionMenu.hidden) {
@@ -489,12 +661,18 @@ async function bootstrap() {
   wireControls();
   wireInteractions();
   updateStats();
+  state.currentRoute = normalizeLocationRoute();
+  window.addEventListener("popstate", () => {
+    const route = normalizeLocationRoute();
+    void applyRoute(route, { reason: "history" });
+  });
   rendererRecovery = createRendererRecovery({
     onTransition: ({ state, reason }) => {
       if (state === RENDERER_RECOVERY_STATES.TWO_D_ACTIVE) void activateRetainedFallback(reason);
     },
   });
   if (config.renderer === "google3d") rendererRecovery.start();
+  void applyRoute(state.currentRoute, { reason: "initial" });
   mapAdapter = await initializeRenderer();
   const scheduleIdle = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 900));
   scheduleIdle(() => loadLegacyEngine().catch((error) => console.warn("Legacy game bridge:", error.message)));

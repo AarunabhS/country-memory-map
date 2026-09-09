@@ -2009,6 +2009,40 @@ html[data-page-visibility="hidden"] .earth-preview-wrap {
   }
 }
 
+/* The root owns which surface is interactive. FULL retained presentation is
+   deliberately a single iframe: no duplicate engine, map, or overlay exists. */
+#app-shell[data-surface="retained"] .legacy-map-frame {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  border: 0;
+  border-radius: 0;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#app-shell[data-surface="retained"] .topbar,
+#app-shell[data-surface="retained"] .left-rail,
+#app-shell[data-surface="retained"] .right-rail,
+#app-shell[data-surface="retained"] .planet-hud,
+#app-shell[data-surface="retained"] .globe-input-zone,
+#app-shell[data-surface="retained"] .compass-controls,
+#app-shell[data-surface="retained"] .mobile-sheet,
+#app-shell[data-surface="retained"] .mobile-bottom-nav,
+#app-shell[data-surface="retained"] .site-footer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.left-rail .mode-list {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

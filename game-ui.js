@@ -17,7 +17,7 @@
     const voice = document.querySelector('#voiceButton'), message = document.querySelector('#message');
     const families = { conquest: 'World Conquest', find: 'Find the Country', capital: 'Capital Clash', flag: 'Flag Games' };
     const variants = { relaxed:'Relaxed', sprint:'Sprint', blitz:'Blitz', sudden:'Sudden Death', continent:'Continent', standard:'Standard', classic:'Classic', recall:'Flag Recall', match:'Flag Match' };
-    let remote = null, remoteKey = null, lastRemoteEvent = null, soloReplay = null, queuedText = null, queuedCountry = null;
+    let remote = null, remoteKey = null, lastRemoteEvent = null, soloReplay = null, queuedText = null, queuedCountry = null, hostNavigationHandler = null;
     let family = profile.data.lastMode.family, lastConfig = null, result = null, platform = true, feedbackTimer, startToken = 0, suppressResults = false;
     app.insertAdjacentHTML('afterbegin', `
       <header class="platform-header"><div><span class="brand-kicker">COUNTRY MEMORY MAP</span><h1 id="gameTitle">Choose your game</h1></div><button id="endGame" type="button" hidden>End round</button><button id="freeMap" type="button">Free map</button></header>
@@ -445,6 +445,40 @@
       flagView.hidden=true; flagChoices.replaceChildren(); form.hidden=false;markButton.textContent='Mark';input.disabled=false;voice.disabled=false;
       textFeedback('Free map: the original country and capital checkers.');
     }
+    function hostDeactivate({ reason = 'mode_change' } = {}) {
+      startToken++;
+      $('soloCountdown').hidden = true;
+      if (remote) {
+        window.CountryMemoryMultiplayer?.suspend?.();
+        remote = null; remoteKey = null; engine.state.gameStatus = 'idle';
+      }
+      if (tracker?.hasActiveSession()) {
+        suppressResults = true;
+        tracker.finish(reason, engine.state);
+      }
+      if (engine.state.gameStatus === 'playing') {
+        suppressResults = true;
+        engine.finish(reason);
+      }
+      suppressResults = false;
+      menu();
+    }
+    function hostOpenGame({ family: nextFamily, variant } = {}) {
+      if (!MODES[nextFamily] || !MODES[nextFamily][variant]) throw new Error('That game setup is unavailable.');
+      const current = engine.config || {};
+      if (platform && engine.state.gameStatus === 'playing' && !remote && current.family === nextFamily && current.variant === variant) return window.CountryMemoryRetained.getLifecycleState();
+      hostDeactivate({ reason: 'mode_change' });
+      chooseFamily(nextFamily, variant);
+      menu();
+      return window.CountryMemoryRetained.getLifecycleState();
+    }
+    function hostOpenFreeMap({ checker = 'countries' } = {}) {
+      if (!['countries', 'capitals'].includes(checker)) throw new Error('That Free Map checker is unavailable.');
+      hostDeactivate({ reason: 'mode_change' });
+      legacy();
+      $(checker === 'capitals' ? 'capitalModeButton' : 'countryModeButton').click();
+      return window.CountryMemoryRetained.getLifecycleState();
+    }
     window.gameController={
       previewVoice(heard) {
         if(!platform)return false;
@@ -502,6 +536,32 @@
       closeResults() {$('resultsDialog').close();}
 
     };
+    window.CountryMemoryRetained = {
+      openGame: hostOpenGame,
+      openFreeMap: hostOpenFreeMap,
+      deactivate: hostDeactivate,
+      focusPrimary() {
+        if (!platform) return input.focus({ preventScroll: true });
+        if ($('resultsDialog').open) return $('playAgain').focus({ preventScroll: true });
+        return $('startGame').focus({ preventScroll: true });
+      },
+      getLifecycleState() {
+        if (remote) return { state: 'multiplayer' };
+        if (!platform) return { state: 'free-map' };
+        if ($('resultsDialog').open) return { state: 'results', family: engine.config?.family, variant: engine.config?.variant };
+        if (engine.state.gameStatus === 'playing') return { state: 'playing', family: engine.config?.family, variant: engine.config?.variant };
+        return { state: 'setup', family, variant: $('gameVariant').value };
+      },
+      setHostNavigationHandler(handler) { hostNavigationHandler = typeof handler === 'function' ? handler : null; },
+      requestHostNavigation(payload) {
+        if (!hostNavigationHandler) return false;
+        hostNavigationHandler(payload);
+        return true;
+      },
+      getHostedInviteUrl(room) { return hostNavigationHandler?.({ type: 'invite-url', room }) || null; },
+      openMultiplayer(options) { return window.CountryMemoryMultiplayer?.open?.(options); },
+      suspendMultiplayer() { return window.CountryMemoryMultiplayer?.suspend?.(); },
+    };
     document.querySelectorAll('[data-family]').forEach(b=>b.addEventListener('click',()=>chooseFamily(b.dataset.family,b.dataset.flagVariant)));
     for (const name of ['Africa','Asia','Europe','North America','South America','Oceania']) $('gameRegion').add(new Option(`${name} · ${countries.filter(c=>c.continent===name).length} countries`,name));
     $('gameDifficulty').value=profile.data.difficulty;
@@ -515,7 +575,9 @@
     $('playAgain').addEventListener('click',()=>start(lastConfig));
     $('practiceMissed').addEventListener('click',()=>start({...lastConfig,variant:lastConfig.family==='conquest'?'relaxed':lastConfig.family==='find'?'standard':lastConfig.family==='flag'?lastConfig.variant:'classic',practiceIds:result.missedCountries}));
     $('challengeFriends').addEventListener('click',()=>{if(window.Friends&&result?.replay){$('resultsDialog').close();window.Friends.challenge(result.replay);}});
-    $('chooseGame').addEventListener('click',menu);$('freeMap').addEventListener('click',legacy);$('openGames').addEventListener('click',menu);
+    $('chooseGame').addEventListener('click',()=>{ if (!window.CountryMemoryRetained.requestHostNavigation({ type: 'home' })) menu(); });
+    $('freeMap').addEventListener('click',legacy);
+    $('openGames').addEventListener('click',()=>{ if (!window.CountryMemoryRetained.requestHostNavigation({ type: 'home' })) menu(); });
     $('resultsDialog').addEventListener('cancel',e=>{e.preventDefault();menu();});
     function syncKeyboard() {
       const viewport = window.visualViewport, height = viewport?.height || window.innerHeight;

@@ -2,6 +2,24 @@
 
 Status: implemented with automated and local browser evidence; awaiting review and unsupported device/production QA. No commit or deployment authorized.
 
+## MASTER 2 — complete game entry impact assessment
+
+```text
+Requested change: Make every retained game intentionally reachable from the cinematic root through one canonical query-string route, reusing the singleton retained iframe and existing engines.
+Affected workstreams: root route/history coordinator, cinematic/retained surface ownership, retained controller host API, existing multiplayer UI/service URL handoff, focused route/lifecycle tests.
+Routes/components affected: root query routes ?game=explore|countries|capitals|world-conquest|find-country|capital-clash|flag-recall|flag-match|multiplayer and the compatibility room inputs; root index/main/styles, retained game and multiplayer adapters.
+Gameplay impact: none — existing Free Map, Engine setup/lifecycle, scoring, results, replay, practice, and multiplayer controller remain authoritative. Route transitions only invoke existing mode-change abandonment paths.
+Persistence impact: none — existing profile and friend-session keys remain unchanged; no route state is persisted.
+Map/globe impact: existing renderer recovery retains ownership of 3D_ACTIVE / terminal 2D_ACTIVE. Explore/checker routes retain their existing bridge behavior under 3D and become the retained Free Map under terminal 2D.
+Mobile impact: retained FULL presentation covers the root shell without competing controls; existing retained safe-area/reflow rules remain in use.
+Accessibility impact: launcher labels, route announcements, focus handoff, inactive root controls, and recovery feedback are coordinated without changing retained game-local focus behavior.
+Performance impact: one small route/lifecycle module and no new dependency, engine, iframe, data set, API, or persistent state.
+Migration risk: medium — routing and cross-surface lifecycle are protected boundaries, but implementation follows the supplied locked architecture with a single iframe and reversible presentation wiring.
+Rollback path: revert the new route/lifecycle modules and root/retained host wiring; canonical game engines, storage schemas, maps, and backend rules are untouched.
+Required QA: route/lifecycle pure tests; existing governance/root/game/server tests; diff review; manual desktop/mobile portrait/mobile landscape, keyboard, deep link, history, renderer-fallback, and multiplayer room-state checks.
+Architecture risk: judgment-requiring implementation under the approved locked routing architecture; no new architecture decision is introduced.
+```
+
 ## Playable 2D fallback impact assessment
 
 ```text
@@ -89,3 +107,18 @@ Architecture risk: architecture-authority for WP-A contract; judgment-requiring 
 - WP-A: revert `src/map-adapter.js`, `src/main.js`, `src/root-interactions.js`, their tests, and ADR/status updates.
 - WP-B: independently revert the mobile variables/rules in `styles.css` and their structural tests/status updates.
 - No stored data, generated snapshots, remote services, or user accounts require rollback.
+
+## MASTER 2 verification record
+
+- `node scripts/check-governance.mjs` — passed; 21 required files.
+- `node --test tests/*.test.cjs` — passed; 57 tests, including new canonical-route and transition-version coverage.
+- `npm --prefix multiplayer-server test` — passed; 16 tests.
+- `npm --prefix <temporary-copy>/multiplayer-server run build` — attempted in a disposable copy as required; blocked because that copy has no installed `esbuild` package. The repository was not modified and no generated snapshot was written.
+- Local in-app browser, desktop — direct `?game=world-conquest` and `?game=flag-match` routes exposed the single retained iframe in FULL presentation and opened the existing chooser with the intended family/variant selected. The retained profile prompt was dismissed only for setup inspection; no player or profile was created.
+- Local in-app browser, desktop — launcher navigation changed the URL to `?game=world-conquest`; browser Back returned to the clean root URL and root surface; Forward returned to the retained World Conquest surface. `?game=capitals` retained the cinematic root, capital answer label, and hidden bridge iframe. Unknown `?game=flag-sprint` was replaced with clean Home and announced accessible recovery feedback.
+- Local in-app browser, desktop — `?game=multiplayer` opened the existing Play with Friends landing in the retained FULL surface. Its Back to solo control returned to clean root Home through the host navigation callback without issuing a leave action.
+- Not manually verified: terminal 2D renderer presentation, multiplayer room create/join/leave against a service, mobile portrait/landscape, screen reader, reduced motion, physical touch, safe-area devices, and production origin behavior. These remain manual QA work; no deployment was performed.
+
+## MASTER 2 rollback
+
+- Revert `src/game-routes.js`, `src/game-lifecycle.js`, root route/surface wiring, retained host API wiring, launcher markup/styles, and focused tests. Existing direct `legacy/` behavior, engines, storage schemas, and server rules remain independently intact.
