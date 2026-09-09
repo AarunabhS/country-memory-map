@@ -139,6 +139,17 @@ async function activateRetainedFallback(reason) {
   await applyRoute(state.currentRoute || GAME_ROUTES.explore, { reason: `renderer-${reason}` });
 }
 
+let retainedFallbackPromise = null;
+
+function requestRetainedFallback(reason) {
+  if (!retainedFallbackPromise) {
+    retainedFallbackPromise = activateRetainedFallback(reason).finally(() => {
+      retainedFallbackPromise = null;
+    });
+  }
+  return retainedFallbackPromise;
+}
+
 function syncLegacyStats() {
   const frameDocument = legacyDocument();
   if (!frameDocument) return;
@@ -479,6 +490,7 @@ async function initializeRenderer() {
       const usable = await hydrateGoogleCountryGeometry(adapter);
       if (!usable) {
         rendererRecovery.activate2d("geometry-failure");
+        await retainedFallbackPromise;
         return adapter;
       }
       if (!rendererRecovery.activate3d()) return adapter;
@@ -501,6 +513,7 @@ async function initializeRenderer() {
       return adapter;
     } catch (error) {
       rendererRecovery.activate2d("renderer-failure");
+      await retainedFallbackPromise;
       dom.globeLoading.hidden = true;
       dom.liveGlobe.hidden = true;
       dom.liveGlobe.style.visibility = "";
@@ -672,7 +685,7 @@ async function bootstrap() {
   });
   rendererRecovery = createRendererRecovery({
     onTransition: ({ state, reason }) => {
-      if (state === RENDERER_RECOVERY_STATES.TWO_D_ACTIVE) void activateRetainedFallback(reason);
+      if (state === RENDERER_RECOVERY_STATES.TWO_D_ACTIVE) void requestRetainedFallback(reason);
     },
   });
   if (config.renderer === "google3d") rendererRecovery.start();

@@ -17,7 +17,9 @@ test('cinematic shell keeps the production game as its fallback', () => {
 });
 
 test('geometry failure activates the retained fallback immediately', () => {
-  assert.match(main, /const usable = await hydrateGoogleCountryGeometry\(adapter\);\s+if \(!usable\) \{\s+rendererRecovery\.activate2d\("geometry-failure"\);\s+return adapter;\s+\}/);
+  assert.match(main, /const usable = await hydrateGoogleCountryGeometry\(adapter\);\s+if \(!usable\) \{\s+rendererRecovery\.activate2d\("geometry-failure"\);\s+await retainedFallbackPromise;\s+return adapter;\s+\}/);
+  assert.match(main, /rendererRecovery\.activate2d\("geometry-failure"\);\s+await retainedFallbackPromise;/);
+  assert.match(main, /void requestRetainedFallback\(reason\)/);
 });
 
 test('renderer fills the workspace without masking the globe', () => {
