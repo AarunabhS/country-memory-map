@@ -6,10 +6,11 @@
 
 - The root cinematic shell contains responsive rules at desktop, tablet/phone, narrow-phone, and mobile-landscape ranges.
 - The retained game uses its own phone and short-landscape rules. Flag and profile surfaces add subsystem-specific responsive rules.
+- Root mobile layout variables own left/right/bottom safe-area insets, navigation height, the answer-zone height, the deliberate gap, sheet clearance, and the landscape navigation footprint. Portrait places the answer zone above the full bottom navigation clearance; short landscape reserves the left navigation footprint and keeps the answer zone at the safe bottom/right edge.
 
-**VERIFIED CURRENT DEFECT**
+**NEEDS QA**
 
-- Current source establishes root mobile answer-dock/navigation overlap. The final mobile rules place the root input zone 10px above the viewport bottom at z-index 9 while the fixed navigation occupies 67px plus the safe-area inset at z-index 20. Governance v1 records this; it does not change layout.
+- Local in-app-browser checks cover 320, 375, 390, and 768px portrait widths; 667×375 and 844×390 landscape; dynamic viewport contraction; sheet content; focus; 44px controls; and horizontal overflow. Physical-device safe-area orientations, an actual on-screen keyboard, 200% browser zoom, and reduced-motion emulation remain manual requirements.
 
 ## Required review for user-facing work
 

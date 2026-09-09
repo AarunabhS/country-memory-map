@@ -1,6 +1,12 @@
 import { config, hasGoogleMapsKey } from "./config.js";
 import { loadCountryGeometry } from "./country-geometry.js";
 import { createMapAdapter } from "./map-adapter.js";
+import {
+  createCountryClickHandler,
+  createTypedAnswerHandler,
+  prepareRetainedFreeMap,
+  submitRetainedFreeMapGuess,
+} from "./root-interactions.js";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -19,6 +25,8 @@ const dom = {
   hudTitle: $("#hud-title"),
   hudSubtitle: $("#hud-subtitle"),
   answerForm: $("#answer-form"),
+  answerLabel: $("label[for='country-input']"),
+  answerButton: $("#answer-form .answer-button"),
   countryInput: $("#country-input"),
   appStatus: $("#app-status"),
   toast: $("#toast"),
@@ -49,6 +57,8 @@ const state = {
   legacyReady: false,
   legacyLoadPromise: null,
 };
+
+let mapAdapter;
 
 function announce(message) {
   dom.appStatus.textContent = message;
@@ -128,16 +138,26 @@ function loadLegacyEngine() {
 
   state.legacyLoadPromise = new Promise((resolve, reject) => {
     const onLoad = () => {
-      try {
-        state.legacyReady = true;
-        installLegacyFrameStyles(legacyDocument());
-        syncLegacyMode(state.mode);
-        syncLegacyStats();
-        window.setTimeout(syncLegacyStats, 250);
-        resolve(legacyDocument());
-      } catch (error) {
-        reject(error);
-      }
+      // The iframe load event can precede the retained controller's final
+      // listener wiring. Enter Free Map on the next task after scripts settle.
+      window.setTimeout(async () => {
+        try {
+          const frameDocument = legacyDocument();
+          // Choose the retained checker before leaving its game menu. The
+          // controller's Free Map action must be the final transition so both
+          // submit listeners agree that this is a non-round checker.
+          syncLegacyMode(state.mode);
+          await prepareRetainedFreeMap(frameDocument);
+          state.legacyReady = true;
+          installLegacyFrameStyles(frameDocument);
+          if (document.activeElement === dom.legacyFrame) dom.legacyFrame.blur();
+          syncLegacyStats();
+          window.setTimeout(syncLegacyStats, 250);
+          resolve(frameDocument);
+        } catch (error) {
+          reject(error);
+        }
+      }, 0);
     };
     const onError = () => reject(new Error("The standard game fallback could not be loaded."));
     dom.legacyFrame.addEventListener("load", onLoad, { once: true });
@@ -149,16 +169,11 @@ function loadLegacyEngine() {
 
 async function proxyGuessToLegacy(value) {
   const frameDocument = await loadLegacyEngine();
-  const legacyInput = frameDocument?.querySelector("#guessInput");
-  const legacyForm = frameDocument?.querySelector("#guessForm");
-  if (!legacyInput || !legacyForm) throw new Error("The existing answer engine is unavailable.");
-  legacyInput.value = value;
-  legacyForm.requestSubmit();
-  window.setTimeout(() => {
-    syncLegacyStats();
-    const message = legacyDocument()?.querySelector("#message")?.textContent?.trim();
-    if (message) showToast(message);
-  }, 120);
+  submitRetainedFreeMapGuess(frameDocument, value);
+  await new Promise(resolve => window.setTimeout(resolve, 120));
+  syncLegacyStats();
+  const message = legacyDocument()?.querySelector("#message")?.textContent?.trim();
+  if (message) showToast(message);
 }
 
 function syncLegacyMode(mode) {
@@ -168,18 +183,27 @@ function syncLegacyMode(mode) {
   frameDocument.querySelector(target)?.click();
 }
 
-async function handleGlobeCountryClick({ id, name } = {}) {
-  if (!name) return;
-  mapAdapter?.setCountryState(id, "selected");
-  dom.countryInput.value = name;
-  showToast(`${name} selected. Checking…`);
-  try {
-    await proxyGuessToLegacy(name);
-  } catch (error) {
-    showToast(error.message);
-    mapAdapter?.clearCountryState(id);
-  }
-}
+const handleGlobeCountryClick = createCountryClickHandler({
+  getMode: () => state.mode,
+  prepareChecker: loadLegacyEngine,
+  submitCountry: (_checker, name) => proxyGuessToLegacy(name),
+  setSelection: (id) => mapAdapter?.setCountryState(id, "selected"),
+  clearSelection: (id) => mapAdapter?.clearCountryState(id),
+  setInput: (name) => { dom.countryInput.value = name; },
+  clearInput: (name) => {
+    if (dom.countryInput.value === name) dom.countryInput.value = "";
+  },
+  notify: ({ type, name, error }) => {
+    if (type === "checking") showToast(`${name} selected. Checking…`);
+    if (type === "busy") announce("A country is already being checked.");
+    if (type === "cancelled") showToast("Country selection was not submitted because the mode changed.");
+    if (type === "error") showToast(error?.message || "The country could not be checked. Try typing it instead.");
+  },
+  notifyNonAnswering: ({ mode }) => {
+    if (mode === "Capitals") showToast("Country clicks do not answer Capitals. Type a capital name.");
+    else announce(`${mode || "This mode"} does not accept country-click answers.`);
+  },
+});
 
 async function hydrateGoogleCountryGeometry(adapter) {
   try {
@@ -204,9 +228,15 @@ function setRendererCopy({ live = false, warning = false } = {}) {
 
 function setMode(mode, note) {
   state.mode = mode;
+  dom.countryInput.value = "";
   $$(".mode-row").forEach((row) => row.classList.toggle("is-active", row.dataset.mode === mode));
   dom.hudTitle.textContent = mode === "Explore" ? "Planet Earth" : mode;
   dom.hudSubtitle.textContent = mode === "Explore" ? "Drag to rotate · Scroll to zoom · Click a country" : `${note} · game engine connection pending`;
+  const answerKind = mode === "Capitals" ? "capital" : "country";
+  dom.answerLabel.textContent = `Type a ${answerKind} name`;
+  dom.countryInput.placeholder = `Type a ${answerKind} name…`;
+  dom.countryInput.setAttribute("aria-label", `Type a ${answerKind} name`);
+  dom.answerButton.innerHTML = `Mark ${answerKind === "capital" ? "Capital" : "Country"} <span aria-hidden="true">→</span>`;
   syncLegacyMode(mode);
   if (mode !== "Explore") showToast(`${mode} is staged in the cinematic shell; it will connect to the game engine next.`);
 }
@@ -291,8 +321,6 @@ async function initializeRenderer() {
   return adapter;
 }
 
-let mapAdapter;
-
 function wireGlobePreview() {
   dom.earthWrap.addEventListener("pointerdown", (event) => {
     state.drag = { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, offsetX: state.offsetX, offsetY: state.offsetY, rotation: state.rotation };
@@ -359,23 +387,15 @@ function wireInteractions() {
     row.addEventListener("click", () => setMode(row.dataset.mode, row.dataset.note));
   });
 
-  dom.answerForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const value = dom.countryInput.value.trim();
-    if (!value) {
-      showToast("Type a country name to continue.");
-      dom.countryInput.focus();
-      return;
-    }
-    dom.countryInput.disabled = true;
-    proxyGuessToLegacy(value)
-      .catch((error) => showToast(error.message))
-      .finally(() => {
-        dom.countryInput.disabled = false;
-        dom.countryInput.value = "";
-        dom.countryInput.focus();
-      });
-  });
+  dom.answerForm.addEventListener("submit", createTypedAnswerHandler({
+    getValue: () => dom.countryInput.value,
+    setDisabled: (disabled) => { dom.countryInput.disabled = disabled; },
+    clearValue: () => { dom.countryInput.value = ""; },
+    focus: () => dom.countryInput.focus(),
+    submit: proxyGuessToLegacy,
+    notifyEmpty: () => showToast(`Type a ${state.mode === "Capitals" ? "capital" : "country"} name to continue.`),
+    notifyError: (error) => showToast(error.message),
+  }));
 
   $$("[data-action]").forEach((button) => {
     button.addEventListener("click", () => {

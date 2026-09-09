@@ -2,6 +2,15 @@
 
 This file records actual governance decisions and identifies candidates that still need a decision. It is not a substitute for ADRs.
 
+## 2026-09-09 — Google 3D country-click contract
+
+Status: accepted architecture decision; local implementation awaiting review and production verification.
+
+- Accepted [ADR 0001](architecture/0001-google-3d-country-click-contract.md): adapters emit renderer-neutral country events, while the root owns fail-closed mode semantics, single-flight behavior, asynchronous mode revalidation, retained Free Map preparation, and accessible typed equivalence.
+- Kept Capitals, staged modes, and unknown modes non-answering for country clicks.
+- Explicitly excluded playable 2D failure fallback, Universal GameShell, game deep links, retained Home navigation, and gameplay-rule changes.
+- Implemented the separately approved mobile answer-zone/navigation clearance using shared safe-area and layout variables; this responsive correction is not an expansion of the event ADR.
+
 ## 2026-09-09 — Repository Governance Framework v1
 
 Status: accepted governance decision.
@@ -25,7 +34,6 @@ Create an ADR only when the corresponding decision is actively being made:
 - Universal GameShell ownership, public API, tokens, and migration order
 - Root/retained shell integration and routing strategy
 - Playable 3D-to-2D fallback contract
-- Google Maps 3D event and renderer-adapter contract
 - Canonical country classification/data ownership
 - Profile persistence/API ownership and migration
 - Multiplayer generated-snapshot generation/parity policy

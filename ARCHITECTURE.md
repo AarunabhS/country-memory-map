@@ -9,7 +9,7 @@ Status date: 2026-09-09. This map describes verified repository structure. Label
 - The frontend is static HTML, CSS, and browser JavaScript with no frontend framework, router, bundler, or root dependency-install step.
 - `index.html` is the GitHub Pages entry. It renders the cinematic root shell and loads `styles.css`, `public/runtime-config.js`, and ES modules under `src/`.
 - `legacy/index.html` uses `<base href="../">` and loads canonical root scripts/styles. `legacy/` is the retained-app route. Current `game-ui.js` does not parse a `game` query parameter, so `legacy/?game=<slug>` does not select a game.
-- Root `Explore` and `Countries` use the retained country checker through the hidden iframe bridge; root `Capitals` selects the retained capital checker. The typed answer dock submits through that bridge.
+- Root `Explore` and `Countries` use the retained Free Map country checker through the hidden iframe bridge; root `Capitals` selects the retained capital checker. The typed answer dock submits through that bridge. Google 3D country clicks are answering only in `Explore` and `Countries`; `Capitals`, staged modes, and unknown modes are non-answering.
 - `flag-gallery.html` is a separate internal flag-inventory QA page, not a production game route.
 - Root navigation, session choices, daily challenge, learning, progress, friends, and settings are buttons that currently update shell state or show staging messages; they are not complete route-backed product surfaces.
 
@@ -48,19 +48,17 @@ Status date: 2026-09-09. This map describes verified repository structure. Label
 
 **VERIFIED CURRENT ARCHITECTURE**
 
-- `src/map-adapter.js` defines legacy and Google 3D adapters. `src/country-geometry.js` converts retained geometry for 3D overlays. `src/main.js` selects the renderer and bridges typed guesses to the retained iframe.
+- `src/map-adapter.js` defines legacy and Google 3D adapters and the renderer-neutral country-click callback boundary. `src/country-geometry.js` converts retained geometry for 3D overlays. `src/main.js` selects the renderer and owns root mode semantics; `src/root-interactions.js` provides the dependency-free mode policy, single-flight handling, and retained Free Map preparation used by the root bridge. See [ADR 0001](docs/architecture/0001-google-3d-country-click-contract.md).
 - `public/runtime-config.js` currently delivers a Google Maps browser key and selects `google3d`. Browser-delivered Maps API keys are public credentials, distinct from private/server secrets. They must have only the minimum required API permissions, authorized website/referrer restrictions, and monitoring/quota controls where appropriate. Private/server secrets must never be placed in browser assets.
 - A static cinematic Earth preview remains visible during slow or failed live loading. A retained playable 2D implementation exists at `legacy/`, and the root bridge loads it in an iframe for typed-answer processing.
 
 **VERIFIED CURRENT DEFECT**
 
-- The clean HEAD adapter can emit country clicks, and `src/main.js` supplies `handleGlobeCountryClick` to `createMapAdapter`. However, the factory signature does not accept or forward `onCountryClick` into `Google3DAdapter`, so the live 3D click callback is disconnected in the effective root flow.
 - When Google 3D initialization fails, the root keeps the cinematic Earth preview visible and explicitly keeps the retained iframe hidden. The cinematic root therefore does not expose the retained playable 2D implementation as the required failure fallback.
-- Current source establishes that the root answer dock overlaps the fixed mobile bottom navigation: the final mobile CSS positions the input zone 10px from the viewport bottom at z-index 9 while the navigation occupies 67px plus the safe-area inset at z-index 20.
 
 **NEEDS QA**
 
-- Browser-key restrictions, live 3D country selection, slow/failure handling, mobile layout, and an end-to-end playable fallback require real-browser and production-origin verification after their defects are implemented.
+- The callback/bridge and mobile-clearance changes have dependency-free automated coverage and local in-app-browser evidence. Browser-key restrictions, physical touch/drag behavior, device safe areas, 200% zoom, reduced-motion emulation, failure handling, and production-origin country selection still require the manual evidence listed in `docs/QA_MATRIX.md`. An end-to-end playable fallback remains a separate known defect.
 
 **PROPOSED TARGET ARCHITECTURE**
 

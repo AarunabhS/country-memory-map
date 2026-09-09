@@ -28,3 +28,22 @@ test('mobile layout and camera adapt to portrait screens', () => {
   assert.match(adapter, /height \/ width/);
   assert.match(adapter, /viewportRangeFactor/);
 });
+
+test('mobile answer controls share safe-area clearance with the navigation', () => {
+  assert.match(css, /--mobile-nav-base-height:\s*67px/);
+  assert.match(css, /--mobile-nav-height:\s*calc\(var\(--mobile-nav-base-height\) \+ var\(--mobile-safe-bottom\)\)/);
+  assert.match(css, /--mobile-answer-dock-height:\s*58px/);
+  assert.match(css, /--mobile-answer-zone-height:\s*78px/);
+  assert.match(css, /--mobile-answer-clearance:\s*calc\(var\(--mobile-nav-height\) \+ var\(--mobile-nav-gap\)\)/);
+  assert.match(css, /--mobile-sheet-clearance:\s*calc\(var\(--mobile-answer-clearance\) \+ var\(--mobile-answer-zone-height\) \+ var\(--mobile-nav-gap\)\)/);
+  assert.match(css, /height:\s*var\(--mobile-nav-height\)/);
+  assert.match(css, /bottom:\s*var\(--mobile-answer-clearance\)/);
+  assert.match(css, /bottom:\s*var\(--mobile-sheet-clearance\)/);
+});
+
+test('mobile landscape reserves the navigation footprint and keeps 44px answer targets', () => {
+  assert.match(css, /--mobile-landscape-nav-width:\s*240px/);
+  assert.match(css, /width:\s*min\(520px, calc\(100% - var\(--mobile-landscape-nav-width\)/);
+  assert.match(css, /bottom:\s*calc\(var\(--mobile-nav-gap\) \+ var\(--mobile-safe-bottom\)\)/);
+  assert.match(css, /\.input-shell,\s*\n\s*\.answer-button\s*\{\s*\n\s*min-height:\s*44px;\s*\n\s*height:\s*44px;/);
+});

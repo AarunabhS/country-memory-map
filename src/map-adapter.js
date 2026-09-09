@@ -297,9 +297,9 @@ export class Google3DAdapter extends MapAdapter {
   }
 }
 
-export function createMapAdapter({ renderer, googleMapsApiKey, onStatus } = {}) {
+export function createMapAdapter({ renderer, googleMapsApiKey, onStatus, onCountryClick } = {}) {
   if (renderer === "google3d") {
-    return new Google3DAdapter({ apiKey: googleMapsApiKey, onStatus });
+    return new Google3DAdapter({ apiKey: googleMapsApiKey, onStatus, onCountryClick });
   }
   const reason = renderer === "cesium-google"
     ? "Cesium Google is not enabled in this build; standard map fallback active"
