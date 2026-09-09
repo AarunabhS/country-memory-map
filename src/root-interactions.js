@@ -60,6 +60,7 @@ export function submitRetainedFreeMapGuess(frameDocument, value) {
 
 export function createCountryClickHandler({
   getMode,
+  isActive = () => true,
   prepareChecker,
   submitCountry,
   setSelection = () => {},
@@ -74,6 +75,7 @@ export function createCountryClickHandler({
   return async function handleCountryClick({ id, name } = {}) {
     const originatingMode = getMode?.();
     if (!id || !name) return { status: "invalid" };
+    if (!isActive()) return { status: "inactive" };
     if (!modeAllowsCountryClickAnswer(originatingMode)) {
       notifyNonAnswering({ id, name, mode: originatingMode });
       return { status: "non-answering", mode: originatingMode };
@@ -110,6 +112,7 @@ export function createCountryClickHandler({
 
 export function createTypedAnswerHandler({
   getValue,
+  isActive = () => true,
   setDisabled,
   clearValue,
   focus,
@@ -120,6 +123,7 @@ export function createTypedAnswerHandler({
   return async function handleTypedAnswer(event) {
     event?.preventDefault?.();
     const value = String(getValue?.() ?? "").trim();
+    if (!isActive()) return { status: "inactive" };
     if (!value) {
       notifyEmpty?.();
       focus?.();

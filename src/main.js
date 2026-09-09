@@ -1,6 +1,7 @@
-import { config, hasGoogleMapsKey } from "./config.js";
+import { config } from "./config.js";
 import { loadCountryGeometry } from "./country-geometry.js";
 import { createMapAdapter } from "./map-adapter.js";
+import { createRendererRecovery, getRendererPresentation, RENDERER_RECOVERY_STATES } from "./renderer-recovery.js";
 import {
   createCountryClickHandler,
   createTypedAnswerHandler,
@@ -30,6 +31,7 @@ const dom = {
   countryInput: $("#country-input"),
   appStatus: $("#app-status"),
   toast: $("#toast"),
+  compassControls: $(".compass-controls"),
   sessionSelect: $("#session-select"),
   sessionMenu: $("#session-menu"),
   mobileSheet: $("#mobile-sheet"),
@@ -59,6 +61,7 @@ const state = {
 };
 
 let mapAdapter;
+let rendererRecovery;
 
 function announce(message) {
   dom.appStatus.textContent = message;
@@ -115,10 +118,40 @@ function installLegacyFrameStyles(frameDocument) {
   }
 }
 
+function restoreLegacyFrameStyles(frameDocument) {
+  frameDocument?.getElementById("country-memory-map-legacy-bridge")?.remove();
+}
+
 function setLegacyFallbackVisible(visible) {
   dom.globeMount.classList.toggle("legacy-visible", visible);
   dom.legacyFrame.setAttribute("aria-hidden", String(!visible));
   dom.legacyFrame.tabIndex = visible ? 0 : -1;
+}
+
+async function activateRetainedFallback(reason) {
+  // State changes before awaiting the iframe: a late Google callback must not
+  // re-enable the cinematic surface while this handoff is in progress.
+  dom.answerForm.inert = true;
+  dom.answerForm.setAttribute("aria-hidden", "true");
+  dom.countryInput.disabled = true;
+  dom.compassControls.inert = true;
+  dom.liveGlobe.hidden = true;
+  dom.liveGlobe.setAttribute("aria-hidden", "true");
+  dom.earthWrap.hidden = true;
+  dom.attributionSafeZone.hidden = true;
+  dom.globeMount.classList.remove("is-live");
+  mapAdapter?.setInteractionEnabled(false);
+  setRendererCopy({ warning: true });
+  try {
+    const frameDocument = await loadLegacyEngine();
+    restoreLegacyFrameStyles(frameDocument);
+    setLegacyFallbackVisible(true);
+    frameDocument.querySelector("#guessInput, main, .app")?.focus?.();
+    announce("3D was unavailable. The playable 2D map is now in use.");
+  } catch (error) {
+    announce("3D was unavailable and the playable 2D map could not be loaded.");
+    console.warn("Country Memory Map retained fallback:", error.message);
+  }
 }
 
 function syncLegacyStats() {
@@ -185,6 +218,7 @@ function syncLegacyMode(mode) {
 
 const handleGlobeCountryClick = createCountryClickHandler({
   getMode: () => state.mode,
+  isActive: () => rendererRecovery?.is3dActive() ?? false,
   prepareChecker: loadLegacyEngine,
   submitCountry: (_checker, name) => proxyGuessToLegacy(name),
   setSelection: (id) => mapAdapter?.setCountryState(id, "selected"),
@@ -210,20 +244,22 @@ async function hydrateGoogleCountryGeometry(adapter) {
     const data = await loadCountryGeometry();
     const result = await adapter.setCountryGeometry(data);
     if (result?.count) {
-      setRendererCopy({ live: true });
-      announce("Live 3D Earth is ready.");
+      return true;
     }
   } catch (error) {
     console.warn("Country Memory Map 3D boundary overlay:", error.message);
-    setRendererCopy({ live: true, warning: true });
-    showToast("Live Earth is ready, but country boundaries could not be loaded.");
+    const presentation = setRendererCopy({ live: true, warning: true });
+    if (presentation.live) showToast("Live Earth is ready, but country boundaries could not be loaded.");
   }
+  return false;
 }
 
 function setRendererCopy({ live = false, warning = false } = {}) {
-  dom.rendererChip.classList.toggle("is-live", live);
-  dom.rendererChip.classList.toggle("is-warning", warning);
-  dom.rendererChipLabel.textContent = live ? "Live 3D Earth" : warning ? "3D unavailable" : "Legacy preview";
+  const presentation = getRendererPresentation(rendererRecovery?.getState(), { live, warning });
+  dom.rendererChip.classList.toggle("is-live", presentation.live);
+  dom.rendererChip.classList.toggle("is-warning", presentation.warning);
+  dom.rendererChipLabel.textContent = presentation.label;
+  return presentation;
 }
 
 function setMode(mode, note) {
@@ -259,7 +295,9 @@ async function initializeRenderer() {
   const adapter = createMapAdapter({
     renderer: config.renderer,
     googleMapsApiKey: config.googleMapsApiKey,
-    onCountryClick: handleGlobeCountryClick,
+    onCountryClick: (payload) => {
+      if (rendererRecovery?.is3dActive()) void handleGlobeCountryClick(payload);
+    },
     onStatus: ({ type }) => {
       if (type === "loading") {
         // The fallback Earth is already visible; keep the optional loader non-blocking.
@@ -280,6 +318,8 @@ async function initializeRenderer() {
     dom.earthWrap.hidden = false;
     try {
       await adapter.initialize({ container: dom.liveGlobe });
+      const usable = await hydrateGoogleCountryGeometry(adapter);
+      if (!usable || !rendererRecovery.activate3d()) return adapter;
       dom.globeLoading.hidden = true;
       dom.liveGlobe.style.visibility = "visible";
       dom.liveGlobe.style.pointerEvents = "auto";
@@ -290,9 +330,9 @@ async function initializeRenderer() {
       dom.globeMount.classList.add("is-live");
       setRendererCopy({ live: true });
       announce("Live 3D Earth is ready.");
-      void hydrateGoogleCountryGeometry(adapter);
       return adapter;
     } catch (error) {
+      rendererRecovery.activate2d("renderer-failure");
       dom.globeLoading.hidden = true;
       dom.liveGlobe.hidden = true;
       dom.liveGlobe.style.visibility = "";
@@ -301,19 +341,16 @@ async function initializeRenderer() {
       dom.earthWrap.hidden = false;
       dom.attributionSafeZone.hidden = true;
       dom.globeMount.classList.remove("is-live");
-      setLegacyFallbackVisible(false);
       setRendererCopy({ warning: true });
-      showToast(hasGoogleMapsKey ? "Using the cinematic Earth while live 3D is unavailable." : "Add the restricted Maps key in .env.local, then switch the renderer flag to google3d.");
       console.warn("Country Memory Map 3D renderer fallback:", error.message);
-      loadLegacyEngine().then(() => {
-        setLegacyFallbackVisible(false);
-        setRendererCopy({ warning: true });
-      }).catch(() => {});
       return createMapAdapter({ renderer: "legacy", onStatus: () => {} });
     }
   }
 
   await adapter.initialize({ container: dom.liveGlobe });
+  // The configured non-Google preview remains the authoritative cinematic
+  // surface; it does not start the Google recovery deadline.
+  rendererRecovery.activate3d();
   dom.globeLoading.hidden = true;
   dom.attributionSafeZone.hidden = true;
   setLegacyFallbackVisible(false);
@@ -389,6 +426,7 @@ function wireInteractions() {
 
   dom.answerForm.addEventListener("submit", createTypedAnswerHandler({
     getValue: () => dom.countryInput.value,
+    isActive: () => rendererRecovery?.is3dActive() ?? false,
     setDisabled: (disabled) => { dom.countryInput.disabled = disabled; },
     clearValue: () => { dom.countryInput.value = ""; },
     focus: () => dom.countryInput.focus(),
@@ -451,6 +489,12 @@ async function bootstrap() {
   wireControls();
   wireInteractions();
   updateStats();
+  rendererRecovery = createRendererRecovery({
+    onTransition: ({ state, reason }) => {
+      if (state === RENDERER_RECOVERY_STATES.TWO_D_ACTIVE) void activateRetainedFallback(reason);
+    },
+  });
+  if (config.renderer === "google3d") rendererRecovery.start();
   mapAdapter = await initializeRenderer();
   const scheduleIdle = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 900));
   scheduleIdle(() => loadLegacyEngine().catch((error) => console.warn("Legacy game bridge:", error.message)));

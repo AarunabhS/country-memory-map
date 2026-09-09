@@ -23,6 +23,19 @@ test('only Explore and Countries authorize root country-click answers', async ()
   }
 });
 
+test('an inactive cinematic renderer cannot submit a country answer', async () => {
+  const { createCountryClickHandler } = await loadInteractions();
+  const submissions = [];
+  const handler = createCountryClickHandler({
+    getMode: () => 'Explore',
+    isActive: () => false,
+    prepareChecker: async () => ({ mode: 'free-map' }),
+    submitCountry: (_checker, name) => submissions.push(name),
+  });
+  assert.equal((await handler({ id: 'IND-1', name: 'India' })).status, 'inactive');
+  assert.deepEqual(submissions, []);
+});
+
 test('Explore and Countries each submit one country while non-answering modes submit none', async () => {
   const { createCountryClickHandler } = await loadInteractions();
   for (const mode of ['Explore', 'Countries', 'Capitals', 'Flag Sprint', 'World Conquest', 'Play with Friends', 'Future Mode']) {

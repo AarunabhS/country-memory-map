@@ -2,6 +2,24 @@
 
 Status: implemented with automated and local browser evidence; awaiting review and unsupported device/production QA. No commit or deployment authorized.
 
+## Playable 2D fallback impact assessment
+
+```text
+Requested change: Automatically expose the existing retained playable 2D game if Google 3D has a definitive initialization failure or is not usable after roughly 45 seconds.
+Affected workstreams: root renderer lifecycle, retained iframe presentation and focus ownership, focused root automated tests.
+Routes/components affected: cinematic root `/`; retained `legacy/index.html` is reused without modification.
+Gameplay impact: 3D country submission is disabled once 2D is active; retained gameplay remains the sole game engine.
+Persistence impact: none — existing retained session and storage are reused.
+Map/globe impact: Google 3D remains normal path; a one-shot recovery coordinator gates ready/failure transitions.
+Mobile impact: none beyond the existing retained iframe becoming the active surface.
+Accessibility impact: cinematic answer controls become inert, iframe is exposed and focused, and a status announcement describes the fallback.
+Performance impact: one initialization timeout and no new dependency/network request.
+Migration risk: low — reversible root presentation/lifecycle wiring only; no data migration.
+Rollback path: revert the recovery module and root wiring; retained game, storage, and Maps adapter remain unchanged.
+Required QA: focused fake-timer recovery tests, existing root and multiplayer regressions, diff check; limited available-browser smoke only.
+Architecture risk: judgment-requiring implementation under the user-locked fallback contract; no new ownership or state-management architecture.
+```
+
 ## Impact assessment
 
 ```text
