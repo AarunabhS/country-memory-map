@@ -477,7 +477,11 @@ async function initializeRenderer() {
     try {
       await adapter.initialize({ container: dom.liveGlobe });
       const usable = await hydrateGoogleCountryGeometry(adapter);
-      if (!usable || !rendererRecovery.activate3d()) return adapter;
+      if (!usable) {
+        rendererRecovery.activate2d("geometry-failure");
+        return adapter;
+      }
+      if (!rendererRecovery.activate3d()) return adapter;
       if (dom.shell.dataset.surface === "retained") {
         adapter.setInteractionEnabled(false);
         setRendererCopy({ live: true });

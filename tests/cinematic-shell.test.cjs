@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const html = fs.readFileSync('index.html', 'utf8');
 const css = fs.readFileSync('styles.css', 'utf8');
 const adapter = fs.readFileSync('src/map-adapter.js', 'utf8');
+const main = fs.readFileSync('src/main.js', 'utf8');
 const legacy = fs.readFileSync('legacy/index.html', 'utf8');
 const runtime = fs.readFileSync('public/runtime-config.js', 'utf8');
 
@@ -13,6 +14,10 @@ test('cinematic shell keeps the production game as its fallback', () => {
   assert.match(html, /data-src="\.\/legacy\/index\.html(?:\?[^\"]+)?"/);
   assert.match(legacy, /<base href="\.\.\/">/);
   assert.match(runtime, /"renderer":"google3d"/);
+});
+
+test('geometry failure activates the retained fallback immediately', () => {
+  assert.match(main, /const usable = await hydrateGoogleCountryGeometry\(adapter\);\s+if \(!usable\) \{\s+rendererRecovery\.activate2d\("geometry-failure"\);\s+return adapter;\s+\}/);
 });
 
 test('renderer fills the workspace without masking the globe', () => {
