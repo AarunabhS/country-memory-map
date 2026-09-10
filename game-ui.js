@@ -14,6 +14,7 @@
     const syncQueue = profilesEnabled && statsEnabled && remoteProfileSyncEnabled && players && playerService && StatsSyncQueue ? new StatsSyncQueue(storage, playerService, players) : null;
     const tracker = profilesEnabled && statsEnabled && players && GameTracker ? new GameTracker(players, syncQueue) : null;
     const app = document.querySelector('.app'), input = document.querySelector('#guessInput'), form = document.querySelector('#guessForm');
+    const control = form.closest('.control');
     const voice = document.querySelector('#voiceButton'), message = document.querySelector('#message');
     const families = { conquest: 'World Conquest', find: 'Find the Country', capital: 'Capital Clash', flag: 'Flag Games' };
     const variants = { relaxed:'Relaxed', sprint:'Sprint', blitz:'Blitz', sudden:'Sudden Death', continent:'Continent', standard:'Standard', classic:'Classic', recall:'Flag Recall', match:'Flag Match' };
@@ -126,10 +127,10 @@
     const formatTime = seconds => { const value = Math.max(0, Math.floor(seconds || 0)); return `${Math.floor(value/60)}:${String(value%60).padStart(2,'0')}`; };
     function textFeedback(text, type = '') { message.textContent = text; message.className = `message ${type}`; }
     function animate(element, className) { element.classList.remove(className); void element.offsetWidth; element.classList.add(className); element.addEventListener('animationend',()=>element.classList.remove(className),{once:true}); }
-    function focusTyping() {
+    function focusTyping({ allowDesktopAutofocus = true } = {}) {
       if (engine.config?.family === 'flag' && (window.innerWidth < 600 || !matchMedia('(hover: hover) and (pointer: fine)').matches)) return;
       const keepMobileKeyboard = document.activeElement === input;
-      if (!input.disabled && !form.hidden && (keepMobileKeyboard || matchMedia('(hover: hover) and (pointer: fine)').matches)) input.focus({preventScroll:true});
+      if (!input.disabled && !form.hidden && (keepMobileKeyboard || (allowDesktopAutofocus && matchMedia('(hover: hover) and (pointer: fine)').matches))) input.focus({preventScroll:true});
     }
     function editDistance(a,b) {
       const row=Array.from({length:b.length+1},(_,i)=>i);
@@ -233,7 +234,7 @@
         input.placeholder = 'Type a country name'; input.setAttribute('aria-label','Type a country name');
         voice.setAttribute('aria-label','Say country name'); voice.title = 'Say country name';
         textFeedback('Type the country name. No answer list is shown during recall.');
-        focusTyping();
+        focusTyping({ allowDesktopAutofocus: false });
         return;
       }
       flagStage.hidden = true;
@@ -279,13 +280,14 @@
       const token=++startToken;
       remote = null; remoteKey = null; lastConfig = {...config}; result = null;
       platform = true; app.classList.add('platform'); app.classList.remove('choosing','round-ended');
+      app.removeAttribute('data-free-map-active');
       renderShell('countdown');
       const flagGame = config.family === 'flag';
       app.classList.toggle('flag-platform', flagGame);
       $('resultsDialog').close(); $('setupError').textContent='';
       document.querySelector('.setup-panel').hidden=true;document.querySelector('.game-hud').hidden=true;
       $('endGame').hidden=true;$('freeMap').hidden=true;input.disabled=true;voice.disabled=true;
-      flagView.hidden = true; form.hidden = flagGame; flagChoices.hidden = true;
+      flagView.hidden = true; control.hidden = flagGame; form.hidden = flagGame; flagChoices.hidden = true;
       if (flagGame) map.restore(); else map.start(config.variant==='continent'?config.region:'World',countries);
       const countdown=$('soloCountdown');countdown.hidden=false;
       for(const value of [3,2,1]){countdown.textContent=value;await new Promise(resolve=>setTimeout(resolve,900));if(token!==startToken)return;}
@@ -323,6 +325,8 @@
         GameMap.stopVoice();
         const flagGame = engine.config.family === 'flag';
         app.classList.toggle('flag-platform', flagGame);
+        app.removeAttribute('data-free-map-active');
+        control.hidden = flagGame;
         if (flagGame) {
           map.restore();
           form.hidden = true;
@@ -338,6 +342,7 @@
         const q = event.question, conquest = engine.config.family==='conquest';
         if (engine.config.family === 'flag') {
           app.classList.add('flag-platform');
+          control.hidden = false;
           $('questionPanel').hidden = true;
           app.classList.remove('map-question');
           const nextText = queuedText; queuedText = null;
@@ -351,6 +356,7 @@
           return;
         }
         const typing = conquest || q.type===TYPES.CAPITAL_TYPING;
+        control.hidden = false;
         $('questionPanel').hidden = conquest;
         form.hidden = !typing; input.disabled = !typing; voice.disabled = !typing;
         app.classList.toggle('map-question',!typing);
@@ -374,7 +380,7 @@
           if (!typing && nextCountry !== null) engine.submitCountry(nextCountry);
           else if (typing && nextText !== null) { input.value = nextText; window.gameController.handleText(nextText); }
         }, 0);
-        if (typing) focusTyping();
+        if (typing) focusTyping({ allowDesktopAutofocus: false });
         renderShell('playing', q);
       } else if (event.type === 'correct') {
         const c=byId.get(event.countryId);
@@ -467,9 +473,10 @@
       startToken++; $('soloCountdown').hidden=true;
       hostedGame = hosted;
       app.toggleAttribute('data-hosted-game', hostedGame);
+      app.removeAttribute('data-free-map-active');
       queuedText = null; queuedCountry = null;
-      $('resultsDialog').close(); map.restore(); platform=true;
-      app.classList.add('platform','choosing');app.classList.remove('round-ended','map-question','flag-platform');
+      $('resultsDialog').close(); platform=true;
+      app.classList.add('platform','choosing');app.classList.remove('round-ended','map-question','flag-platform'); map.restore();
       document.querySelector('.setup-panel').hidden=false;document.querySelector('.game-hud').hidden=true;
       $('endGame').hidden=true;$('freeMap').hidden=false;$('questionPanel').hidden=true;
       const hostedLabel = family === 'flag' ? variants[$('gameVariant').value] : families[family];
@@ -479,16 +486,16 @@
       $('freeMap').textContent=hostedGame ? 'Back to games' : 'Free map';
       document.title=hostedGame ? `${hostedLabel} · Country Memory Map` : 'Country Memory Map';
       flagView.hidden=true; flagChoices.replaceChildren(); $('flagHintText').textContent=''; $('flagHintButton').disabled=false;
-      form.hidden=false; markButton.textContent='Mark'; input.disabled=true; updateRecent();
+      control.hidden=false; form.hidden=false; markButton.textContent='Mark'; input.disabled=true; updateRecent();
       renderShell('setup');
     }
     function legacy() {
       startToken++; $('soloCountdown').hidden=true;
       hostedGame=false; app.removeAttribute('data-hosted-game');
       queuedText = null; queuedCountry = null;
-      platform=false; app.classList.remove('platform','choosing','round-ended','map-question','flag-platform'); map.restore();
+      platform=false; app.classList.remove('platform','choosing','round-ended','map-question','flag-platform'); app.setAttribute('data-free-map-active',''); map.restore();
       document.querySelector('.setup-panel').hidden=true; $('questionPanel').hidden=true;
-      flagView.hidden=true; flagChoices.replaceChildren(); form.hidden=false;markButton.textContent='Mark';input.disabled=false;voice.disabled=false;
+      flagView.hidden=true; flagChoices.replaceChildren(); control.hidden=false;form.hidden=false;markButton.textContent='Mark';input.disabled=false;voice.disabled=false;
       textFeedback('Free map: the original country and capital checkers.');
       renderShell('free-map');
     }
@@ -569,14 +576,14 @@
         const s={...data.game,completedCountries:new Set(data.game.completedCountries)};
         const previousStatus=engine.state.gameStatus, key=data.match.id+':'+s.startedAt,previous=engine.state.currentQuestion?.id,isNewMatch=remoteKey!==key;
         engine.config=data.config;engine.pool=countries.filter(c=>data.config.variant!=='continent'||c.continent===data.config.region);engine.state=s;
-        platform=true;app.classList.add('platform');app.classList.remove('choosing','round-ended');
+        platform=true;app.classList.add('platform');app.classList.remove('choosing','round-ended');app.removeAttribute('data-free-map-active');
         renderShell(s.gameStatus === 'playing' ? 'playing' : 'results', s.currentQuestion);
         if(isNewMatch){remoteKey=key;lastRemoteEvent=null;onEvent({type:'start'},s);if(data.config.family==='conquest')s.completedCountries.forEach(id=>GameMap.mark(id));}
         if(s.gameStatus==='playing'){
           if(data.config.family==='conquest'){if(isNewMatch||form.hidden){onEvent({type:'question',question:{type:TYPES.COUNTRY_TYPING}},s);}}
           else if(previous!==s.currentQuestion?.id)onEvent({type:'question',question:s.currentQuestion},s);
           if(data.event?.id&&lastRemoteEvent!==data.event.id&&(data.config.family==='conquest'||data.event.questionId===s.currentQuestion?.id)){lastRemoteEvent=data.event.id;onEvent(data.event,s);}
-          if(s.feedbackUntil===null){const typing=data.config.family==='conquest'||s.currentQuestion?.type===TYPES.CAPITAL_TYPING;input.disabled=!typing;voice.disabled=!typing;if(typing&&previous!==s.currentQuestion?.id)focusTyping();}
+          if(s.feedbackUntil===null){const typing=data.config.family==='conquest'||s.currentQuestion?.type===TYPES.CAPITAL_TYPING;input.disabled=!typing;voice.disabled=!typing;if(typing&&previous!==s.currentQuestion?.id)focusTyping({ allowDesktopAutofocus: false });}
         }else{
           if (previousStatus === 'playing' && tracker?.hasActiveSession()) tracker.finish(data.result?.reason || s.result?.reason || 'completed', s, data.result || s.result);
           input.disabled=true;voice.disabled=true;$('endGame').hidden=true;map.end();

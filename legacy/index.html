@@ -547,7 +547,7 @@
   </style>
   <link rel="stylesheet" href="game.css?v=20260910-mobile-perf2">
   <link rel="stylesheet" href="flag-game.css?v=20260908-flags5">
-  <link rel="stylesheet" href="multiplayer.css?v=20260907-friends1">
+  <link rel="stylesheet" href="multiplayer.css?v=20260910-ui-fixes1">
   <link rel="stylesheet" href="player-profile.css?v=20260909-release1">
   <link rel="stylesheet" href="game-shell.css?v=20260910-mobile-perf2">
 </head>
@@ -596,7 +596,7 @@
 
     <section class="control" aria-label="Country input">
       <form id="guessForm" autocomplete="off">
-        <input id="guessInput" type="text" enterkeyhint="go" autocapitalize="words" spellcheck="false" placeholder="Type a country name" aria-label="Type a country name">
+        <input id="guessInput" type="text" autocomplete="new-password" enterkeyhint="go" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Type a country name" aria-label="Type a country name">
         <button type="button" id="voiceButton" class="voice-button" aria-label="Say country name" title="Say country name">Speak</button>
         <button type="submit" id="markButton">Mark</button>
       </form>
@@ -1349,6 +1349,7 @@
     }
 
     function focusInput() {
+      if (!document.querySelector(".app")?.hasAttribute("data-free-map-active")) return;
       if (matchMedia("(hover: hover) and (pointer: fine)").matches) input.focus({ preventScroll: true });
     }
 
@@ -1975,7 +1976,7 @@
   <script src="multiplayer-config.js?v=20260909-release1"></script>
   <script src="player-system.js?v=20260909-release1"></script>
   <script src="game-shell.js?v=20260910-recovery"></script>
-  <script src="game-ui.js?v=20260910-mobile-perf2"></script>
+  <script src="game-ui.js?v=20260910-ui-fixes1"></script>
   <script src="multiplayer-service.js?v=20260909-master2"></script>
   <script src="multiplayer-ui.js?v=20260909-master2"></script>
 </body>

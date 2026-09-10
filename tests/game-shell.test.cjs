@@ -7,6 +7,8 @@ const shellCss = fs.readFileSync('game-shell.css', 'utf8');
 const ui = fs.readFileSync('game-ui.js', 'utf8');
 const legacy = fs.readFileSync('legacy/index.html', 'utf8');
 const core = fs.readFileSync('game-core.js', 'utf8');
+const multiplayerCss = fs.readFileSync('multiplayer.css', 'utf8');
+const rootHtml = fs.readFileSync('index.html', 'utf8');
 
 function colorToken(source, name) {
   return source.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1];
@@ -63,4 +65,19 @@ test('a Home-launched game keeps real setup controls without repeating the five-
   assert.match(ui, /gameVariant/);
   assert.match(ui, /gameDifficulty/);
   assert.match(ui, /gameQuestionTime/);
+});
+
+test('flag countdown hides stale retained-map feedback until the first flag question', () => {
+  assert.match(ui, /control\.hidden = flagGame; form\.hidden = flagGame/);
+  assert.match(ui, /engine\.config\.family === 'flag'[\s\S]*?control\.hidden = false;[\s\S]*?renderFlagQuestion\(q, s\)/);
+});
+
+test('setup multiplayer CTA and geography answer fields resist browser color and autofill overrides', () => {
+  assert.match(multiplayerCss, /#playFriends\{[^}]*color:#fff;[^}]*-webkit-text-fill-color:#fff;[^}]*border:1px solid #7cdeff/);
+  assert.match(rootHtml, /id="answer-form" autocomplete="off"/);
+  assert.match(rootHtml, /id="country-input"[^>]*autocomplete="new-password"/);
+  assert.doesNotMatch(rootHtml, /id="country-input"[^>]*name="country"/);
+  assert.match(legacy, /id="guessInput"[^>]*autocomplete="new-password"/);
+  assert.match(legacy, /hasAttribute\("data-free-map-active"\)/);
+  assert.match(ui, /allowDesktopAutofocus: false/);
 });
