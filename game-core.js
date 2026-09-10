@@ -17,7 +17,8 @@
     conquest: { relaxed: {}, sprint: { duration: 180 }, blitz: { duration: 60 }, sudden: { lives: 3 }, continent: {} },
     find: { standard: { questions: 20 }, blitz: { duration: 60 }, continent: { questions: 20 } },
     capital: { classic: { questions: 20 }, blitz: { duration: 60 }, continent: { questions: 20 } },
-    flag: { recall: { questions: 20 }, match: { questions: 20 } }
+    flag: { recall: { questions: 20 }, match: { questions: 20 } },
+    quiz: { trivia: { questions: 10 } }
   };
 
   /*

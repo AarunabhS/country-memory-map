@@ -9,7 +9,7 @@ async function loadRoutes() {
 
 test('every supported launcher has one canonical query route', async () => {
   const { GAME_ROUTES, buildGameUrl, parseGameRoute } = await loadRoutes();
-  const expected = ['explore', 'countries', 'capitals', 'world-conquest', 'find-country', 'capital-clash', 'flag-recall', 'flag-match', 'multiplayer'];
+  const expected = ['explore', 'countries', 'capitals', 'world-conquest', 'find-country', 'capital-clash', 'flag-recall', 'flag-match', 'geo-quiz', 'multiplayer'];
   assert.deepEqual(Object.keys(GAME_ROUTES), expected);
   for (const slug of expected) {
     const url = buildGameUrl(GAME_ROUTES[slug], { pathname: '/country-memory-map/' });

@@ -7,6 +7,8 @@
     const { ProfileService, ProfileManager, StatsSyncQueue, GameTracker, MapFeedbackAdapter, GameplayFeedbackController, ProfileUI } = window.CountryMemoryPlayers || {};
     const flags = window.COUNTRY_MEMORY_FLAGS || {}, profilesEnabled = flags.PLAYER_PROFILES_ENABLED !== false, statsEnabled = flags.PLAYER_STATS_ENABLED !== false, remoteProfileSyncEnabled = flags.REMOTE_PROFILE_SYNC_ENABLED === true, feedbackEnabled = flags.ANSWER_FEEDBACK_ENABLED !== false;
     const countries = buildGameCountries(GameMap), byId = new Map(countries.map(c => [c.country_id, c]));
+    GeographyGame.countries = countries;
+    window.CountryMemoryCountries = countries;
     let storage; try { storage = window.localStorage; } catch { storage = null; }
     const profile = new LocalProfile(storage);
     const playerService = profilesEnabled && remoteProfileSyncEnabled && ProfileService ? new ProfileService({ baseUrl: window.FRIENDS_API }) : null;
@@ -16,8 +18,8 @@
     const app = document.querySelector('.app'), input = document.querySelector('#guessInput'), form = document.querySelector('#guessForm');
     const control = form.closest('.control');
     const voice = document.querySelector('#voiceButton'), message = document.querySelector('#message');
-    const families = { conquest: 'World Conquest', find: 'Find the Country', capital: 'Capital Clash', flag: 'Flag Games' };
-    const variants = { relaxed:'Relaxed', sprint:'Sprint', blitz:'Blitz', sudden:'Sudden Death', continent:'Continent', standard:'Standard', classic:'Classic', recall:'Flag Recall', match:'Flag Match' };
+    const families = { conquest: 'World Conquest', find: 'Find the Country', capital: 'Capital Clash', flag: 'Flag Games', quiz: 'Geo Quiz' };
+    const variants = { relaxed:'Relaxed', sprint:'Sprint', blitz:'Blitz', sudden:'Sudden Death', continent:'Continent', standard:'Standard', classic:'Classic', recall:'Flag Recall', match:'Flag Match', trivia:'Trivia Challenge' };
     let remote = null, remoteKey = null, lastRemoteEvent = null, soloReplay = null, queuedText = null, queuedCountry = null, hostNavigationHandler = null;
     let family = profile.data.lastMode.family, lastConfig = null, result = null, platform = true, feedbackTimer, startToken = 0, suppressResults = false;
     let hostedGame = false;
@@ -46,6 +48,7 @@
           <button type="button" data-family="capital"><b>Capital Clash</b><span>Connect countries and their capitals.</span></button>
           <button type="button" data-family="flag" data-flag-variant="recall"><b>Flag Recall</b><span>See a flag. Type the country.</span></button>
           <button type="button" data-family="flag" data-flag-variant="match"><b>Flag Match</b><span>See a name. Pick the flag.</span></button>
+          <button type="button" data-family="quiz"><b>Geo Quiz</b><span>Trivia & fascinating categories.</span></button>
         </div>
         <div class="setup-fields"><label>Format<select id="gameVariant"></select></label><label id="difficultyField">Difficulty<select id="gameDifficulty"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="expert">Expert</option></select></label><label id="questionTimeField">Time per question<select id="gameQuestionTime"><option value="30">30 seconds</option><option value="20" selected>20 seconds</option><option value="15">15 seconds</option><option value="10">10 seconds · challenging</option></select></label><label id="regionField" hidden>Continent<select id="gameRegion"></select></label></div>
         <p id="gameRules" class="game-rules"></p><p id="setupError" role="status"></p>
@@ -67,16 +70,16 @@
       if (!window.GameShell) return;
       const config = engine.config || {};
       const type = question?.type || '';
-      const stage = config.family === 'flag' ? 'flag' : type.endsWith?.('_CLICK') ? 'map-answer' : 'map';
+      const stage = config.family === 'flag' ? 'flag' : config.family === 'quiz' ? 'quiz' : type.endsWith?.('_CLICK') ? 'map-answer' : 'map';
       window.GameShell.render({ root: app, display: {
         phase, family: config.family || family, variant: config.variant || $('gameVariant').value,
         stage, timed: typeof engine.state?.remainingTime === 'number', lives: typeof engine.state?.lives === 'number',
         answerDescription: type === TYPES.CAPITAL_TYPING ? 'Enter a capital and submit.' :
           type.endsWith?.('_CLICK') ? 'Use the interactive map to choose a country.' :
-          config.family === 'conquest' ? 'Enter a country name and submit.' : 'Choose a game format and start.'
+          config.family === 'conquest' || config.family === 'quiz' ? 'Enter a country name and submit.' : 'Choose a game format and start.'
       }, callbacks: {
         home: () => window.CountryMemoryRetained?.requestHostNavigation?.({ type: 'home' }),
-        endRound: () => remote ? remote.finish() : engine.finish('manual'),
+        endRound: () => { if (window.QuizGame?.isActive()) { window.QuizGame.deactivate(); menu(); return; } remote ? remote.finish() : engine.finish('manual'); },
         submitAnswer: raw => window.gameController?.handleText(raw)
       } });
     }
@@ -179,7 +182,7 @@
       updateSetup();
     }
     function updateSetup() {
-      const c = activeConfig(); $('difficultyField').hidden = family === 'conquest'; $('questionTimeField').hidden = family === 'conquest'; $('regionField').hidden = c.variant !== 'continent';
+      const c = activeConfig(); $('difficultyField').hidden = family === 'conquest'; $('questionTimeField').hidden = family === 'conquest' || family === 'quiz'; $('regionField').hidden = c.variant !== 'continent';
       const region = c.variant === 'continent' ? c.region : 'World';
       const rules = family === 'conquest' ? {
         relaxed: 'No time limit. Name all 195 countries, or end whenever you like. Your completion time is the challenge.',
@@ -188,7 +191,8 @@
         sudden: 'Three lives. A wrong submission costs a life; duplicates are safe. No round timer.',
         continent: `Conquer ${region}. Only countries in this continent count; the rest of the world stays dimmed.`
       }[c.variant] : family === 'find' ? (c.variant==='blitz'?'Sixty seconds. Find as many countries as possible.':`20 questions${c.variant==='continent'?` in ${region}`:''}. Tap the country on the map.`) : family === 'capital' ?
-        (c.variant==='blitz'?'Sixty seconds. Alternate naming capitals and finding their countries.':`20 questions${c.variant==='continent'?` in ${region}`:''}: 10 typed capitals and 10 map locations.`) :
+        (c.variant==='blitz'?'Sixty seconds. Alternate naming capitals and finding their countries.':`20 questions${c.variant==='continent'?` in ${region}`:''}: 10 typed capitals and 10 map locations.`) : family === 'quiz' ?
+        '10 questions. Identify countries matching unique geographical categories, directions, flag symbols, and trivia. Use hints if stuck!' :
         (c.variant === 'match' ? '20 questions. See a country name and choose one of four unique flags.' : '20 questions. Identify an authentic flag by typing its country name. No answer suggestions are shown during recall.');
       $('gameRules').textContent = rules;
       $('setupError').textContent = '';
@@ -283,16 +287,24 @@
       app.removeAttribute('data-free-map-active');
       renderShell('countdown');
       const flagGame = config.family === 'flag';
+      const quizGame = config.family === 'quiz';
       app.classList.toggle('flag-platform', flagGame);
+      app.classList.toggle('quiz-platform', quizGame);
       $('resultsDialog').close(); $('setupError').textContent='';
       document.querySelector('.setup-panel').hidden=true;document.querySelector('.game-hud').hidden=true;
       $('endGame').hidden=true;$('freeMap').hidden=true;input.disabled=true;voice.disabled=true;
       flagView.hidden = true; control.hidden = flagGame; form.hidden = flagGame; flagChoices.hidden = true;
-      if (flagGame) map.restore(); else map.start(config.variant==='continent'?config.region:'World',countries);
+      if (flagGame || quizGame) map.restore(); else map.start(config.variant==='continent'?config.region:'World',countries);
       const countdown=$('soloCountdown');countdown.hidden=false;
       for(const value of [3,2,1]){countdown.textContent=value;await new Promise(resolve=>setTimeout(resolve,900));if(token!==startToken)return;}
       countdown.textContent='GO';await new Promise(resolve=>setTimeout(resolve,300));
       if(token!==startToken)return;countdown.hidden=true;
+      if (quizGame) {
+        window.QuizGame?.start({ tier: config.difficulty || 'all', questionCount: 10, countries });
+        $('endGame').hidden = false;
+        profile.select(config);
+        return;
+      }
       try { const seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1; const random = GeographyGame.seededRandom(seed); engine.random = () => random.next(); soloReplay = {seed,actions:[]}; queuedText = null; queuedCountry = null; engine.start({...config,seed}); profile.select(config); }
       catch(error) { app.classList.add('choosing'); document.querySelector('.setup-panel').hidden=false; $('setupError').textContent=error.message; return; }
     }
@@ -470,13 +482,14 @@
       $('resultsDialog').showModal(); $('playAgain').focus(); updateRecent();
     }
     function menu({ hosted = hostedGame } = {}) {
+      window.QuizGame?.deactivate();
       startToken++; $('soloCountdown').hidden=true;
       hostedGame = hosted;
       app.toggleAttribute('data-hosted-game', hostedGame);
       app.removeAttribute('data-free-map-active');
       queuedText = null; queuedCountry = null;
       $('resultsDialog').close(); platform=true;
-      app.classList.add('platform','choosing');app.classList.remove('round-ended','map-question','flag-platform'); map.restore();
+      app.classList.add('platform','choosing');app.classList.remove('round-ended','map-question','flag-platform','quiz-platform'); map.restore();
       document.querySelector('.setup-panel').hidden=false;document.querySelector('.game-hud').hidden=true;
       $('endGame').hidden=true;$('freeMap').hidden=false;$('questionPanel').hidden=true;
       const hostedLabel = family === 'flag' ? variants[$('gameVariant').value] : families[family];
@@ -490,16 +503,18 @@
       renderShell('setup');
     }
     function legacy() {
+      window.QuizGame?.deactivate();
       startToken++; $('soloCountdown').hidden=true;
       hostedGame=false; app.removeAttribute('data-hosted-game');
       queuedText = null; queuedCountry = null;
-      platform=false; app.classList.remove('platform','choosing','round-ended','map-question','flag-platform'); app.setAttribute('data-free-map-active',''); map.restore();
+      platform=false; app.classList.remove('platform','choosing','round-ended','map-question','flag-platform','quiz-platform'); app.setAttribute('data-free-map-active',''); map.restore();
       document.querySelector('.setup-panel').hidden=true; $('questionPanel').hidden=true;
       flagView.hidden=true; flagChoices.replaceChildren(); control.hidden=false;form.hidden=false;markButton.textContent='Mark';input.disabled=false;voice.disabled=false;
       textFeedback('Free map: the original country and capital checkers.');
       renderShell('free-map');
     }
     function hostDeactivate({ reason = 'mode_change' } = {}) {
+      window.QuizGame?.deactivate();
       startToken++;
       $('soloCountdown').hidden = true;
       if (remote) {
@@ -544,6 +559,15 @@
       },
       handleVoice(alternatives) {
         if(!platform)return false;
+        if (window.QuizGame?.isActive()) {
+          for (const heard of alternatives) {
+            if (GeographyGame.normalize(heard)) {
+              window.gameController.handleText(heard);
+              return true;
+            }
+          }
+          return false;
+        }
         const match=voiceAnswer(alternatives),heard=alternatives[0]||'';
         if(!match){input.value=heard;textFeedback(`Heard “${heard}”, but no confident match. Try speaking again or edit the text · no penalty.`,'bad');return true;}
         input.value=match.answer;
@@ -552,6 +576,12 @@
       },
       handleText(raw) {
         if (!platform) return false;
+        if (window.QuizGame?.isActive()) {
+          const handled = window.QuizGame.handleText(raw);
+          input.value = '';
+          input.focus({ preventScroll: true });
+          return handled;
+        }
         if(remote){
           if(engine.state.gameStatus!=='playing'||!GeographyGame.normalize(raw))return true;
           const value=String(raw),pendingId=engine.config.family==='conquest'?engine.aliases.get(GeographyGame.normalize(value)):null;
@@ -608,6 +638,7 @@
       getLifecycleState() {
         if (remote) return { state: 'multiplayer' };
         if (!platform) return { state: 'free-map', checker: GameMap.getChecker() };
+        if (window.QuizGame?.isActive()) return { state: 'playing', family: 'quiz', variant: 'trivia' };
         if ($('resultsDialog').open) return { state: 'results', family: engine.config?.family, variant: engine.config?.variant };
         if (engine.state.gameStatus === 'playing') return { state: 'playing', family: engine.config?.family, variant: engine.config?.variant };
         return { state: 'setup', family, variant: $('gameVariant').value };
@@ -627,7 +658,10 @@
     $('gameDifficulty').value=profile.data.difficulty;
     ['gameVariant','gameDifficulty','gameRegion','gameQuestionTime'].forEach(id=>$(id).addEventListener('change',updateSetup));
     $('startGame').addEventListener('click',()=>start());
-    $('endGame').addEventListener('click',()=>remote?remote.finish():engine.finish('manual'));
+    $('endGame').addEventListener('click',()=>{
+      if (window.QuizGame?.isActive()) { window.QuizGame.deactivate(); menu(); return; }
+      remote?remote.finish():engine.finish('manual');
+    });
     $('flagHintButton').addEventListener('click',()=>{
       if (engine.config?.family !== 'flag') return;
       engine.useHint();

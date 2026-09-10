@@ -84,10 +84,10 @@ test('Home game cards hand off to the canonical retained host route', () => {
   assert.match(main, /setSurface\("retained"\)/);
 });
 
-test('Home exposes exactly five scored games and nests both checkers in Explore', () => {
+test('Home exposes exactly six scored games and nests both checkers in Explore', () => {
   const gameList = html.match(/<nav class="game-list"[\s\S]*?<\/nav>\s*<\/aside>/)?.[0] || '';
-  assert.equal((gameList.match(/class="game-card"/g) || []).length, 5);
-  for (const slug of ['world-conquest', 'find-country', 'capital-clash', 'flag-recall', 'flag-match']) {
+  assert.equal((gameList.match(/class="game-card"/g) || []).length, 6);
+  for (const slug of ['world-conquest', 'find-country', 'capital-clash', 'flag-recall', 'flag-match', 'geo-quiz']) {
     assert.match(gameList, new RegExp(`data-game="${slug}"`));
   }
   const explore = html.match(/<section class="explore-panel"[\s\S]*?<\/section>/)?.[0] || '';

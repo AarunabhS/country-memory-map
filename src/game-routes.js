@@ -7,6 +7,7 @@ export const GAME_ROUTES = Object.freeze({
   "capital-clash": Object.freeze({ slug: "capital-clash", kind: "solo", family: "capital", variant: "classic", label: "Capital Clash" }),
   "flag-recall": Object.freeze({ slug: "flag-recall", kind: "solo", family: "flag", variant: "recall", label: "Flag Recall" }),
   "flag-match": Object.freeze({ slug: "flag-match", kind: "solo", family: "flag", variant: "match", label: "Flag Match" }),
+  "geo-quiz": Object.freeze({ slug: "geo-quiz", kind: "solo", family: "quiz", variant: "trivia", label: "Geo Quiz" }),
   multiplayer: Object.freeze({ slug: "multiplayer", kind: "multiplayer", label: "Play with Friends" }),
 });
 

@@ -394,7 +394,7 @@ a:focus-visible {
 .game-list {
   display: grid;
   min-height: 0;
-  grid-template-rows: repeat(5, minmax(52px, 1fr));
+  grid-template-rows: repeat(6, minmax(46px, 1fr));
   gap: 7px;
 }
 
@@ -1379,7 +1379,7 @@ a:focus-visible {
   }
 
   .game-list {
-    grid-template-rows: repeat(5, minmax(38px, 1fr));
+    grid-template-rows: repeat(6, minmax(32px, 1fr));
     gap: 4px;
   }
 
