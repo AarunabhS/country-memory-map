@@ -17,10 +17,19 @@ test('only the latest asynchronous route transition can own the visible surface'
   assert.equal(lifecycle.getState(), GAME_LIFECYCLE_STATES.MULTIPLAYER);
 });
 
-test('the lifecycle exposes distinct 3D-home and terminal-2D-home states', async () => {
+test('the lifecycle exposes distinct Google-3D and local-globe Home states', async () => {
   const { createGameLifecycle, GAME_LIFECYCLE_STATES } = await loadLifecycle();
   const lifecycle = createGameLifecycle();
   const token = lifecycle.begin(GAME_LIFECYCLE_STATES.HOME_3D);
-  assert.equal(lifecycle.commit(token, GAME_LIFECYCLE_STATES.HOME_2D), true);
-  assert.equal(lifecycle.getState(), GAME_LIFECYCLE_STATES.HOME_2D);
+  assert.equal(lifecycle.commit(token, GAME_LIFECYCLE_STATES.HOME_LOCAL_GLOBE), true);
+  assert.equal(lifecycle.getState(), GAME_LIFECYCLE_STATES.HOME_LOCAL_GLOBE);
+});
+
+test('only navigation away from an active solo round needs confirmation', async () => {
+  const { shouldConfirmSessionExit } = await loadLifecycle();
+  const activeRoute = { kind: 'solo', slug: 'capital-clash' };
+  assert.equal(shouldConfirmSessionExit({ activeRoute, nextRoute: null, retainedState: { state: 'playing' } }), true);
+  assert.equal(shouldConfirmSessionExit({ activeRoute, nextRoute: { kind: 'solo', slug: 'capital-clash' }, retainedState: { state: 'playing' } }), false);
+  assert.equal(shouldConfirmSessionExit({ activeRoute, nextRoute: null, retainedState: { state: 'results' } }), false);
+  assert.equal(shouldConfirmSessionExit({ activeRoute: { kind: 'multiplayer', slug: 'multiplayer' }, nextRoute: null, retainedState: { state: 'playing' } }), false);
 });

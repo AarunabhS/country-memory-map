@@ -1,5 +1,13 @@
 import {makeRoom,joinRoom,member,roomAction,syncRoom,publicRoom,createChallenge,RoomError} from './room-engine.mjs';
-const allowed=new Set(['https://www.arunabhosom.com','https://aarunabhs.github.io','http://127.0.0.1:8000','http://localhost:8000']);
+const productionOrigins=new Set(['https://www.arunabhosom.com','https://aarunabhs.github.io']);
+const localHostnames=new Set(['localhost','127.0.0.1','[::1]']);
+export function isAllowedOrigin(origin){
+ if(productionOrigins.has(origin))return true;
+ try{
+  const url=new URL(origin);
+  return ['http:','https:'].includes(url.protocol)&&localHostnames.has(url.hostname)&&url.origin===origin;
+ }catch{return false;}
+}
 const encoder=new TextEncoder();
 async function hash(value){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');}
 const token=()=>[...crypto.getRandomValues(new Uint8Array(32))].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -15,10 +23,10 @@ export class D1Store {
 export async function handle(request,store,now=Date.now()){
  const url=new URL(request.url),origin=request.headers.get('Origin');
  const headers={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization','Access-Control-Max-Age':'600'};
- if(origin&&allowed.has(origin))headers['Access-Control-Allow-Origin']=origin;
+ if(origin&&isAllowedOrigin(origin))headers['Access-Control-Allow-Origin']=origin;
  const send=(body,status=200)=>new Response(JSON.stringify(body),{status,headers});
  try{
- if(origin&&!allowed.has(origin))throw new RoomError('ORIGIN_DENIED','This website is not allowed to use this service.',403);
+ if(origin&&!isAllowedOrigin(origin))throw new RoomError('ORIGIN_DENIED','This website is not allowed to use this service.',403);
  if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
  if(url.pathname==='/health')return send({ok:true,service:'Country Memory Map Friends',serverNow:now});
  if(!['GET','POST'].includes(request.method))throw new RoomError('METHOD','Unsupported method.',405);

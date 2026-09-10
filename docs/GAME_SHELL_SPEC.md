@@ -1,8 +1,8 @@
 # Universal Cinematic GameShell specification
 
-Status: **PROPOSED TARGET ARCHITECTURE**. Direction authorization: **APPROVED FUTURE WORK**.
+Status: thin adapter and retained-suite integration are **VERIFIED CURRENT ARCHITECTURE**; production/device verification remains **NEEDS QA**. Further component-library expansion is **PROPOSED TARGET ARCHITECTURE**.
 
-The GameShell is a future shared presentation contract. Governance v1 does not implement it, migrate a game to it, or certify it as production behavior.
+`game-shell.js` currently provides the engine-independent presentation contract and `game-shell.css` applies it to the retained scored-game suite, profiles, results, and multiplayer surroundings. It is not a game store and is not production-verified.
 
 ## Goals
 
@@ -29,13 +29,13 @@ The GameShell is a future shared presentation contract. Governance v1 does not i
 - Every 3D-dependent game declares a playable fallback state. A decorative Earth is not a playable fallback.
 - Game state remains authoritative through transitions; shell animation cannot delay deadlines or accept late answers.
 - Shell components expose semantic names, live-region behavior, visible focus, keyboard order, touch sizing, contrast, and reduced-motion variants.
-- Mobile portrait and landscape define separate space allocations for header, stage, HUD, answer dock, and bottom navigation so they cannot overlap.
+- Mobile portrait and landscape define separate space allocations for header, stage, HUD, answer dock, and navigation controls so they cannot overlap.
 - Existing verified routes and deep links remain stable during incremental migration unless a separately approved routing decision says otherwise. No per-game legacy deep-link contract is current; adding one requires that routing decision.
 
-## Adoption gates
+## Verification and future adoption gates
 
-1. Architecture authority approves tokens, component ownership, adapter contracts, and migration order.
-2. A reference implementation proves one representative game without changing its mechanics.
-3. Automated engine tests remain green; desktop/mobile/accessibility/fallback QA is recorded.
-4. Rollback can restore the prior game presentation without data migration.
+1. The current adapter must remain shallow, serializable, and independent of engine, persistence, routing, and renderer ownership.
+2. Automated engine and shell contracts must remain green; desktop/mobile/accessibility/fallback QA must be recorded for user-facing changes.
+3. Further shared components or tokens require architecture approval instead of one-off competing game primitives.
+4. Rollback must restore the prior presentation without data migration.
 5. Only a deployed and checked slice may be labelled **PRODUCTION-VERIFIED IMPLEMENTATION**.

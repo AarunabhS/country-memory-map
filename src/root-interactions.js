@@ -1,32 +1,32 @@
 const COUNTRY_CLICK_ANSWER_MODES = new Set(["Explore", "Countries"]);
 
-function retainedFreeMapIsActive(frameDocument) {
-  const input = frameDocument?.querySelector?.("#guessInput");
-  const message = frameDocument?.querySelector?.("#message");
-  return Boolean(input && !input.disabled && /^Free map:/.test(message?.textContent || ""));
+function retainedHost(frameDocument) {
+  return frameDocument?.defaultView?.CountryMemoryRetained || null;
+}
+
+function retainedFreeMapIsActive(frameDocument, checker) {
+  const lifecycle = retainedHost(frameDocument)?.getLifecycleState?.();
+  return lifecycle?.state === "free-map" && lifecycle.checker === checker;
 }
 
 export function modeAllowsCountryClickAnswer(mode) {
   return COUNTRY_CLICK_ANSWER_MODES.has(mode);
 }
 
-export function activateRetainedFreeMap(frameDocument) {
-  const freeMapControl = frameDocument?.querySelector?.("#freeMap");
-  const input = frameDocument?.querySelector?.("#guessInput");
-  const form = frameDocument?.querySelector?.("#guessForm");
-  const message = frameDocument?.querySelector?.("#message");
-  const controllerReady = Boolean(frameDocument?.defaultView?.gameController);
-  if (!freeMapControl || !input || !form || !message || !controllerReady) {
+export function activateRetainedFreeMap(frameDocument, { checker = "countries" } = {}) {
+  const host = retainedHost(frameDocument);
+  if (!host?.openFreeMap || !host?.getLifecycleState || !host?.submitFreeMapGuess) {
     throw new Error("The existing Free Map checker is unavailable.");
   }
-  freeMapControl.click();
-  if (!retainedFreeMapIsActive(frameDocument)) {
+  if (!retainedFreeMapIsActive(frameDocument, checker)) host.openFreeMap({ checker });
+  if (!retainedFreeMapIsActive(frameDocument, checker)) {
     throw new Error("The existing Free Map checker is not ready.");
   }
   return frameDocument;
 }
 
 export async function prepareRetainedFreeMap(frameDocument, {
+  checker = "countries",
   timeoutMs = 2000,
   retryMs = 25,
   now = () => Date.now(),
@@ -36,9 +36,9 @@ export async function prepareRetainedFreeMap(frameDocument, {
   let lastError;
   do {
     try {
-      activateRetainedFreeMap(frameDocument);
+      activateRetainedFreeMap(frameDocument, { checker });
       await delay(retryMs);
-      if (retainedFreeMapIsActive(frameDocument)) return frameDocument;
+      if (retainedFreeMapIsActive(frameDocument, checker)) return frameDocument;
       lastError = new Error("The existing Free Map checker did not remain ready.");
     } catch (error) {
       lastError = error;
@@ -48,14 +48,16 @@ export async function prepareRetainedFreeMap(frameDocument, {
   throw lastError || new Error("The existing Free Map checker is unavailable.");
 }
 
-export function submitRetainedFreeMapGuess(frameDocument, value) {
-  const input = frameDocument?.querySelector?.("#guessInput");
-  const form = frameDocument?.querySelector?.("#guessForm");
-  if (!input || !form?.requestSubmit) {
+export async function submitRetainedFreeMapGuess(frameDocument, value, { checker = "countries" } = {}) {
+  const host = retainedHost(frameDocument);
+  if (!host?.submitFreeMapGuess) {
     throw new Error("The existing answer engine is unavailable.");
   }
-  input.value = value;
-  form.requestSubmit();
+  const result = await host.submitFreeMapGuess({ value, checker });
+  if (!result || typeof result.message !== "string" || !result.message.trim()) {
+    throw new Error("The existing answer engine returned an invalid result.");
+  }
+  return result;
 }
 
 export function createCountryClickHandler({
@@ -97,8 +99,8 @@ export function createCountryClickHandler({
         notify({ type: "cancelled", id, name, mode: originatingMode });
         return { status: "cancelled", mode: originatingMode };
       }
-      await submitCountry(checker, name);
-      return { status: "submitted", mode: originatingMode };
+      const result = await submitCountry(checker, name);
+      return { status: "submitted", mode: originatingMode, result };
     } catch (error) {
       clearSelection(id);
       clearInput(name);
@@ -132,8 +134,8 @@ export function createTypedAnswerHandler({
 
     setDisabled?.(true);
     try {
-      await submit(value);
-      return { status: "submitted", value };
+      const result = await submit(value);
+      return { status: "submitted", value, result };
     } catch (error) {
       notifyError?.(error);
       return { status: "error", error };

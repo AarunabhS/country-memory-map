@@ -124,7 +124,7 @@ export function loadCountryGeometry() {
     const script = document.createElement("script");
     script.id = GEOMETRY_SCRIPT_ID;
     script.async = true;
-    script.src = new URL("../countries-data.js", import.meta.url).href;
+    script.src = new URL("../countries-data.js?v=20260910-mobile-perf2", import.meta.url).href;
     script.addEventListener("load", () => {
       if (Array.isArray(globalThis.COUNTRIES_GEOJSON?.features)) resolve(globalThis.COUNTRIES_GEOJSON);
       else reject(new Error("The country geometry bundle loaded without a FeatureCollection."));

@@ -3,271 +3,178 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#020813" />
+    <meta name="theme-color" content="#030812" />
     <meta
       name="description"
-      content="Country Memory Map — explore, remember, and conquer the world."
+      content="Country Memory Map — explore the globe and play five geography games."
     />
     <title>Country Memory Map</title>
     <link rel="icon" href="./public/earth-preview.webp" type="image/webp" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260910-mobile-perf4" />
   </head>
   <body>
-    <a class="skip-link" href="#main-content">Skip to game</a>
+    <a class="skip-link" href="#main-content">Skip to games</a>
     <div class="universe" aria-hidden="true">
       <div class="star-field star-field-one"></div>
       <div class="star-field star-field-two"></div>
-      <div class="nebula nebula-one"></div>
-      <div class="nebula nebula-two"></div>
-      <div class="horizon-wash"></div>
+      <div class="horizon-glow"></div>
     </div>
 
-    <div class="app-shell" id="app-shell">
-      <header class="topbar" aria-label="Site header">
-        <a class="brand" href="#main-content" aria-label="Country Memory Map home">
-          <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 48 48" role="presentation">
-              <defs>
-                <radialGradient id="brand-ocean" cx="35%" cy="28%">
-                  <stop offset="0" stop-color="#64d9ff" />
-                  <stop offset="0.48" stop-color="#1688d5" />
-                  <stop offset="1" stop-color="#072b66" />
-                </radialGradient>
-              </defs>
-              <circle cx="24" cy="24" r="20" fill="url(#brand-ocean)" />
-              <path d="M12 18c4-4 8-4 11-2l2 3-5 2-3 5-5-1zM27 25l6-4 5 4-4 5-1 7-7-5z" fill="#5ca66e" opacity=".9" />
-              <circle cx="24" cy="24" r="20" fill="none" stroke="#92dfff" stroke-width="1.5" opacity=".75" />
-              <path d="M8 24h32M24 5c-5 6-7 12-7 19s2 13 7 19M24 5c5 6 7 12 7 19s-2 13-7 19" fill="none" stroke="#c8efff" stroke-width=".75" opacity=".28" />
-            </svg>
-          </span>
+    <div class="app-shell" id="app-shell" data-surface="root">
+      <header class="topbar">
+        <button class="brand" type="button" id="home-button" aria-label="Return to Country Memory Map Home">
+          <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">
+            <defs>
+              <radialGradient id="brand-ocean" cx="34%" cy="28%">
+                <stop offset="0" stop-color="#69dfff" />
+                <stop offset="0.55" stop-color="#176cac" />
+                <stop offset="1" stop-color="#071e41" />
+              </radialGradient>
+            </defs>
+            <circle cx="24" cy="24" r="20" fill="url(#brand-ocean)" />
+            <path d="M11 18c4-4 9-4 12-2l2 3-5 2-3 5-6-1zM27 25l6-4 5 4-4 5-1 7-7-5z" fill="#84c49a" />
+            <circle cx="24" cy="24" r="20" fill="none" stroke="#b5edff" stroke-width="1.5" />
+          </svg>
           <span class="brand-copy">
             <span class="brand-title">Country Memory Map</span>
-            <span class="brand-tagline">Explore · Remember · Conquer the world</span>
+            <span class="brand-tagline">Explore · Remember · Conquer</span>
           </span>
-        </a>
-
-        <nav class="primary-nav" aria-label="Primary navigation">
-          <button class="nav-item is-active" type="button" data-nav="home">
-            <span class="nav-icon" aria-hidden="true">⌂</span>
-            <span>Home</span>
-          </button>
-          <button class="nav-item" type="button" data-nav="progress">
-            <span class="nav-icon" aria-hidden="true">▥</span>
-            <span>Progress</span>
-          </button>
-          <button class="nav-item" type="button" data-nav="friends">
-            <span class="nav-icon" aria-hidden="true">♟</span>
-            <span>Friends</span>
-          </button>
-          <button class="nav-item" type="button" data-nav="settings">
-            <span class="nav-icon" aria-hidden="true">⚙</span>
-            <span>Settings</span>
-          </button>
-        </nav>
+        </button>
 
         <div class="topbar-actions">
           <div class="renderer-chip" id="renderer-chip" aria-live="polite">
             <span class="status-dot" aria-hidden="true"></span>
-            <span id="renderer-chip-label">Legacy preview</span>
+            <span id="renderer-chip-label">Local globe</span>
           </div>
-          <button class="session-select" type="button" id="session-select" aria-expanded="false" aria-controls="session-menu">
-            <span class="session-dot" aria-hidden="true"></span>
-            <span>Solo exploration</span>
-            <span class="chevron" aria-hidden="true">⌄</span>
+          <button class="friends-button" type="button" data-game="multiplayer">
+            <span aria-hidden="true">◎</span>
+            <span>Play with friends</span>
           </button>
-          <div class="session-menu" id="session-menu" hidden>
-            <button type="button" data-session="solo">Solo exploration <span>Active</span></button>
-            <button type="button" data-session="practice">Practice mode <span>Preview</span></button>
-          </div>
         </div>
-
-        <button class="mobile-menu-toggle" id="mobile-menu-toggle" type="button" aria-label="Open play menu" aria-expanded="false" aria-controls="mobile-sheet">
-          <span></span><span></span><span></span>
-        </button>
       </header>
 
       <main id="main-content" class="main-content">
-        <section class="map-workspace" aria-label="Country Memory Map game">
-          <aside class="glass-panel left-rail" aria-label="Game modes and world progress">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">Choose your game</p>
-                <h1>Build your knowledge.</h1>
-                <p class="panel-subtitle">One country at a time.</p>
-              </div>
+        <section class="map-workspace" aria-label="Country Memory Map Home">
+          <aside class="game-launcher glass-panel" aria-labelledby="launcher-title">
+            <div class="launcher-heading">
+              <p class="eyebrow">Choose your challenge</p>
+              <h1 id="launcher-title">Play the world.</h1>
             </div>
 
-            <div class="mode-list" role="list" aria-label="Game modes">
-              <button class="mode-row is-active" type="button" data-mode="Explore" data-game="explore" aria-current="page">
-                <span class="mode-icon" aria-hidden="true">◈</span>
-                <span class="mode-copy"><strong>Explore</strong><small>Free exploration mode</small></span>
-                <span class="mode-arrow" aria-hidden="true">›</span>
-              </button>
-              <button class="mode-row" type="button" data-mode="Countries" data-game="countries">
-                <span class="mode-icon" aria-hidden="true">⚑</span>
-                <span class="mode-copy"><strong>Countries</strong><small>Name the countries</small></span>
-                <span class="mode-arrow" aria-hidden="true">›</span>
-              </button>
-              <button class="mode-row" type="button" data-mode="Capitals" data-game="capitals">
-                <span class="mode-icon" aria-hidden="true">▥</span>
-                <span class="mode-copy"><strong>Capitals</strong><small>Name the capitals</small></span>
-                <span class="mode-arrow" aria-hidden="true">›</span>
-              </button>
-              <button class="mode-row" type="button" data-mode="World Conquest" data-game="world-conquest">
-                <span class="mode-icon" aria-hidden="true">♜</span>
-                <span class="mode-copy"><strong>World Conquest</strong><small>Build your streak</small></span>
-                <span class="mode-arrow" aria-hidden="true">›</span>
-              </button>
-              <button class="mode-row" type="button" data-mode="Find the Country" data-game="find-country">
-                <span class="mode-icon" aria-hidden="true">◎</span>
-                <span class="mode-copy"><strong>Find the Country</strong><small>Locate each country on the map</small></span>
-                <span class="mode-arrow" aria-hidden="true">›</span>
-              </button>
-              <button class="mode-row" type="button" data-mode="Capital Clash" data-game="capital-clash">
-                <span class="mode-icon" aria-hidden="true">▥</span>
-                <span class="mode-copy"><strong>Capital Clash</strong><small>Connect capitals and countries</small></span>
-                <span class="mode-arrow" aria-hidden="true">›</span>
-              </button>
-              <button class="mode-row" type="button" data-mode="Flag Recall" data-game="flag-recall">
-                <span class="mode-icon" aria-hidden="true">⚑</span>
-                <span class="mode-copy"><strong>Flag Recall</strong><small>Identify each flag</small></span>
-                <span class="mode-arrow" aria-hidden="true">›</span>
-              </button>
-              <button class="mode-row" type="button" data-mode="Flag Match" data-game="flag-match">
-                <span class="mode-icon" aria-hidden="true">⚐</span>
-                <span class="mode-copy"><strong>Flag Match</strong><small>Choose the matching flag</small></span>
-                <span class="mode-arrow" aria-hidden="true">›</span>
-              </button>
-              <button class="mode-row" type="button" data-mode="Play with Friends" data-game="multiplayer">
-                <span class="mode-icon" aria-hidden="true">♟</span>
-                <span class="mode-copy"><strong>Play with Friends</strong><small>Up to 8 players</small></span>
-                <span class="mode-arrow" aria-hidden="true">›</span>
-              </button>
-            </div>
-
-            <div class="progress-card">
-              <div class="progress-title">World Progress</div>
-              <div class="progress-summary">
-                <div class="progress-ring" aria-hidden="true"><span>0</span></div>
+            <section class="explore-panel" aria-labelledby="explore-title">
+              <div class="explore-heading">
+                <span class="launcher-icon" aria-hidden="true">⌖</span>
                 <div>
-                  <div class="progress-number"><strong id="progress-count">0</strong><span>/ 195</span></div>
-                  <p>countries explored</p>
+                  <h2 id="explore-title">Explore</h2>
+                  <p>Mark places at your own pace.</p>
                 </div>
               </div>
-              <div class="mini-stats">
-                <div class="mini-stat">
-                  <span class="mini-stat-icon flame" aria-hidden="true">♨</span>
-                  <span><strong id="streak-count">0</strong><small>Day Streak</small></span>
-                </div>
-                <div class="mini-stat">
-                  <span class="mini-stat-icon target" aria-hidden="true">◎</span>
-                  <span><strong id="accuracy-count">0%</strong><small>Accuracy</small></span>
-                </div>
+              <div class="explore-options" role="group" aria-label="Explore by countries or capitals">
+                <button class="explore-option is-active" type="button" data-mode="Countries" data-game="countries" aria-pressed="true">
+                  Countries
+                </button>
+                <button class="explore-option" type="button" data-mode="Capitals" data-game="capitals" aria-pressed="false">
+                  Capitals
+                </button>
               </div>
-            </div>
+            </section>
+
+            <nav class="game-list" aria-label="Five geography games">
+              <button class="game-card" type="button" data-mode="World Conquest" data-game="world-conquest">
+                <span class="game-number" aria-hidden="true">01</span>
+                <span class="game-copy"><strong>World Conquest</strong><small>Name countries. Build a streak.</small></span>
+                <span class="game-arrow" aria-hidden="true">↗</span>
+              </button>
+              <button class="game-card" type="button" data-mode="Find the Country" data-game="find-country">
+                <span class="game-number" aria-hidden="true">02</span>
+                <span class="game-copy"><strong>Find the Country</strong><small>Locate the country on the map.</small></span>
+                <span class="game-arrow" aria-hidden="true">↗</span>
+              </button>
+              <button class="game-card" type="button" data-mode="Capital Clash" data-game="capital-clash">
+                <span class="game-number" aria-hidden="true">03</span>
+                <span class="game-copy"><strong>Capital Clash</strong><small>Connect capitals and countries.</small></span>
+                <span class="game-arrow" aria-hidden="true">↗</span>
+              </button>
+              <button class="game-card" type="button" data-mode="Flag Recall" data-game="flag-recall">
+                <span class="game-number" aria-hidden="true">04</span>
+                <span class="game-copy"><strong>Flag Recall</strong><small>See a flag. Name its country.</small></span>
+                <span class="game-arrow" aria-hidden="true">↗</span>
+              </button>
+              <button class="game-card" type="button" data-mode="Flag Match" data-game="flag-match">
+                <span class="game-number" aria-hidden="true">05</span>
+                <span class="game-copy"><strong>Flag Match</strong><small>Choose the matching flag.</small></span>
+                <span class="game-arrow" aria-hidden="true">↗</span>
+              </button>
+            </nav>
           </aside>
 
-          <section class="globe-stage" aria-label="Interactive Earth">
-            <div class="globe-backdrop" aria-hidden="true"></div>
+          <section class="globe-stage" aria-label="Explore the globe">
             <div class="globe-core">
               <div class="globe-mount" id="globe-mount">
-                <iframe class="legacy-map-frame" id="legacy-map-frame" title="Standard map fallback" src="about:blank" data-src="./legacy/index.html?v=20260909-master2" aria-hidden="true" tabindex="-1"></iframe>
-                <div class="earth-preview-wrap" id="earth-preview-wrap">
-                  <div class="earth-halo earth-halo-outer"></div>
-                  <div class="earth-halo earth-halo-inner"></div>
-                  <img class="earth-preview" src="./public/earth-preview.webp" alt="Earth viewed from space with Europe and Africa facing forward" draggable="false" />
-                  <div class="sun-flare" aria-hidden="true"><span></span></div>
-                </div>
+                <iframe
+                  class="legacy-map-frame"
+                  id="legacy-map-frame"
+                  title="Country and capital answer engine"
+                  src="./legacy/index.html?v=20260910-mobile-perf2"
+                  data-src="./legacy/index.html?v=20260910-mobile-perf2"
+                  aria-hidden="true"
+                  tabindex="-1"
+                ></iframe>
+                <canvas
+                  class="local-globe"
+                  id="local-globe"
+                  tabindex="0"
+                  role="application"
+                  aria-label="Interactive rotating Earth. Drag left or right to rotate. Use arrow keys to rotate, plus and minus to zoom, or type a country below."
+                >Interactive rotating Earth</canvas>
                 <div class="live-globe" id="live-globe" hidden></div>
                 <div class="attribution-safe-zone" id="attribution-safe-zone" hidden>Google Maps · imagery attribution</div>
-                <div class="globe-loading" id="globe-loading" hidden>
-                  <span class="loading-orbit" aria-hidden="true"></span>
-                  <span>Connecting to Earth…</span>
-                </div>
-              </div>
-
-              <div class="compass-controls" aria-label="Globe controls">
-                <div class="compass" aria-hidden="true"><span>N</span><i></i><b></b></div>
-                <div class="zoom-controls">
-                  <button type="button" class="control-button" data-globe-control="zoom-in" aria-label="Zoom in">+</button>
-                  <button type="button" class="control-button" data-globe-control="zoom-out" aria-label="Zoom out">−</button>
-                </div>
-                <button type="button" class="control-button reset-button" data-globe-control="reset" aria-label="Recenter Earth">⌾</button>
               </div>
             </div>
 
             <div class="planet-hud glass-panel">
-              <div class="hud-planet-icon" aria-hidden="true"><span>🌎</span></div>
+              <span class="planet-pulse" aria-hidden="true"></span>
               <div class="hud-copy">
-                <strong id="hud-title">Planet Earth</strong>
-                <span id="hud-subtitle">Drag to rotate · Scroll to zoom · Click a country</span>
+                <strong id="hud-title">Explore countries</strong>
+                <span id="hud-subtitle">Drag the globe or type a country below.</span>
               </div>
             </div>
 
             <div class="globe-input-zone">
               <form class="answer-dock" id="answer-form">
                 <label class="sr-only" for="country-input">Type a country name</label>
-                <div class="input-shell">
-                  <span class="search-icon" aria-hidden="true"></span>
-                  <input id="country-input" name="country" type="text" autocomplete="off" placeholder="Type a country name…" />
-                </div>
-                <button class="answer-button" type="submit">Mark Country <span aria-hidden="true">→</span></button>
+                <span class="search-icon" aria-hidden="true"></span>
+                <input id="country-input" name="country" type="text" autocomplete="off" placeholder="Type a country name…" disabled />
+                <button class="voice-button" id="voice-button" type="button" aria-label="Speak a country name" aria-pressed="false" title="Speak a country name" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 1 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z" />
+                    <path d="M5.5 10.5v.5a6.5 6.5 0 0 0 13 0v-.5M12 17.5V21M8.5 21h7" />
+                  </svg>
+                </button>
+                <button class="answer-button" type="submit" disabled>Mark Country <span aria-hidden="true">→</span></button>
               </form>
-              <p class="answer-hint" id="answer-hint">Try India, Brazil, Japan, France or Australia</p>
+              <p class="answer-hint" id="answer-hint">Try India, Brazil, Japan, France, or Australia.</p>
             </div>
           </section>
-
-          <aside class="right-rail" aria-label="Challenge and session details">
-            <section class="glass-panel challenge-card">
-              <div class="challenge-header">
-                <span class="challenge-flame" aria-hidden="true">♨</span>
-                <div><p class="eyebrow">Daily Challenge</p><h2>Around the World</h2></div>
-              </div>
-              <p>Locate 5 countries before the globe completes a rotation.</p>
-              <button class="primary-button" type="button" data-action="challenge">Start Challenge <span aria-hidden="true">→</span></button>
-            </section>
-
-            <section class="glass-panel session-card">
-              <div class="card-title-row"><h2><span class="online-dot" aria-hidden="true"></span>Your session</h2><span class="card-link">Local</span></div>
-              <div class="session-stat-list">
-                <div class="session-stat"><span>Countries this session</span><strong id="session-count">0</strong></div>
-                <div class="session-stat"><span>Best streak</span><strong id="session-streak">0</strong></div>
-                <div class="session-stat"><span>Last activity</span><strong id="session-last">Not started</strong></div>
-              </div>
-              <p class="session-footnote">Connect the existing profile engine to restore saved progress.</p>
-            </section>
-
-            <section class="glass-panel learn-card">
-              <div class="learn-image" aria-hidden="true"><div class="learn-orbit"></div><span>WORLD<br />IN VIEW</span></div>
-              <h2>A more beautiful world</h2>
-              <p>195 countries · immersive learning</p>
-              <button class="outline-button" type="button" data-action="learn">Learn more <span aria-hidden="true">→</span></button>
-            </section>
-          </aside>
         </section>
-
-        <div class="mobile-sheet" id="mobile-sheet" hidden>
-          <div class="sheet-handle" aria-hidden="true"></div>
-          <div class="sheet-content" id="sheet-content"></div>
-        </div>
       </main>
-
-      <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
-        <button class="mobile-tab is-active" type="button" data-mobile-tab="play"><span aria-hidden="true">◈</span><small>Play</small></button>
-        <button class="mobile-tab" type="button" data-mobile-tab="progress"><span aria-hidden="true">▥</span><small>Progress</small></button>
-        <button class="mobile-tab" type="button" data-mobile-tab="challenge"><span aria-hidden="true">♨</span><small>Challenge</small></button>
-        <button class="mobile-tab" type="button" data-mobile-tab="friends"><span aria-hidden="true">♟</span><small>Friends</small></button>
-      </nav>
-
-      <footer class="site-footer">
-        <div class="footer-brand"><span class="footer-mark" aria-hidden="true">◉</span><span>Country Memory Map</span><span>© 2026</span></div>
-        <div class="footer-links"><button type="button" data-footer="about">About</button><button type="button" data-footer="feedback">Feedback</button><button type="button" data-footer="privacy">Privacy</button><span>Made with <span class="heart" aria-hidden="true">♥</span> for explorers</span></div>
-      </footer>
     </div>
+
+    <dialog class="session-exit-dialog" id="session-exit-dialog" aria-labelledby="session-exit-title" aria-describedby="session-exit-description">
+      <form method="dialog">
+        <p class="eyebrow">Game in progress</p>
+        <h2 id="session-exit-title">Leave this game?</h2>
+        <p id="session-exit-description">Your current run will end and its progress will be lost.</p>
+        <div class="session-exit-actions">
+          <button class="stay-button" type="submit" value="stay">Stay in game</button>
+          <button class="leave-button" type="submit" value="leave">Leave game</button>
+        </div>
+      </form>
+    </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
     <div class="sr-only" id="app-status" aria-live="polite"></div>
     <script src="./public/runtime-config.js"></script>
-    <script type="module" src="./src/main.js"></script>
+    <script type="module" src="./src/main.js?v=20260910-mobile-perf2"></script>
   </body>
 </html>

@@ -19,6 +19,7 @@
     const variants = { relaxed:'Relaxed', sprint:'Sprint', blitz:'Blitz', sudden:'Sudden Death', continent:'Continent', standard:'Standard', classic:'Classic', recall:'Flag Recall', match:'Flag Match' };
     let remote = null, remoteKey = null, lastRemoteEvent = null, soloReplay = null, queuedText = null, queuedCountry = null, hostNavigationHandler = null;
     let family = profile.data.lastMode.family, lastConfig = null, result = null, platform = true, feedbackTimer, startToken = 0, suppressResults = false;
+    let hostedGame = false;
     app.insertAdjacentHTML('afterbegin', `
       <header class="platform-header"><div><span class="brand-kicker">COUNTRY MEMORY MAP</span><h1 id="gameTitle">Choose your game</h1></div><button id="endGame" type="button" hidden>End round</button><button id="freeMap" type="button">Free map</button></header>
       <section class="game-hud" aria-label="Game statistics" hidden>
@@ -37,7 +38,7 @@
         <div class="flag-tools"><button id="flagHintButton" type="button">Use a hint <span aria-hidden="true">−25</span></button><p id="flagHintText" class="flag-hint" role="status" aria-live="polite"></p></div>
       </section>
       <section class="setup-panel" aria-label="Choose a game">
-        <p class="eyebrow">THE WORLD IS YOUR PLAYGROUND</p><h2>Where will you begin?</h2>
+        <p class="eyebrow" id="setupKicker">THE WORLD IS YOUR PLAYGROUND</p><h2 id="setupTitle">Where will you begin?</h2>
         <div class="game-choices" role="group" aria-label="Game">
           <button type="button" data-family="conquest"><b>World Conquest</b><span>Name countries. Build your streak.</span></button>
           <button type="button" data-family="find"><b>Find the Country</b><span>See the name. Find it on the map.</span></button>
@@ -191,6 +192,12 @@
       $('gameRules').textContent = rules;
       $('setupError').textContent = '';
       syncChoiceSelection();
+      if (hostedGame) {
+        const label = family === 'flag' ? variants[c.variant] : families[family];
+        $('gameTitle').textContent = label;
+        $('setupTitle').textContent = label;
+        document.title = `${label} · Country Memory Map`;
+      }
       profile.select(c);
     }
     function updateRecent() {
@@ -456,20 +463,28 @@
       $('challengeFriends').disabled=!!r.config.practiceIds || r.config.family==='flag';
       $('resultsDialog').showModal(); $('playAgain').focus(); updateRecent();
     }
-    function menu() {
+    function menu({ hosted = hostedGame } = {}) {
       startToken++; $('soloCountdown').hidden=true;
+      hostedGame = hosted;
+      app.toggleAttribute('data-hosted-game', hostedGame);
       queuedText = null; queuedCountry = null;
       $('resultsDialog').close(); map.restore(); platform=true;
       app.classList.add('platform','choosing');app.classList.remove('round-ended','map-question','flag-platform');
       document.querySelector('.setup-panel').hidden=false;document.querySelector('.game-hud').hidden=true;
       $('endGame').hidden=true;$('freeMap').hidden=false;$('questionPanel').hidden=true;
-      $('gameTitle').textContent='Choose your game'; document.title='Country Memory Map';
+      const hostedLabel = family === 'flag' ? variants[$('gameVariant').value] : families[family];
+      $('gameTitle').textContent=hostedGame ? hostedLabel : 'Choose your game';
+      $('setupKicker').textContent=hostedGame ? 'READY WHEN YOU ARE' : 'THE WORLD IS YOUR PLAYGROUND';
+      $('setupTitle').textContent=hostedGame ? hostedLabel : 'Where will you begin?';
+      $('freeMap').textContent=hostedGame ? 'Back to games' : 'Free map';
+      document.title=hostedGame ? `${hostedLabel} · Country Memory Map` : 'Country Memory Map';
       flagView.hidden=true; flagChoices.replaceChildren(); $('flagHintText').textContent=''; $('flagHintButton').disabled=false;
       form.hidden=false; markButton.textContent='Mark'; input.disabled=true; updateRecent();
       renderShell('setup');
     }
     function legacy() {
       startToken++; $('soloCountdown').hidden=true;
+      hostedGame=false; app.removeAttribute('data-hosted-game');
       queuedText = null; queuedCountry = null;
       platform=false; app.classList.remove('platform','choosing','round-ended','map-question','flag-platform'); map.restore();
       document.querySelector('.setup-panel').hidden=true; $('questionPanel').hidden=true;
@@ -493,7 +508,7 @@
         engine.finish(reason);
       }
       suppressResults = false;
-      menu();
+      menu({ hosted: false });
     }
     function hostOpenGame({ family: nextFamily, variant } = {}) {
       if (!MODES[nextFamily] || !MODES[nextFamily][variant]) throw new Error('That game setup is unavailable.');
@@ -501,7 +516,7 @@
       if (platform && engine.state.gameStatus === 'playing' && !remote && current.family === nextFamily && current.variant === variant) return window.CountryMemoryRetained.getLifecycleState();
       hostDeactivate({ reason: 'mode_change' });
       chooseFamily(nextFamily, variant);
-      menu();
+      menu({ hosted: true });
       return window.CountryMemoryRetained.getLifecycleState();
     }
     function hostOpenFreeMap({ checker = 'countries' } = {}) {
@@ -510,6 +525,10 @@
       legacy();
       $(checker === 'capitals' ? 'capitalModeButton' : 'countryModeButton').click();
       return window.CountryMemoryRetained.getLifecycleState();
+    }
+    function hostSubmitFreeMapGuess({ value, checker = 'countries' } = {}) {
+      if (platform) throw new Error('The Free Map checker is not active.');
+      return GameMap.submitFreeMapGuess({ value, checker });
     }
     window.gameController={
       previewVoice(heard) {
@@ -572,6 +591,7 @@
     window.CountryMemoryRetained = {
       openGame: hostOpenGame,
       openFreeMap: hostOpenFreeMap,
+      submitFreeMapGuess: hostSubmitFreeMapGuess,
       deactivate: hostDeactivate,
       focusPrimary() {
         if (!platform) return input.focus({ preventScroll: true });
@@ -580,7 +600,7 @@
       },
       getLifecycleState() {
         if (remote) return { state: 'multiplayer' };
-        if (!platform) return { state: 'free-map' };
+        if (!platform) return { state: 'free-map', checker: GameMap.getChecker() };
         if ($('resultsDialog').open) return { state: 'results', family: engine.config?.family, variant: engine.config?.variant };
         if (engine.state.gameStatus === 'playing') return { state: 'playing', family: engine.config?.family, variant: engine.config?.variant };
         return { state: 'setup', family, variant: $('gameVariant').value };
@@ -609,7 +629,10 @@
     $('practiceMissed').addEventListener('click',()=>start({...lastConfig,variant:lastConfig.family==='conquest'?'relaxed':lastConfig.family==='find'?'standard':lastConfig.family==='flag'?lastConfig.variant:'classic',practiceIds:result.missedCountries}));
     $('challengeFriends').addEventListener('click',()=>{if(window.Friends&&result?.replay){$('resultsDialog').close();window.Friends.challenge(result.replay);}});
     $('chooseGame').addEventListener('click',()=>{ if (!window.CountryMemoryRetained.requestHostNavigation({ type: 'home' })) menu(); });
-    $('freeMap').addEventListener('click',legacy);
+    $('freeMap').addEventListener('click',()=>{
+      if (hostedGame && window.CountryMemoryRetained.requestHostNavigation({ type:'home' })) return;
+      legacy();
+    });
     $('openGames').addEventListener('click',()=>{ if (!window.CountryMemoryRetained.requestHostNavigation({ type: 'home' })) menu(); });
     $('resultsDialog').addEventListener('cancel',e=>{e.preventDefault();menu();});
     function syncKeyboard() {

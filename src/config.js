@@ -1,6 +1,6 @@
 const runtime = globalThis.__COUNTRY_MEMORY_MAP__ || {};
 
-const allowedRenderers = new Set(["legacy", "google3d", "cesium-google"]);
+const allowedRenderers = new Set(["local-globe", "legacy", "google3d", "cesium-google"]);
 const requestedRenderer = allowedRenderers.has(runtime.renderer) ? runtime.renderer : "legacy";
 
 export const config = Object.freeze({
@@ -10,4 +10,3 @@ export const config = Object.freeze({
 });
 
 export const hasGoogleMapsKey = Boolean(config.googleMapsApiKey);
-

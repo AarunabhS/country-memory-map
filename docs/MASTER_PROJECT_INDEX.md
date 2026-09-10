@@ -56,4 +56,4 @@ QA evidence labels describe the result of a specific check:
 
 ## Current follow-up register
 
-The verified defects in `ARCHITECTURE.md` remain unresolved: Google 3D callback forwarding, root exposure of the retained playable 2D fallback, mobile answer-dock/navigation overlap, profile API mismatch, stale multiplayer snapshots, staged root modes/navigation, duplicated country classification, and cinematic/legacy integration. Governance v1 records them; it does not repair them.
+The open verified defects are the default-off remote profile API mismatch and duplicated country classification. Production/manual verification remains open for the Home local-globe fallback, Google key restrictions and failure behavior, physical-device responsive/accessibility behavior, and the deployed multiplayer service. The Google callback, canonical game routes, five-game Home launcher, root fallback, mobile root composition, GameShell treatment, and multiplayer snapshot refresh are implemented locally; none is labelled production-verified without deployed-origin evidence.

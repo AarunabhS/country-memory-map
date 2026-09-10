@@ -1,6 +1,6 @@
 # Country Memory Map architecture
 
-Status date: 2026-09-09. This map describes verified repository structure. Labels prevent proposals and known defects from being mistaken for shipped behavior.
+Status date: 2026-09-10. This map describes verified repository structure. Labels prevent proposals and known defects from being mistaken for shipped behavior.
 
 ## Application and routing
 
@@ -8,28 +8,27 @@ Status date: 2026-09-09. This map describes verified repository structure. Label
 
 - The frontend is static HTML, CSS, and browser JavaScript with no frontend framework, router, bundler, or root dependency-install step.
 - `index.html` is the GitHub Pages entry. It renders the cinematic root shell and loads `styles.css`, `public/runtime-config.js`, and ES modules under `src/`.
-- `legacy/index.html` uses `<base href="../">` and loads canonical root scripts/styles. `legacy/` is the retained-app route. Current `game-ui.js` does not parse a `game` query parameter, so `legacy/?game=<slug>` does not select a game.
-- Root `Explore` and `Countries` use the retained Free Map country checker through the hidden iframe bridge; root `Capitals` selects the retained capital checker. The typed answer dock submits through that bridge. Google 3D country clicks are answering only in `Explore` and `Countries`; `Capitals`, staged modes, and unknown modes are non-answering.
+- Home visibly exposes the five scored games defined by the engine: World Conquest, Find the Country, Capital Clash, Flag Recall, and Flag Match. Countries and Capitals are the two choices inside Explore; multiplayer is a separate real action.
+- Canonical `?game=<slug>` query routes are owned by `src/game-routes.js`. Scored-game and multiplayer routes activate the singleton retained application full-screen; Home and Explore routes keep the root globe visible.
+- `legacy/index.html` uses `<base href="../">` and loads canonical root scripts/styles. It remains the retained map/checker, scored-game, profile, and multiplayer application; the root coordinates it through `CountryMemoryRetained`.
+- Root Countries uses the retained Free Map country checker through the hidden iframe bridge; Capitals selects the retained capital checker. Typed and speech-recognized answers submit through the same structured host method and receive the retained checker's result directly, without DOM injection, timing sleeps, or message scraping. Google and local-globe country clicks answer only in Countries; Capitals remains typed-only.
 - `flag-gallery.html` is a separate internal flag-inventory QA page, not a production game route.
-- Root navigation, session choices, daily challenge, learning, progress, friends, and settings are buttons that currently update shell state or show staging messages; they are not complete route-backed product surfaces.
-
-**VERIFIED CURRENT DEFECT**
-
-- `Flag Sprint`, `World Conquest`, and `Play with Friends` root mode buttons only change the selected shell state and show the source-defined “staged” message. They do not launch the corresponding retained games. Every non-`Explore` root mode also displays the source-defined “game engine connection pending” subtitle; `Countries` and `Capitals` nevertheless switch the retained checker used by typed submissions as described above.
-- The audit found the cinematic and retained legacy shells only partially integrated; do not infer complete shared state, UI, or lifecycle integration.
+- Placeholder root navigation, fabricated progress/session metrics, staged challenge/learning actions, decorative compass controls, and inert footer links are intentionally absent.
+- The root and retained shells remain intentionally separate. Their shared state is limited to canonical route intent and the narrow retained bridge; do not infer a common store or component tree.
 
 ## UI and component boundaries
 
 **VERIFIED CURRENT ARCHITECTURE**
 
-- `index.html` + `styles.css` + `src/main.js` own the cinematic shell, root HUD, static Earth preview, optional Google 3D mount, mobile sheet, and narrow iframe bridge.
+- `index.html` + `styles.css` + `src/main.js` own the cinematic Home shell, first-screen launcher, Explore answer dock, local-globe/Google surface selection, and narrow iframe bridge.
 - `legacy/index.html` owns the retained SVG map markup and free-map checker. `game-ui.js` + `game.css` own setup, HUD, feedback, and results for the working game engine.
 - `flag-component.js`, `country-outline.js`, `flag-game.css`, and `flag-gallery.*` own flag-specific rendering and QA.
 - `player-system.js` + `player-profile.css` own local profile UI and attempted remote synchronization. `multiplayer-ui.js` + `multiplayer.css` own friends-room UI.
+- `game-shell.js` is a thin engine-independent presentation adapter. `game-shell.css` supplies one explicit high-contrast cinematic treatment for setup, HUD, map/flag stages, feedback, results, profiles, and multiplayer. Home-launched scored games hide the duplicate family chooser while preserving game-owned format, difficulty, region, timer, rules, start, end, and results controls.
 
 **PROPOSED TARGET ARCHITECTURE**
 
-- A Universal Cinematic GameShell is specified in `docs/GAME_SHELL_SPEC.md`. It is not implemented or production-verified.
+- A future approved component library may consolidate root and retained primitives. No common store, big-bang shell replacement, or further shared-component migration is current behavior.
 
 ## Game engine and country data
 
@@ -38,7 +37,7 @@ Status date: 2026-09-09. This map describes verified repository structure. Label
 - `game-core.js` is the DOM-independent engine for modes, questions, timing, scoring, retries, results, answer normalization, and the `LocalProfile` result store.
 - `game-data.js` builds a 195-country game model from the retained map bridge, `capitals-data.js`, flag metadata, and `country-borders.js`.
 - `game-map.js` adapts the retained SVG map to engine feedback and click/keyboard interaction; `game-ui.js` coordinates it with the engine.
-- `countries-data.js` / `countries.geojson` contain Natural Earth-derived geometry. `country-borders.js` is derived adjacency, regenerated by `scripts/derive-borders.py`.
+- `countries-data.js` is the single browser-optimized Natural Earth-derived geometry bundle. `scripts/optimize-country-geometry.py` regenerates it from an upstream GeoJSON source; `country-borders.js` is derived adjacency regenerated by `scripts/derive-borders.py`.
 
 **VERIFIED CURRENT DEFECT**
 
@@ -48,21 +47,15 @@ Status date: 2026-09-09. This map describes verified repository structure. Label
 
 **VERIFIED CURRENT ARCHITECTURE**
 
-- `src/map-adapter.js` defines legacy and Google 3D adapters and the renderer-neutral country-click callback boundary. `src/country-geometry.js` converts retained geometry for 3D overlays. `src/main.js` selects the renderer and owns root mode semantics; `src/root-interactions.js` provides the dependency-free mode policy, single-flight handling, and retained Free Map preparation used by the root bridge. See [ADR 0001](docs/architecture/0001-google-3d-country-click-contract.md).
+- `src/map-adapter.js` defines local globe, legacy bridge, and Google 3D adapters behind one renderer-neutral country-click callback boundary. `src/country-geometry.js` converts retained geometry for the two globe renderers. `src/main.js` selects the visible renderer and owns root mode semantics; `src/root-interactions.js` provides the dependency-free mode policy, single-flight handling, and retained Free Map preparation used by the root bridge. See [ADR 0001](docs/architecture/0001-google-3d-country-click-contract.md) and [ADR 0002](docs/architecture/0002-local-globe-fallback-and-home-launcher.md).
 - `public/runtime-config.js` currently delivers a Google Maps browser key and selects `google3d`. Browser-delivered Maps API keys are public credentials, distinct from private/server secrets. They must have only the minimum required API permissions, authorized website/referrer restrictions, and monitoring/quota controls where appropriate. Private/server secrets must never be placed in browser assets.
-- A static cinematic Earth preview remains visible during slow or failed live loading. A retained playable 2D implementation exists at `legacy/`, and the root bridge loads it in an iframe for typed-answer processing.
-
-**VERIFIED CURRENT DEFECT**
-
-- When Google 3D initialization fails, the root keeps the cinematic Earth preview visible and explicitly keeps the retained iframe hidden. The cinematic root therefore does not expose the retained playable 2D implementation as the required failure fallback.
+- A dependency-free local orthographic globe renders from the existing authoritative country geometry. It is visible immediately, supports drag/click and keyboard rotation/zoom, precomputes projection trigonometry when its lookup changes, iterates only visible sphere pixels, coalesces interaction renders, and uses adaptive raster/frame caps for constrained devices. It pauses while hidden, respects reduced motion, and remains active after Google initialization, geometry, or readiness-timeout failure.
+- The retained 2D implementation exists at `legacy/`; Home keeps it hidden as the singleton answer-engine bridge and exposes it full-screen only for scored games and multiplayer.
+- Active scored solo routes own an in-app history-exit confirmation. Browser back/forward first restores the active route and preserves the engine; only an explicit Leave action deactivates the run.
 
 **NEEDS QA**
 
-- The callback/bridge and mobile-clearance changes have dependency-free automated coverage and local in-app-browser evidence. Browser-key restrictions, physical touch/drag behavior, device safe areas, 200% zoom, reduced-motion emulation, failure handling, and production-origin country selection still require the manual evidence listed in `docs/QA_MATRIX.md`. An end-to-end playable fallback remains a separate known defect.
-
-**PROPOSED TARGET ARCHITECTURE**
-
-- Once a playable root fallback is integrated and earns **PRODUCTION-VERIFIED IMPLEMENTATION** status, future renderer and shell work must preserve that playable fallback contract. The retained implementation's mere existence does not satisfy this target invariant today.
+- The renderer callback, local-globe recovery coordinator, route/bridge policy, five-game launcher, responsive structure, forced-color rules, and reduced-motion contracts have dependency-free automated coverage. Physical touch/drag, device safe areas, screen readers, 200% zoom, reduced-motion emulation, Google failure on a production origin, and production-origin country selection still require the manual evidence listed in `docs/QA_MATRIX.md`.
 
 ## State, persistence, and profiles
 
@@ -93,9 +86,7 @@ Status date: 2026-09-09. This map describes verified repository structure. Label
 - `multiplayer-service.js` is the browser transport and polling client. `multiplayer-ui.js` adapts room, challenge, standings, and replay flows to the retained game controller.
 - `multiplayer-server/room-engine.mjs` owns room rules. `worker.mjs` exposes the Cloudflare Worker API backed by D1. `build.mjs` bundles the Worker and regenerates `shared/game-core.cjs` and `shared/countries.json` from root sources.
 
-**VERIFIED CURRENT DEFECT**
-
-- The committed generated multiplayer snapshots are stale relative to their root sources. Current multiplayer tests exercise the committed snapshot and may therefore pass without proving parity. Parity is a documented follow-up, not a mandatory gate in governance v1.
+- The generated multiplayer snapshots were deliberately refreshed on 2026-09-09 and matched their canonical sources at that point. Future rule/data changes must regenerate them through `multiplayer-server/build.mjs`; current changes do not touch those inputs or outputs.
 
 ## Deployment
 
@@ -109,8 +100,8 @@ Status date: 2026-09-09. This map describes verified repository structure. Label
 
 1. Gameplay rules and answer semantics belong in `game-core.js`; UI layers consume them.
 2. Canonical playable-country projection belongs at the data bridge (`game-data.js`); new consumers must not silently invent another ruleset.
-3. Google Maps loading and 3D implementation belong under `src/map-adapter.js` / `src/country-geometry.js`; game/UI code should use the adapter boundary.
+3. Google Maps loading plus Google/local globe implementation belong under `src/map-adapter.js` / `src/country-geometry.js`; game/UI code should use the adapter boundary.
 4. Retained SVG-map behavior belongs to `legacy/index.html` and `game-map.js`; root-shell bridging must not reach through it casually.
 5. Persistence changes require explicit migration, rollback, and compatibility review for both local stores and any remote contract.
 6. Multiplayer generated files are outputs of `multiplayer-server/build.mjs`, not independent hand-edited sources.
-7. The proposed GameShell is a specification, not an available dependency. Existing games remain game-owned until an approved implementation is production-verified.
+7. `game-shell.js` / `game-shell.css` are a thin presentation adapter, not a game store or general component library. Gameplay remains game-owned; further shared primitives require architecture approval.

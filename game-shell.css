@@ -1,44 +1,429 @@
-/* Shared cinematic presentation only. Rules and controller state live elsewhere. */
+/* Shared presentation only. Game rules and state remain in game-core.js/game-ui.js. */
 .game-shell {
-  --shell-ink: #eaf7ff;
-  --shell-muted: #9bb6ca;
-  --shell-panel: rgba(8, 24, 45, .84);
-  --shell-panel-strong: rgba(5, 16, 33, .94);
-  --shell-line: rgba(122, 211, 255, .25);
-  --shell-cyan: #65d5ff;
-  --shell-green: #8ce6bd;
-  --shell-danger: #ff929d;
+  --shell-ink: #f7fbff;
+  --shell-muted: #bdccdc;
+  --shell-panel: rgba(7, 22, 40, 0.94);
+  --shell-panel-solid: #091b30;
+  --shell-line: rgba(159, 210, 241, 0.34);
+  --shell-line-strong: #75d9ff;
+  --shell-cyan: #7cdeff;
+  --shell-green: #84e5b5;
+  --shell-danger: #ff9da8;
+  --shell-control-bg: #f3f9fd;
+  --shell-control-ink: #0b2a42;
   position: relative;
   isolation: isolate;
   color: var(--shell-ink);
+  color-scheme: dark;
   background:
-    radial-gradient(circle at 76% 14%, rgba(53, 137, 239, .22), transparent 31%),
-    radial-gradient(circle at 17% 88%, rgba(34, 177, 142, .14), transparent 30%),
-    linear-gradient(145deg, #020914, #071a32 54%, #061323);
+    radial-gradient(circle at 77% 13%, rgba(43, 129, 216, 0.23), transparent 30%),
+    radial-gradient(circle at 17% 88%, rgba(33, 170, 137, 0.13), transparent 28%),
+    linear-gradient(145deg, #020812, #07192f 56%, #061321);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
-.game-shell-atmosphere { position:absolute; z-index:-1; inset:0; pointer-events:none; overflow:hidden; background-image:radial-gradient(circle at 18% 22%,rgba(255,255,255,.75) 0 1px,transparent 1.5px),radial-gradient(circle at 82% 35%,rgba(129,219,255,.75) 0 1px,transparent 1.5px),radial-gradient(circle at 44% 70%,rgba(255,255,255,.45) 0 1px,transparent 1.5px); background-size:170px 170px,240px 240px,310px 310px; opacity:.55; }
-.game-shell .platform-header, .game-shell .game-hud, .game-shell .control, .game-shell .setup-panel, .game-shell #resultsDialog, .game-shell #friendsPanel { border-color:var(--shell-line); background:var(--shell-panel); color:var(--shell-ink); box-shadow:0 18px 55px rgba(0,0,0,.23); }
-.game-shell .platform-header { border-radius:16px; padding:10px 14px; border:1px solid var(--shell-line); }
-.game-shell .brand-kicker, .game-shell .question-heading, .game-shell .flag-round-heading, .game-shell .eyebrow { color:var(--shell-cyan); }
-.game-shell .game-hud { backdrop-filter:blur(14px); }
-.game-shell .hud-stat { border-color:rgba(166,226,255,.14); }
-.game-shell .hud-stat span, .game-shell .question-panel p, .game-shell .game-rules, .game-shell .storage-note, .game-shell .flag-hint { color:var(--shell-muted); }
-.game-shell .platform #map { border-color:var(--shell-line); background:#b7d8e6; box-shadow:0 20px 48px rgba(0,0,0,.27); }
-.game-shell .control { border:1px solid var(--shell-line); backdrop-filter:blur(14px); }
-.game-shell .platform input, .game-shell .platform select, .game-shell .platform button, .game-shell #resultsDialog button { border-color:rgba(157,220,249,.28); background:rgba(255,255,255,.94); color:#133048; }
-.game-shell .platform .primary-button, .game-shell #resultsDialog .primary-button, .game-shell #friendsPanel .primary-button { color:#021827; border-color:#8ee6c0; background:linear-gradient(135deg,#87e9c1,#69d3ff); }
-.game-shell .setup-panel, .game-shell #friendsPanel { backdrop-filter:blur(18px); }
-.game-shell .setup-panel h2, .game-shell #resultsDialog h2, .game-shell .flag-prompt, .game-shell .question-panel h2 { color:var(--shell-ink); }
-.game-shell .game-choices button.selected { border-color:var(--shell-cyan); background:rgba(101,213,255,.15); color:var(--shell-ink); }
-.game-shell .game-choices span, .game-shell .setup-fields label { color:var(--shell-muted); }
-.game-shell .flag-frame, .game-shell .flag-option { border-color:var(--shell-line); background:rgba(238,250,255,.97); }
-.game-shell .flag-option:focus-visible, .game-shell button:focus-visible, .game-shell input:focus-visible, .game-shell select:focus-visible, .game-shell summary:focus-visible { outline:3px solid var(--shell-cyan); outline-offset:3px; }
-.game-shell #resultsDialog { background:var(--shell-panel-strong); }
-.game-shell #resultsDialog::backdrop { background:rgba(0,7,18,.75); }
-.game-shell .result-stats > div { background:rgba(111,205,240,.12); }
-.game-shell .result-stats span, .game-shell #resultRegions, .game-shell .result-note { color:var(--shell-muted); }
-.game-shell .milestone, .game-shell .solo-countdown { background:rgba(3,18,36,.88); color:var(--shell-green); border:1px solid var(--shell-line); backdrop-filter:blur(12px); }
-.game-shell[data-game-shell-stage="flag"] .flag-game-view { background:rgba(3,15,30,.32); border:1px solid rgba(122,211,255,.16); border-radius:18px; }
-@media (max-width:760px) { .game-shell .platform-header { padding:8px 10px; } .game-shell .platform .game-hud { background:rgba(6,22,42,.9); } .game-shell .setup-panel, .game-shell #friendsPanel { background:rgba(5,19,37,.97); } .game-shell .platform .control { background:rgba(5,19,37,.95); } }
-@media (max-height:500px) and (min-width:600px) { .game-shell .platform-header { padding:5px 10px; } .game-shell .game-hud { background:rgba(6,22,42,.9); } }
-@media (prefers-reduced-motion:reduce) { .game-shell *, .game-shell *::before, .game-shell *::after { scroll-behavior:auto !important; transition-duration:0.01ms !important; } }
+
+.game-shell-atmosphere {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  background-image:
+    radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.72) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 82% 35%, rgba(129, 219, 255, 0.72) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 44% 70%, rgba(255, 255, 255, 0.42) 0 1px, transparent 1.5px);
+  background-size: 170px 170px, 240px 240px, 310px 310px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.game-shell.platform,
+.game-shell.flag-platform {
+  background:
+    radial-gradient(circle at 77% 13%, rgba(43, 129, 216, 0.23), transparent 30%),
+    radial-gradient(circle at 17% 88%, rgba(33, 170, 137, 0.13), transparent 28%),
+    linear-gradient(145deg, #020812, #07192f 56%, #061321);
+  color: var(--shell-ink);
+}
+
+.game-shell .platform-header,
+.game-shell .game-hud,
+.game-shell .control,
+.game-shell .setup-panel,
+.game-shell #resultsDialog,
+.game-shell #friendsPanel,
+.game-shell .profile-dialog {
+  border: 1px solid var(--shell-line);
+  background: var(--shell-panel);
+  color: var(--shell-ink);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.3);
+}
+
+.game-shell .platform-header {
+  border-radius: 16px;
+  padding: 10px 14px;
+}
+
+.game-shell .brand-kicker,
+.game-shell .question-heading,
+.game-shell .flag-round-heading,
+.game-shell .eyebrow,
+.game-shell .room-code {
+  color: var(--shell-cyan);
+}
+
+.game-shell .platform-header h1,
+.game-shell .setup-panel h2,
+.game-shell #resultsDialog h2,
+.game-shell #friendsPanel h2,
+.game-shell #friendsPanel h3,
+.game-shell .profile-dialog h2,
+.game-shell .profile-dialog h3,
+.game-shell .flag-prompt,
+.game-shell .question-panel h2,
+.game-shell .hud-stat strong,
+.game-shell .result-stats strong {
+  color: var(--shell-ink);
+}
+
+.game-shell .hud-stat {
+  border-color: rgba(166, 226, 255, 0.2);
+}
+
+.game-shell .hud-stat span,
+.game-shell .question-panel p,
+.game-shell .game-rules,
+.game-shell .storage-note,
+.game-shell .flag-hint,
+.game-shell .game-choices span,
+.game-shell .setup-fields label,
+.game-shell .result-stats span,
+.game-shell #resultRegions,
+.game-shell .result-note,
+.game-shell .profile-muted,
+.game-shell .profile-local-note,
+.game-shell .profile-status,
+.game-shell #friendsPanel p,
+.game-shell #friendsPanel label,
+.game-shell #friendsPanel .friend-note,
+.game-shell .friend-player small {
+  color: var(--shell-muted);
+}
+
+.game-shell.platform #map {
+  border-color: var(--shell-line);
+  background: #b9d8e5;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28);
+}
+
+.game-shell.platform .legend-panel {
+  border-color: #aac4d0;
+  background: rgba(247, 252, 255, 0.97);
+  color: #0b2a42;
+}
+
+.game-shell.platform .legend-panel summary,
+.game-shell.platform .legend-panel .legend-item,
+.game-shell.platform .legend-panel .legend-note {
+  color: #17384e;
+  -webkit-text-fill-color: #17384e;
+}
+
+.game-shell.platform .control {
+  border: 1px solid var(--shell-line);
+  background: var(--shell-panel);
+  backdrop-filter: blur(14px);
+}
+
+.game-shell.platform button,
+.game-shell.platform input,
+.game-shell.platform select,
+.game-shell #resultsDialog button,
+.game-shell #friendsPanel button,
+.game-shell #friendsPanel input,
+.game-shell #friendsPanel select,
+.game-shell .profile-dialog button,
+.game-shell .profile-dialog input,
+.game-shell .profile-dialog select {
+  border-color: rgba(157, 220, 249, 0.46);
+  background: var(--shell-control-bg);
+  color: var(--shell-control-ink);
+  -webkit-text-fill-color: var(--shell-control-ink);
+  opacity: 1;
+}
+
+.game-shell.platform input::placeholder,
+.game-shell #friendsPanel input::placeholder,
+.game-shell .profile-dialog input::placeholder {
+  color: #526c7e;
+  -webkit-text-fill-color: #526c7e;
+  opacity: 1;
+}
+
+.game-shell.platform button:hover,
+.game-shell #resultsDialog button:hover,
+.game-shell #friendsPanel button:hover,
+.game-shell .profile-dialog button:hover {
+  border-color: var(--shell-cyan);
+  background: #ffffff;
+}
+
+.game-shell.platform button:disabled,
+.game-shell.platform input:disabled,
+.game-shell.platform select:disabled,
+.game-shell #resultsDialog button:disabled,
+.game-shell #friendsPanel button:disabled,
+.game-shell .profile-dialog button:disabled {
+  color: #4c6272;
+  -webkit-text-fill-color: #4c6272;
+  opacity: 0.68;
+}
+
+.game-shell.platform .primary-button,
+.game-shell #resultsDialog .primary-button,
+.game-shell #friendsPanel .primary-button {
+  border-color: #9aecc5;
+  background: linear-gradient(135deg, #9aebc3, #77dcff);
+  color: #051f2f;
+  -webkit-text-fill-color: #051f2f;
+}
+
+.game-shell .setup-panel,
+.game-shell #friendsPanel,
+.game-shell .profile-dialog {
+  backdrop-filter: blur(18px);
+}
+
+.game-shell .game-choices button {
+  border-color: var(--shell-line);
+  background: rgba(19, 44, 67, 0.9);
+  color: var(--shell-ink);
+  -webkit-text-fill-color: var(--shell-ink);
+}
+
+.game-shell .game-choices button:hover {
+  background: rgba(28, 65, 96, 0.96);
+}
+
+.game-shell .game-choices button.selected {
+  border-color: var(--shell-cyan);
+  background: #164d70;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.game-shell[data-hosted-game] .game-choices {
+  display: none;
+}
+
+.game-shell[data-hosted-game] .setup-panel {
+  width: min(440px, calc(100% - 40px));
+}
+
+.game-shell .rules-details {
+  border-color: rgba(174, 214, 236, 0.24);
+  color: var(--shell-muted);
+}
+
+.game-shell .rules-details summary {
+  color: var(--shell-ink);
+}
+
+.game-shell .message {
+  color: var(--shell-muted);
+}
+
+.game-shell .message.good {
+  color: var(--shell-green);
+}
+
+.game-shell .message.bad,
+.game-shell #setupError,
+.game-shell #finalMistakes,
+.game-shell #friendError {
+  color: var(--shell-danger);
+}
+
+.game-shell .message.pending,
+.game-shell .message.listening {
+  color: var(--shell-cyan);
+}
+
+.game-shell .flag-frame,
+.game-shell .flag-option {
+  border-color: var(--shell-line);
+  background: #f3f8fb;
+}
+
+.game-shell.flag-platform .flag-game-view,
+.game-shell[data-game-shell-stage="flag"] .flag-game-view {
+  border: 1px solid rgba(122, 211, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(3, 15, 30, 0.34);
+  color: var(--shell-ink);
+}
+
+.game-shell.flag-platform .flag-prompt {
+  color: var(--shell-ink);
+}
+
+.game-shell.flag-platform .flag-option {
+  border-color: var(--shell-line);
+  background: #eef6f8;
+  color: #102f42;
+  -webkit-text-fill-color: #102f42;
+}
+
+.game-shell.flag-platform .flag-option-label {
+  color: #35586b;
+  -webkit-text-fill-color: #35586b;
+}
+
+.game-shell.flag-platform .flag-option-wrong {
+  border-color: #b42f3f;
+  background: #ffe7ea;
+}
+
+.game-shell.flag-platform .flag-option-correct {
+  border-color: #147349;
+  background: #ddf8e8;
+}
+
+.game-shell.flag-platform .flag-tools button {
+  border-color: var(--shell-line);
+  background: #eef6f8;
+  color: #12394b;
+  -webkit-text-fill-color: #12394b;
+}
+
+.game-shell button:focus-visible,
+.game-shell input:focus-visible,
+.game-shell select:focus-visible,
+.game-shell summary:focus-visible,
+.game-shell #map:focus-visible {
+  outline: 3px solid var(--shell-cyan);
+  outline-offset: 3px;
+}
+
+.game-shell #resultsDialog {
+  background: var(--shell-panel-solid);
+}
+
+.game-shell #resultsDialog::backdrop,
+.game-shell .profile-dialog::backdrop {
+  background: rgba(0, 7, 18, 0.82);
+}
+
+.game-shell .result-stats > div,
+.game-shell .profile-stat-grid > div,
+.game-shell .profile-mode-card,
+.game-shell .profile-code-box,
+.game-shell .profile-mastery > div,
+.game-shell .friend-podium > div {
+  border-color: rgba(159, 210, 241, 0.22);
+  background: rgba(107, 198, 235, 0.12);
+  color: var(--shell-ink);
+}
+
+.game-shell .profile-chip {
+  border-color: var(--shell-line);
+  background: var(--shell-panel-solid);
+  color: var(--shell-ink);
+}
+
+.game-shell .profile-avatar,
+.game-shell .profile-large-avatar {
+  background: #bdeed7;
+  color: #083b2a;
+}
+
+.game-shell #liveBoard {
+  border-color: var(--shell-line);
+  background: var(--shell-panel-solid);
+  color: var(--shell-ink);
+}
+
+.game-shell .friend-player,
+.game-shell .friend-standing {
+  border-color: rgba(159, 210, 241, 0.18);
+}
+
+.game-shell .friend-standing.is-you {
+  background: rgba(132, 229, 181, 0.16);
+}
+
+.game-shell .milestone,
+.game-shell .solo-countdown {
+  border: 1px solid var(--shell-line);
+  background: rgba(3, 18, 36, 0.94);
+  color: var(--shell-green);
+  backdrop-filter: blur(12px);
+}
+
+@media (max-width: 760px) {
+  .game-shell .platform-header {
+    padding: 8px 10px;
+  }
+
+  .game-shell.platform .game-hud,
+  .game-shell.platform .control,
+  .game-shell .setup-panel,
+  .game-shell #friendsPanel {
+    background: rgba(7, 22, 40, 0.97);
+  }
+
+  .game-shell[data-hosted-game] .setup-panel {
+    width: calc(100% - 24px);
+  }
+}
+
+@media (max-height: 500px) and (min-width: 600px) {
+  .game-shell .platform-header {
+    padding: 5px 10px;
+  }
+
+  .game-shell.platform .game-hud {
+    background: rgba(7, 22, 40, 0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-shell *,
+  .game-shell *::before,
+  .game-shell *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .game-shell,
+  .game-shell.platform,
+  .game-shell.flag-platform,
+  .game-shell .platform-header,
+  .game-shell .game-hud,
+  .game-shell .control,
+  .game-shell .setup-panel,
+  .game-shell #resultsDialog,
+  .game-shell #friendsPanel,
+  .game-shell .profile-dialog {
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+
+  .game-shell .game-choices button.selected,
+  .game-shell .flag-option-correct {
+    border: 3px solid Highlight;
+  }
+
+  .game-shell .message.good::before {
+    content: "Correct: ";
+  }
+
+  .game-shell .message.bad::before {
+    content: "Try again: ";
+  }
+}

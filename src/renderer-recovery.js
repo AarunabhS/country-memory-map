@@ -1,22 +1,23 @@
 export const RENDERER_RECOVERY_STATES = Object.freeze({
   STARTING: "3D_STARTING",
   THREE_D_ACTIVE: "3D_ACTIVE",
-  TWO_D_ACTIVE: "2D_ACTIVE",
+  LOCAL_GLOBE_ACTIVE: "LOCAL_GLOBE_ACTIVE",
 });
 
 export function getRendererPresentation(state, { live = false, warning = false } = {}) {
-  const fallbackActive = state === RENDERER_RECOVERY_STATES.TWO_D_ACTIVE;
+  const fallbackActive = state === RENDERER_RECOVERY_STATES.LOCAL_GLOBE_ACTIVE;
   const live3d = live && !fallbackActive;
-  const warning3d = warning || fallbackActive;
+  const local = !live3d;
   return {
     live: live3d,
-    warning: warning3d,
-    label: live3d ? "Live 3D Earth" : warning3d ? "3D unavailable" : "Legacy preview",
+    local,
+    warning,
+    label: live3d ? "Google 3D Earth" : fallbackActive ? "Local 3D globe" : "Local globe · connecting",
   };
 }
 
 // This small coordinator intentionally owns just one initialization attempt.
-// It keeps late renderer callbacks from replacing an active retained-game session.
+// It keeps late renderer callbacks from replacing an active local-globe session.
 export function createRendererRecovery({
   timeoutMs = 45000,
   setTimeoutFn = (callback, milliseconds) => window.setTimeout(callback, milliseconds),
@@ -40,19 +41,25 @@ export function createRendererRecovery({
   return {
     start() {
       if (timeout !== null || state !== RENDERER_RECOVERY_STATES.STARTING) return;
-      timeout = setTimeoutFn(() => transition(RENDERER_RECOVERY_STATES.TWO_D_ACTIVE, "timeout"), timeoutMs);
+      timeout = setTimeoutFn(() => transition(RENDERER_RECOVERY_STATES.LOCAL_GLOBE_ACTIVE, "timeout"), timeoutMs);
     },
     activate3d() {
       return transition(RENDERER_RECOVERY_STATES.THREE_D_ACTIVE, "usable-ready");
     },
-    activate2d(reason = "renderer-failure") {
-      return transition(RENDERER_RECOVERY_STATES.TWO_D_ACTIVE, reason);
+    activateFallback(reason = "renderer-failure") {
+      return transition(RENDERER_RECOVERY_STATES.LOCAL_GLOBE_ACTIVE, reason);
     },
     getState() {
       return state;
     },
     is3dActive() {
       return state === RENDERER_RECOVERY_STATES.THREE_D_ACTIVE;
+    },
+    isFallbackActive() {
+      return state === RENDERER_RECOVERY_STATES.LOCAL_GLOBE_ACTIVE;
+    },
+    isInteractive() {
+      return state === RENDERER_RECOVERY_STATES.THREE_D_ACTIVE || state === RENDERER_RECOVERY_STATES.LOCAL_GLOBE_ACTIVE;
     },
   };
 }

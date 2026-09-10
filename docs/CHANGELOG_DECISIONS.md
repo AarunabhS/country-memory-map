@@ -2,6 +2,26 @@
 
 This file records actual governance decisions and identifies candidates that still need a decision. It is not a substitute for ADRs.
 
+## 2026-09-10 — Mobile reliability and geometry delivery
+
+Status: local implementation **AUTOMATED VERIFIED** and partially **MANUALLY VERIFIED WITH EVIDENCE**; production-origin and physical-device verification remain **MANUAL VERIFICATION REQUIRED**.
+
+- Replaced the root Explore iframe DOM proxy and fixed delay with a structured retained-host answer result. Added the root speech-recognition control as an input method for that same path; recognition and scoring remain owned by the retained checker.
+- Consolidated browser country geometry into one deterministically simplified bundle, retaining all 258 source features and every polygon part, and removed the duplicate raw browser asset. Border adjacency remains generated only from an explicit unsimplified upstream source.
+- Preserved the local-globe adapter while reducing actual work: projection lookup remains precomputed, visible pixels are indexed, interaction draws are coalesced, and constrained devices use a smaller raster and lower frame cadence.
+- Added bounded small-country markers/targets in all regional views, protected active solo runs with an in-app history-exit decision, and allowed exact loopback HTTP(S) origins at arbitrary local ports without relaxing production origin matching.
+- Corrected the retained map-key foreground/background pairing found during mobile visual QA. Gameplay, scoring, persistence, profiles, canonical routes, multiplayer protocol, and Google/local fallback ownership remain unchanged.
+
+## 2026-09-10 — Local globe fallback and canonical Home launcher
+
+Status: accepted in [ADR 0002](architecture/0002-local-globe-fallback-and-home-launcher.md); local implementation **AUTOMATED VERIFIED**; production/device verification remains **MANUAL VERIFICATION REQUIRED**.
+
+- Kept Google 3D as the preferred renderer and made a dependency-free rotating local globe, built from the existing country geometry, the immediate loading and terminal failure surface.
+- Kept the retained application as the singleton recognition/game engine. It remains hidden as the Explore checker bridge and full-screen for scored games and multiplayer; it is not the visible Home fallback.
+- Exposed World Conquest, Find the Country, Capital Clash, Flag Recall, and Flag Match on Home; grouped Countries and Capitals inside Explore; removed placeholder Home navigation, fabricated metrics, staged cards, and inert footer controls.
+- Preserved canonical query routes, engine, rules, scoring, persistence keys, profiles, multiplayer protocol, country classification, browser key delivery, and generated Worker snapshots.
+- Hardened root and retained GameShell foreground/control/focus colors independently of OS color preference and added forced-colors and reduced-motion contracts.
+
 ## 2026-09-09 — Final release candidate profile mode and snapshot refresh
 
 Status: accepted release decision; local implementation **AUTOMATED VERIFIED** and **MANUALLY VERIFIED WITH EVIDENCE** on local origins; production-origin verification remains **MANUAL VERIFICATION REQUIRED**.
@@ -43,7 +63,6 @@ Create an ADR only when the corresponding decision is actively being made:
 
 - Universal GameShell ownership, public API, tokens, and migration order
 - Root/retained shell integration and routing strategy
-- Playable 3D-to-2D fallback contract
 - Canonical country classification/data ownership
 - Profile persistence/API ownership and migration
 - Multiplayer generated-snapshot generation/parity policy

@@ -1,6 +1,6 @@
 # Country Memory Map
 
-Static geography games, published from `main` at https://www.arunabhosom.com/country-memory-map/. The main page uses Google 3D Earth when available and retains a playable 2D implementation at `legacy/`. The current root failure path shows a cinematic Earth preview but does not expose that retained app as a playable fallback. No account is required; run `python3 -m http.server 8000` for local testing.
+Static geography games, published from `main` at https://www.arunabhosom.com/country-memory-map/. Home uses Google 3D Earth when available and a dependency-free rotating local globe while Google loads or is unavailable. The retained application at `legacy/` remains the authoritative checker and game engine. No account is required; run `python3 -m http.server 8000` for local testing.
 
 ## Games
 
@@ -15,7 +15,7 @@ All games use the same 195-country classification as the original checker. Small
 
 ## Architecture
 
-- `index.html`, `styles.css`, `src/`: cinematic shell, responsive full-workspace Google 3D renderer, and the narrow typed-answer bridge into the retained game. Several root controls and game modes remain staged rather than complete route-backed flows.
+- `index.html`, `styles.css`, `src/`: cinematic Home, first-screen five-game launcher, Countries/Capitals Explore controls, Google/local globe renderers, canonical game routes, and the narrow answer bridge into the retained checker.
 - `legacy/index.html`: retained map renderer and free checker; a document base keeps its existing scripts, flags, profiles, and multiplayer modules at their canonical root paths.
 - `game-data.js`: projects the existing map/capital sources into one country model. Capitals are arrays of name, aliases, role and coordinates. Geography, capital, flag and shape difficulty fields are independent. Editorial v1 difficulty metadata can be replaced by performance statistics without changing question logic.
 - `game-core.js`: DOM-independent `Engine`, shared question types, scoring, state, deadlines, result aggregation and `LocalProfile` persistence. Clock and randomness are injectable. Future question types can reuse `submitCountry`, `resolveQuestion`, and the results model.
@@ -25,7 +25,8 @@ All games use the same 195-country classification as the original checker. Small
 - `AnswerValidator` in `game-core.js`: shared normalization and explicit aliases for map, typed-game and flag answers.
 - `game-map.js`: map feedback, region dimming, small-country targets, touch-safe selection and keyboard selection. Broad regional views appear for small targets; successful typed answers never move or zoom the view.
 - `game-ui.js` / `game.css`: shared setup, HUD, live feedback and results. The interface ticks the engine every 50ms; every answer also checks absolute deadlines before validation. A delayed/background tick cannot admit a late answer. Successful/failed questions transition after 700ms, which remains part of timed sessions.
-- `country-borders.js`: shared-edge adjacency derived from retained Natural Earth geometry. Regenerate with `python3 scripts/derive-borders.py`. It reflects that geometry and is not an independent legal boundary source.
+- `countries-data.js`: the single browser geometry bundle. Regenerate it from an upstream Natural Earth GeoJSON source with `python3 scripts/optimize-country-geometry.py <source.geojson> countries-data.js`.
+- `country-borders.js`: shared-edge adjacency derived from unsimplified upstream Natural Earth geometry. Regenerate with `python3 scripts/derive-borders.py <source.geojson>`. It reflects that geometry and is not an independent legal boundary source.
 
 Timers and result response times use seconds; internal deadlines use milliseconds. In question games, accuracy is correctly answered questions divided by questions played. In World Conquest, it is accepted country names divided by accepted plus incorrect entries. Duplicates and blank submissions are excluded. Average and fastest answer times use successful responses and include any retry time before the correct response. Streak multipliers include the newly completed answer (the fifth answer gets ×1.05). Wrong question attempts deduct 25 then 50 points; scores may be negative. The third error reveals the answer without another deduction. Manual endings count an unresolved question as missed. Strongest/weakest regions compare completion proportions, with counts shown for context.
 

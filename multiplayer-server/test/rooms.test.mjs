@@ -1,7 +1,7 @@
 import Game from '../shared/game-core.cjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';
 import {makeRoom,joinRoom,roomAction,syncRoom,publicRoom,ranking,DATA,createChallenge} from '../room-engine.mjs';
-import {handle} from '../worker.mjs';
+import {handle,isAllowedOrigin} from '../worker.mjs';
 const base=1000000;
 function room(){return makeRoom({code:'GEOABCDEF',id:'host',tokenHash:'secret',name:'Arun',now:base,seed:42});}
 function ready(r){joinRoom(r,{id:'guest',tokenHash:'guest-secret',name:'Riya'},base);roomAction(r,r.players[1],{action:'ready',ready:true},base);roomAction(r,r.players[0],{action:'start'},base);return r;}
@@ -18,6 +18,21 @@ test('ranking uses deterministic ties and DNF ordering',()=>{const p=(id,score)=
 test('async challenge replays answers, ignores submitted score, locks one attempt',()=>{const r=createChallenge({config:{family:'conquest',variant:'blitz'},seed:42,elapsed:60000,actions:[{kind:'text',value:'India',at:1000}],score:999999},{code:'GEOASYNC',id:'host',tokenHash:'h',name:'Host'},base);assert.equal(r.players[0].game.state.score,130);joinRoom(r,{id:'guest',name:'Guest',tokenHash:'g'},base+100);roomAction(r,r.players[1],{action:'attempt'},base+200);assert.throws(()=>roomAction(r,r.players[1],{action:'attempt'},base+300),/already started/);assert.equal(r.match.seed,42);});
 class MemoryStore{constructor(){this.rows=new Map();}async rate(){return 1;}async get(code){return this.rows.get(code);}async insert(room){this.rows.set(room.code,{body:JSON.stringify(room),version:0});}async save(room,v){const old=this.rows.get(room.code);if(old.version!==v)return false;this.rows.set(room.code,{body:JSON.stringify(room),version:v+1});return true;}}
 test('atomic parallel joins cannot exceed eight members',async()=>{const store=new MemoryStore(),r=room();await store.insert(r);const responses=await Promise.all(Array.from({length:10},(_,i)=>handle(new Request('http://test/rooms/GEOABCDEF',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'join',name:'Guest '+i})}),store,base+1000)));assert.equal(responses.filter(r=>r.ok).length,7);assert.equal(JSON.parse((await store.get(r.code)).body).players.length,8);});
+
+test('CORS accepts exact production origins and any loopback development port only',async()=>{
+ for(const origin of ['https://www.arunabhosom.com','https://aarunabhs.github.io','http://localhost:3000','http://localhost:4173','http://127.0.0.1:5173','https://127.0.0.1:8080','http://[::1]:8000']){
+  assert.equal(isAllowedOrigin(origin),true,origin);
+  const response=await handle(new Request('http://test/health',{method:'OPTIONS',headers:{Origin:origin}}),{},base);
+  assert.equal(response.status,204,origin);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'),origin);
+ }
+ for(const origin of ['https://example.com','https://localhost.example.com','ftp://localhost:3000','null','http://127.0.0.2:8000']){
+  assert.equal(isAllowedOrigin(origin),false,origin);
+  const response=await handle(new Request('http://test/health',{method:'OPTIONS',headers:{Origin:origin}}),{},base);
+  assert.equal(response.status,403,origin);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'),null);
+ }
+});
 
 test('async replay preserves timed question transitions and response scores',()=>{
  const seed=42,settings={family:'capital',variant:'classic',difficulty:'medium',questionCount:10};

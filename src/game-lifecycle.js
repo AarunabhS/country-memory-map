@@ -1,6 +1,6 @@
 export const GAME_LIFECYCLE_STATES = Object.freeze({
   HOME_3D: "HOME_3D",
-  HOME_2D: "HOME_2D",
+  HOME_LOCAL_GLOBE: "HOME_LOCAL_GLOBE",
   RETAINED_LOADING: "RETAINED_LOADING",
   SOLO_SETUP: "SOLO_SETUP",
   SOLO_PLAYING: "SOLO_PLAYING",
@@ -8,6 +8,11 @@ export const GAME_LIFECYCLE_STATES = Object.freeze({
   MULTIPLAYER: "MULTIPLAYER",
   FATAL_ROUTE_ERROR: "FATAL_ROUTE_ERROR",
 });
+
+export function shouldConfirmSessionExit({ activeRoute, nextRoute, retainedState } = {}) {
+  if (activeRoute?.kind !== "solo" || retainedState?.state !== "playing") return false;
+  return activeRoute.slug !== nextRoute?.slug;
+}
 
 export function createGameLifecycle({ onChange = () => {} } = {}) {
   let version = 0;

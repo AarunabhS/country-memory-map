@@ -545,11 +545,11 @@
       .topbar #resetButton { grid-column: 2; grid-row: 3; }
     }
   </style>
-  <link rel="stylesheet" href="game.css?v=20260908-profiles2">
+  <link rel="stylesheet" href="game.css?v=20260910-mobile-perf2">
   <link rel="stylesheet" href="flag-game.css?v=20260908-flags5">
   <link rel="stylesheet" href="multiplayer.css?v=20260907-friends1">
   <link rel="stylesheet" href="player-profile.css?v=20260909-release1">
-  <link rel="stylesheet" href="game-shell.css?v=20260909-master3">
+  <link rel="stylesheet" href="game-shell.css?v=20260910-mobile-perf2">
 </head>
 <body>
   <main class="app">
@@ -608,7 +608,7 @@
 
   <script src="flag-data.js?v=20260908-flags1"></script>
   <script src="game-core.js?v=20260908-flags1"></script>
-  <script src="countries-data.js"></script>
+  <script src="countries-data.js?v=20260910-mobile-perf2"></script>
   <script src="capitals-data.js"></script>
   <script>
     const svg = document.getElementById("map");
@@ -767,6 +767,8 @@
     let recognition = null;
     let isListening = false;
     let legendNote = null;
+    let feedbackSequence = 0;
+    let latestFeedback = null;
 
     function normalize(value) {
       return GeographyGame.normalize(value);
@@ -962,6 +964,8 @@
     function setMessage(text, type = "") {
       message.textContent = text;
       message.className = `message ${type}`.trim();
+      latestFeedback = Object.freeze({ sequence: ++feedbackSequence, message: String(text), kind: type || "info" });
+      return latestFeedback;
     }
 
     function updateScore() {
@@ -1906,13 +1910,8 @@
       createLegend();
       setupVoiceInput();
       try {
-        if (window.COUNTRIES_GEOJSON) {
-          renderMap(window.COUNTRIES_GEOJSON, window.CAPITALS_DATA || []);
-          return;
-        }
-        const response = await fetch("countries.geojson");
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        renderMap(await response.json(), window.CAPITALS_DATA || []);
+        if (!window.COUNTRIES_GEOJSON) throw new Error('The country geometry bundle is unavailable.');
+        renderMap(window.COUNTRIES_GEOJSON, window.CAPITALS_DATA || []);
       } catch (error) {
         loading.classList.add("hidden");
         setMessage("Could not load the embedded country map data. Reload the page or reopen index.html.", "bad");
@@ -1940,6 +1939,23 @@
       feature: id => countryById.get(id)?.feature,
       countryId: name => countryIdByName.get(name),
       aliases: id => [...countryByAlias].filter(([, value]) => value === id).map(([alias]) => alias),
+      submitFreeMapGuess: ({ value, checker = quizMode } = {}) => {
+        if (!['countries', 'capitals'].includes(checker)) throw new Error('That Free Map checker is unavailable.');
+        const raw = String(value || '').trim();
+        if (!normalize(raw)) throw new Error('Enter a country or capital name.');
+        if (quizMode !== checker) setQuizMode(checker);
+        const before = feedbackSequence;
+        if (checker === 'capitals') handleCapitalGuess(raw);
+        else handleCountryGuess(raw);
+        if (feedbackSequence === before || !latestFeedback) throw new Error('The Free Map checker did not return a result.');
+        if (latestFeedback.kind === 'bad') playAnimation(form.closest('section'), 'wrong-answer');
+        return Object.freeze({
+          ...latestFeedback,
+          checker,
+          accepted: latestFeedback.kind === 'good'
+        });
+      },
+      getChecker: () => quizMode,
       getView: () => ({ ...viewBox }), setView: setViewBox, point: mapPoint, project,
       selectRegion: selectContinent,
       setMode: setQuizMode,
@@ -1953,13 +1969,13 @@
   </script>
   <script src="country-borders.js"></script>
   <script src="game-data.js?v=20260908-flags1"></script>
-  <script src="game-map.js?v=20260908-profiles2"></script>
+  <script src="game-map.js?v=20260910-mobile-perf2"></script>
   <script src="flag-component.js?v=20260908-flags1"></script>
   <script src="country-outline.js?v=20260908-flags1"></script>
   <script src="multiplayer-config.js?v=20260909-release1"></script>
   <script src="player-system.js?v=20260909-release1"></script>
-  <script src="game-shell.js?v=20260909-master3"></script>
-  <script src="game-ui.js?v=20260909-release1"></script>
+  <script src="game-shell.js?v=20260910-recovery"></script>
+  <script src="game-ui.js?v=20260910-mobile-perf2"></script>
   <script src="multiplayer-service.js?v=20260909-master2"></script>
   <script src="multiplayer-ui.js?v=20260909-master2"></script>
 </body>

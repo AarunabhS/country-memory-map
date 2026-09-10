@@ -97,41 +97,39 @@ test('mode change during checker preparation cancels the pending country answer'
 test('retained bridge activates Free Map before submitting to its checker', async () => {
   const { activateRetainedFreeMap, submitRetainedFreeMapGuess } = await loadInteractions();
   const order = [];
-  const input = { disabled: true, value: '' };
-  const message = { textContent: '' };
-  const form = { requestSubmit: () => order.push('submit') };
-  const freeMap = { click: () => { order.push('free-map'); input.disabled = false; message.textContent = 'Free map: the original country and capital checkers.'; } };
-  const nodes = new Map([['#freeMap', freeMap], ['#guessInput', input], ['#guessForm', form], ['#message', message]]);
-  const frameDocument = { defaultView: { gameController: {} }, querySelector: selector => nodes.get(selector) || null };
+  let state = { state: 'setup' };
+  const host = {
+    openFreeMap: ({ checker }) => { order.push(`free-map:${checker}`); state = { state: 'free-map', checker }; },
+    getLifecycleState: () => state,
+    submitFreeMapGuess: ({ value, checker }) => { order.push(`submit:${checker}:${value}`); return { message: `Marked ${value}.`, kind: 'good', accepted: true }; },
+  };
+  const frameDocument = { defaultView: { CountryMemoryRetained: host } };
 
-  activateRetainedFreeMap(frameDocument);
-  submitRetainedFreeMapGuess(frameDocument, 'India');
-  assert.deepEqual(order, ['free-map', 'submit']);
-  assert.equal(input.value, 'India');
+  activateRetainedFreeMap(frameDocument, { checker: 'countries' });
+  const result = await submitRetainedFreeMapGuess(frameDocument, 'India', { checker: 'countries' });
+  assert.deepEqual(order, ['free-map:countries', 'submit:countries:India']);
+  assert.deepEqual(result, { message: 'Marked India.', kind: 'good', accepted: true });
 });
 
 test('retained bridge waits until the existing Free Map control is fully wired', async () => {
   const { prepareRetainedFreeMap } = await loadInteractions();
   let attempts = 0;
   let time = 0;
-  const input = { disabled: true };
-  const message = { textContent: 'Choose your game' };
-  const form = { requestSubmit: () => {} };
-  const freeMap = { click: () => {
-    attempts++;
-    input.disabled = false;
-    message.textContent = 'Free map: the original country and capital checkers.';
-  } };
-  const nodes = new Map([['#freeMap', freeMap], ['#guessInput', input], ['#guessForm', form], ['#message', message]]);
-  const frameDocument = { defaultView: {}, querySelector: selector => nodes.get(selector) || null };
+  let state = { state: 'setup' };
+  const frameDocument = { defaultView: {} };
 
   await prepareRetainedFreeMap(frameDocument, {
+    checker: 'countries',
     timeoutMs: 100,
     retryMs: 10,
     now: () => time,
     delay: async milliseconds => {
       time += milliseconds;
-      if (time >= 10) frameDocument.defaultView.gameController = {};
+      if (time >= 10) frameDocument.defaultView.CountryMemoryRetained = {
+        openFreeMap: ({ checker }) => { attempts++; state = { state: 'free-map', checker }; },
+        getLifecycleState: () => state,
+        submitFreeMapGuess: () => ({ message: 'Marked India.' }),
+      };
     },
   });
   assert.equal(attempts, 1);
@@ -160,13 +158,11 @@ test('checker preparation failure clears transient UI and produces no gameplay s
   assert.equal(notifications.at(-1).type, 'error');
 });
 
-test('retained bridge fails before mutating input when checker controls are incomplete', async () => {
+test('retained bridge fails without a complete structured host contract', async () => {
   const { activateRetainedFreeMap, submitRetainedFreeMapGuess } = await loadInteractions();
-  const input = { disabled: false, value: 'unchanged' };
-  const incompleteDocument = { querySelector: selector => selector === '#guessInput' ? input : null };
+  const incompleteDocument = { defaultView: { CountryMemoryRetained: { openFreeMap() {} } } };
   assert.throws(() => activateRetainedFreeMap(incompleteDocument), /Free Map checker is unavailable/);
-  assert.throws(() => submitRetainedFreeMapGuess(incompleteDocument, 'India'), /answer engine is unavailable/);
-  assert.equal(input.value, 'unchanged');
+  await assert.rejects(submitRetainedFreeMapGuess(incompleteDocument, 'India'), /answer engine is unavailable/);
 });
 
 test('typed form submission remains a single keyboard-equivalent checker submission', async () => {

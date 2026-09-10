@@ -56,7 +56,7 @@ window.createGameMap = function (bridge, onPick) {
     hitLayer.replaceChildren();
     if (!clickMode) return;
     const scale = units(), view = bridge.getView();
-    if (view.w > 350) return;
+    const coarsePointer = matchMedia('(pointer: coarse)').matches;
     for (const record of bridge.labelRecords.filter(r => r.mode === 'countries' && r.isCountry)) {
       const recordWidth = record.bounds.maxX - record.bounds.minX;
       const recordHeight = record.bounds.maxY - record.bounds.minY;
@@ -65,12 +65,18 @@ window.createGameMap = function (bridge, onPick) {
       const capital = country?.capital[0];
       const [targetX, targetY] = capital && Number.isFinite(capital.longitude) && Number.isFinite(capital.latitude)
         ? bridge.project([capital.longitude,capital.latitude]) : [record.labelX,record.labelY];
-      if (record.labelX < view.x || record.labelX > view.x + view.w || record.labelY < view.y || record.labelY > view.y + view.h) continue;
+      if (targetX < view.x || targetX > view.x + view.w || targetY < view.y || targetY > view.y + view.h) continue;
       const point = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      const radius = matchMedia('(pointer: coarse)').matches ? 18 : 10;
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      // A 22px radius supplies the 44px mobile target without changing the
+      // country's actual answer geometry. Overlapping targets are resolved by
+      // the closest geographic anchor in the pointer-up handler below.
+      const radius = coarsePointer ? 22 : 18;
       point.setAttribute('cx', targetX); point.setAttribute('cy', targetY); point.setAttribute('r', radius * scale);
-      point.setAttribute('class', 'game-hit-target'); point.dataset.countryId = record.id;
-      hitLayer.append(point);
+      point.setAttribute('class', 'game-hit-target'); point.setAttribute('aria-hidden', 'true'); point.dataset.countryId = record.id;
+      marker.setAttribute('cx', targetX); marker.setAttribute('cy', targetY); marker.setAttribute('r', 4 * scale);
+      marker.setAttribute('class', 'game-hit-marker'); marker.setAttribute('aria-hidden', 'true');
+      hitLayer.append(point, marker);
     }
   }
   function prepare(question, country) {

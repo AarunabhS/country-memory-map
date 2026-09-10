@@ -8,6 +8,20 @@ const ui = fs.readFileSync('game-ui.js', 'utf8');
 const legacy = fs.readFileSync('legacy/index.html', 'utf8');
 const core = fs.readFileSync('game-core.js', 'utf8');
 
+function colorToken(source, name) {
+  return source.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1];
+}
+
+function contrastRatio(foreground, background) {
+  const luminance = (hex) => {
+    const channels = [1, 3, 5].map(index => Number.parseInt(hex.slice(index, index + 2), 16) / 255)
+      .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  };
+  const values = [luminance(foreground), luminance(background)].sort((left, right) => right - left);
+  return (values[0] + 0.05) / (values[1] + 0.05);
+}
+
 test('GameShell is a shallow presentation adapter, not another game store', () => {
   assert.match(shell, /Thin, engine-independent presentation adapter/);
   assert.match(shell, /function render\(\{ root, display = \{\}, callbacks = \{\} \}/);
@@ -23,11 +37,30 @@ test('GameShell is a shallow presentation adapter, not another game store', () =
 });
 
 test('all retained experiences load one shared cinematic shell treatment', () => {
-  assert.match(legacy, /game-shell\.css\?v=20260909-master3/);
-  assert.match(legacy, /game-shell\.js\?v=20260909-master3/);
+  assert.match(legacy, /game-shell\.css\?v=20260910-mobile-perf2/);
+  assert.match(legacy, /game-shell\.js\?v=20260910-recovery/);
   assert.match(shellCss, /--shell-cyan/);
   assert.match(shellCss, /data-game-shell-stage="flag"/);
-  assert.match(shellCss, /prefers-reduced-motion:reduce/);
-  assert.match(shellCss, /max-height:500px/);
-  assert.match(shellCss, /max-width:760px/);
+  assert.match(shellCss, /prefers-reduced-motion: reduce/);
+  assert.match(shellCss, /max-height: 500px/);
+  assert.match(shellCss, /max-width: 760px/);
+  assert.match(shellCss, /forced-colors: active/);
+  assert.match(shellCss, /\.game-shell\.platform button/);
+  assert.match(shellCss, /\.game-shell\.platform \.legend-panel/);
+  assert.match(shellCss, /background: rgba\(247, 252, 255, 0\.97\)/);
+  assert.match(shellCss, /-webkit-text-fill-color: #17384e/);
+  const panel = colorToken(shellCss, '--shell-panel-solid');
+  assert.ok(contrastRatio(colorToken(shellCss, '--shell-ink'), panel) >= 7);
+  assert.ok(contrastRatio(colorToken(shellCss, '--shell-muted'), panel) >= 7);
+  assert.ok(contrastRatio(colorToken(shellCss, '--shell-control-ink'), colorToken(shellCss, '--shell-control-bg')) >= 7);
+});
+
+test('a Home-launched game keeps real setup controls without repeating the five-game chooser', () => {
+  assert.match(ui, /data-hosted-game/);
+  assert.match(ui, /hostedGame \? 'Back to games' : 'Free map'/);
+  assert.match(ui, /family === 'flag' \? variants\[\$\('gameVariant'\)\.value\] : families\[family\]/);
+  assert.match(shellCss, /\.game-shell\[data-hosted-game\] \.game-choices/);
+  assert.match(ui, /gameVariant/);
+  assert.match(ui, /gameDifficulty/);
+  assert.match(ui, /gameQuestionTime/);
 });
