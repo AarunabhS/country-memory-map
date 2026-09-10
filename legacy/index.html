@@ -1428,6 +1428,29 @@
       markCapital(record);
     }
 
+    function countrySummary(id) {
+      const entry = countryById.get(id);
+      if (!entry?.isCountry) return null;
+      const feature = entry.feature;
+      const properties = feature.properties || {};
+      const iso2 = /^[A-Z]{2}$/.test(properties.ISO_A2_EH)
+        ? properties.ISO_A2_EH
+        : (/^[A-Z]{2}$/.test(properties.ISO_A2) ? properties.ISO_A2 : null);
+      const iso3 = properties.ISO_A3_EH !== '-99' ? properties.ISO_A3_EH : properties.ADM0_A3;
+      const capitals = capitalRecords
+        .filter(record => record.countryId === id)
+        .map(record => ({ name: record.name, role: record.role }));
+      return Object.freeze({
+        id,
+        name: displayName(feature),
+        iso2,
+        iso3,
+        continent: countryContinent(feature),
+        subregion: properties.SUBREGION || null,
+        capitals: Object.freeze(capitals)
+      });
+    }
+
     function handleGuess(raw) {
       const handled = window.gameController?.handleText(raw);
       if (handled) return handled;
@@ -1945,15 +1968,19 @@
         const raw = String(value || '').trim();
         if (!normalize(raw)) throw new Error('Enter a country or capital name.');
         if (quizMode !== checker) setQuizMode(checker);
+        const matchedCapital = checker === 'capitals' ? capitalByAlias.get(normalize(raw)) : null;
         const before = feedbackSequence;
         if (checker === 'capitals') handleCapitalGuess(raw);
         else handleCountryGuess(raw);
         if (feedbackSequence === before || !latestFeedback) throw new Error('The Free Map checker did not return a result.');
         if (latestFeedback.kind === 'bad') playAnimation(form.closest('section'), 'wrong-answer');
+        const accepted = latestFeedback.kind === 'good';
+        const selectedCountryId = checker === 'capitals' ? matchedCapital?.countryId : latestAnswerId;
         return Object.freeze({
           ...latestFeedback,
           checker,
-          accepted: latestFeedback.kind === 'good'
+          accepted,
+          country: accepted ? countrySummary(selectedCountryId) : null
         });
       },
       getChecker: () => quizMode,
@@ -1973,11 +2000,11 @@
   <script src="game-map.js?v=20260910-mobile-perf2"></script>
   <script src="flag-component.js?v=20260908-flags1"></script>
   <script src="country-outline.js?v=20260908-flags1"></script>
-  <script src="multiplayer-config.js?v=20260909-release1"></script>
+  <script src="multiplayer-config.js?v=20260911-connect1"></script>
   <script src="player-system.js?v=20260909-release1"></script>
   <script src="game-shell.js?v=20260910-recovery"></script>
   <script src="game-ui.js?v=20260910-ui-fixes1"></script>
-  <script src="multiplayer-service.js?v=20260909-master2"></script>
+  <script src="multiplayer-service.js?v=20260911-connect1"></script>
   <script src="multiplayer-ui.js?v=20260909-master2"></script>
 </body>
 </html>

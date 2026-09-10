@@ -7,6 +7,7 @@
 - The root frontend has no bundler or automated performance measurement.
 - It serves one browser-optimized first-party geometry bundle, a cinematic CSS/JS shell, an adaptively capped local-globe raster renderer, an optional Google Maps 3D network path, a retained iframe application, and self-hosted flag SVGs. The local globe, Google overlays, and retained map reuse that single geometry payload.
 - The 2026-09-10 geometry pass reduced `countries-data.js` from 13,287,262 to 1,792,471 bytes (643,242 bytes with local gzip) and removed the duplicate 13,287,234-byte `countries.geojson`. These are file-size measurements, not network or Core Web Vitals measurements.
+- Explore country facts add an 11,164-byte uncompressed generated population lookup covering 194 of 195 playable countries. It loads with the root module graph and avoids any selection-time third-party request; this is a file-size measurement, not a compressed-transfer or interaction measurement.
 - The multiplayer Worker has an existing esbuild production build.
 
 No production Core Web Vitals, transfer-size, memory, or long-task baseline was captured by governance v1. Do not label estimates as measurements.

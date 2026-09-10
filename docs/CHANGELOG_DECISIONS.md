@@ -2,6 +2,15 @@
 
 This file records actual governance decisions and identifies candidates that still need a decision. It is not a substitute for ADRs.
 
+## 2026-09-11 — Explore country selection and facts
+
+Status: accepted in [ADR 0003](architecture/0003-explore-country-selection-and-facts.md); local implementation **AUTOMATED VERIFIED**; production/device verification remains **MANUAL VERIFICATION REQUIRED**.
+
+- Made accepted typed, spoken, and clicked Explore answers converge on one resolved country ID, visible renderer highlight, camera focus, and compact fact card.
+- Kept recognition in the retained Free Map checker and extended its result additively with country metadata; game rules, scoring, persistence, routes, and multiplayer remain unchanged.
+- Added a local World Bank `SP.POP.TOTL` snapshot for 194 playable countries with per-record observation years and a truthful unavailable state for Vatican City. Selection adds no runtime third-party request.
+- Kept the card inside the root Explore globe stage, with responsive and dismissible presentation; scored-game and multiplayer routes do not consume it.
+
 ## 2026-09-10 — Mobile reliability and geometry delivery
 
 Status: local implementation **AUTOMATED VERIFIED** and partially **MANUALLY VERIFIED WITH EVIDENCE**; production-origin and physical-device verification remain **MANUAL VERIFICATION REQUIRED**.

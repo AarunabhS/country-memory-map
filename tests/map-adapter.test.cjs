@@ -43,6 +43,35 @@ test('local globe caps raster and animation work more aggressively on constraine
   assert.deepEqual(getLocalRenderProfile({ saveData: true }), { renderLimit: 300, frameInterval: 66 });
 });
 
+test('both globe renderers focus the same resolved country geometry id', async () => {
+  const { Google3DAdapter, LocalGlobeAdapter } = await loadAdapterModule();
+  const id = 'IND-1';
+  const feature = { properties: { LABEL_X: 78.9, LABEL_Y: 22.5, LABELRANK: 2, TINY: -99 } };
+
+  const local = new LocalGlobeAdapter();
+  let localLookupSize = null;
+  let localRenders = 0;
+  local.container = { width: 300 };
+  local.countries.set(id, { feature });
+  local.buildLookup = size => { localLookupSize = size; };
+  local.render = () => { localRenders++; };
+  assert.equal(local.focusCountry(id), true);
+  assert.equal(localLookupSize, 300);
+  assert.equal(localRenders, 1);
+  assert.ok(Math.abs(local.rotation - (78.9 * Math.PI / 180)) < 0.000001);
+  assert.ok(Math.abs(local.latitude - (22.5 * Math.PI / 180)) < 0.000001);
+  assert.equal(local.zoom, 1.04);
+
+  const google = new Google3DAdapter();
+  google.map = {};
+  google.viewportRangeFactor = 1.5;
+  google.countryOverlays.set(id, { country: { feature } });
+  assert.equal(google.focusCountry(id), true);
+  assert.deepEqual(google.map.center, { lat: 22.5, lng: 78.9, altitude: 0 });
+  assert.equal(google.map.range, 4400000 * 1.5);
+  assert.equal(google.map.tilt, 24);
+});
+
 test('one polygon gmp-click emits one renderer-neutral country payload without fan-out', async () => {
   const { Google3DAdapter } = await loadAdapterModule();
   const payloads = [];

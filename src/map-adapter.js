@@ -539,6 +539,21 @@ export class LocalGlobeAdapter extends MapAdapter {
     this.onStatus({ type: "reset", renderer: this.kind });
   }
 
+  focusCountry(id) {
+    const record = this.countries.get(id);
+    const properties = record?.feature?.properties || {};
+    const longitude = Number(properties.LABEL_X);
+    const latitude = Number(properties.LABEL_Y);
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return false;
+    this.rotation = longitude * Math.PI / 180;
+    this.latitude = Math.max(-1.2, Math.min(1.2, latitude * Math.PI / 180));
+    this.zoom = 1.04;
+    this.buildLookup(this.container.width);
+    this.render();
+    this.onStatus({ type: "focus-country", renderer: this.kind, id });
+    return true;
+  }
+
   setInteractionEnabled(enabled) {
     this.interactionEnabled = Boolean(enabled);
     if (this.container) {
@@ -772,6 +787,21 @@ export class Google3DAdapter extends MapAdapter {
     this.map.range = this.defaultCamera.range * this.viewportRangeFactor;
     this.map.heading = this.defaultCamera.heading;
     this.map.tilt = this.defaultCamera.tilt;
+  }
+
+  focusCountry(id) {
+    const record = this.countryOverlays.get(id);
+    const properties = record?.country?.feature?.properties || {};
+    const longitude = Number(properties.LABEL_X);
+    const latitude = Number(properties.LABEL_Y);
+    if (!this.map || !Number.isFinite(longitude) || !Number.isFinite(latitude)) return false;
+    const isSmall = Number(properties.TINY) > 0 || Number(properties.LABELRANK) >= 5;
+    this.map.center = { lat: latitude, lng: longitude, altitude: 0 };
+    this.map.range = (isSmall ? 1400000 : 4400000) * this.viewportRangeFactor;
+    this.map.heading = 0;
+    this.map.tilt = 24;
+    this.onStatus({ type: "focus-country", renderer: this.kind, id });
+    return true;
   }
 
   zoomIn() {

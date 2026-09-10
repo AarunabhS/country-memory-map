@@ -560,6 +560,134 @@ a:focus-visible {
   pointer-events: none;
 }
 
+.country-fact-card {
+  position: absolute;
+  z-index: 11;
+  top: 18px;
+  right: 18px;
+  width: min(310px, calc(100% - 36px));
+  padding: 15px;
+  border-radius: 18px;
+  color: var(--text);
+}
+
+.country-fact-close {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted-strong);
+  cursor: pointer;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.country-fact-close:hover {
+  border-color: var(--line);
+  background: rgba(125, 220, 255, 0.1);
+  color: #ffffff;
+}
+
+.country-fact-heading {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding-right: 38px;
+}
+
+.country-fact-flag {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 1.45rem;
+}
+
+.country-fact-kicker,
+.country-fact-heading h2,
+.country-fact-heading p,
+.country-fact-source {
+  margin: 0;
+}
+
+.country-fact-kicker {
+  color: var(--cyan);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.country-fact-heading h2 {
+  overflow: hidden;
+  margin-top: 2px;
+  color: #ffffff;
+  font-size: 1.25rem;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-fact-heading p:last-child {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin: 13px 0 0;
+}
+
+.country-fact-grid > div {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(162, 205, 238, 0.16);
+  border-radius: 11px;
+  background: rgba(1, 13, 28, 0.38);
+}
+
+.country-fact-grid dt {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.country-fact-grid dd {
+  overflow: hidden;
+  margin: 3px 0 0;
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 750;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-fact-source {
+  margin-top: 9px;
+  color: #aebfd1;
+  font-size: 0.68rem;
+  line-height: 1.3;
+}
+
 .planet-hud {
   position: absolute;
   z-index: 8;
@@ -845,7 +973,10 @@ a:focus-visible {
 }
 
 #app-shell[data-surface="retained"] .topbar,
-#app-shell[data-surface="retained"] .game-launcher,
+#app-shell[data-surface="retained"] .game-launcher {
+  display: none;
+}
+
 #app-shell[data-surface="retained"] .globe-stage {
   visibility: hidden;
   pointer-events: none;
@@ -943,6 +1074,56 @@ a:focus-visible {
 
   .attribution-safe-zone {
     display: none;
+  }
+
+  .country-fact-card {
+    top: 8px;
+    right: calc(8px + var(--safe-right));
+    left: calc(8px + var(--safe-left));
+    width: auto;
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .country-fact-heading {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 8px;
+    padding-right: 42px;
+  }
+
+  .country-fact-flag {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    font-size: 1.25rem;
+  }
+
+  .country-fact-heading h2 {
+    font-size: 1rem;
+  }
+
+  .country-fact-kicker,
+  .country-fact-grid dt,
+  .country-fact-source {
+    font-size: 0.62rem;
+  }
+
+  .country-fact-grid {
+    gap: 5px;
+    margin-top: 8px;
+  }
+
+  .country-fact-grid > div {
+    padding: 6px 7px;
+    border-radius: 9px;
+  }
+
+  .country-fact-grid dd {
+    font-size: 0.78rem;
+  }
+
+  .country-fact-source {
+    margin-top: 6px;
   }
 
   .planet-hud {
@@ -1234,6 +1415,46 @@ a:focus-visible {
     max-height: none;
   }
 
+  .country-fact-card {
+    top: 8px;
+    right: 8px;
+    width: min(250px, calc(100% - 16px));
+    padding: 9px;
+    border-radius: 13px;
+  }
+
+  .country-fact-heading {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .country-fact-flag {
+    width: 34px;
+    height: 34px;
+    font-size: 1.15rem;
+  }
+
+  .country-fact-heading h2 {
+    font-size: 0.96rem;
+  }
+
+  .country-fact-grid {
+    gap: 4px;
+    margin-top: 7px;
+  }
+
+  .country-fact-grid > div {
+    padding: 5px 6px;
+  }
+
+  .country-fact-grid dd {
+    font-size: 0.74rem;
+  }
+
+  .country-fact-source {
+    display: none;
+  }
+
   .planet-hud {
     bottom: 100px;
     left: 50%;
@@ -1297,6 +1518,7 @@ a:focus-visible {
   }
 
   .glass-panel,
+  .country-fact-card,
   .explore-panel,
   .game-card,
   .answer-dock,

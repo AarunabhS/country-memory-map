@@ -39,6 +39,8 @@ test('the retained app stays a hidden singleton engine bridge and scored-game su
   assert.match(html, /src="\.\/legacy\/index\.html(?:\?[^"]+)?"/);
   assert.match(legacy, /<base href="\.\.\/">/);
   assert.match(css, /#app-shell\[data-surface="retained"\] \.legacy-map-frame/);
+  assert.match(css, /#app-shell\[data-surface="retained"\] \.topbar,[\s\S]*?\.game-launcher \{\s*display: none;/);
+  assert.match(css, /#app-shell\[data-surface="retained"\] \.globe-stage \{\s*visibility: hidden;/);
   assert.match(main, /prepareRetainedBridge/);
   assert.match(main, /Some browsers restore a cached iframe/);
   assert.doesNotMatch(main, /new MutationObserver/);
@@ -47,10 +49,15 @@ test('the retained app stays a hidden singleton engine bridge and scored-game su
 
 test('Explore uses a structured retained answer contract without fixed-delay DOM scraping', () => {
   assert.match(legacy, /submitFreeMapGuess/);
+  assert.match(legacy, /country: accepted \? countrySummary\(selectedCountryId\) : null/);
   assert.match(main, /await submitRetainedFreeMapGuess/);
+  assert.match(main, /result\.accepted && result\.country/);
+  assert.match(main, /selectExploreCountry\(result\.country\)/);
   assert.doesNotMatch(main, /setTimeout\(resolve, 100\)/);
   assert.doesNotMatch(main, /querySelector\("#message"\)/);
   assert.match(html, /id="voice-button"/);
+  assert.match(html, /<aside[^>]+id="country-fact-card"[^>]+aria-live="polite"/);
+  assert.match(adapter, /focusCountry\(id\)/);
 });
 
 test('an active solo run uses an in-app navigation confirmation instead of being torn down on popstate', () => {
@@ -101,6 +108,7 @@ test('responsive layout keeps the full launcher visible and maintains touch targ
   assert.match(css, /\.live-globe:not\(\[hidden\]\)/);
   assert.match(css, /bottom: calc\(222px \+ var\(--safe-bottom\)\)/);
   assert.match(css, /bottom: calc\(250px \+ var\(--safe-bottom\)\)/);
+  assert.match(css, /\.country-fact-card \{[\s\S]*?right: calc\(8px \+ var\(--safe-right\)\)/);
   assert.match(css, /@media \(max-height: 500px\) and \(min-width: 600px\)/);
 });
 

@@ -35,6 +35,6 @@ Use Node 22.13 or newer for the local SQLite adapter. Open http://127.0.0.1:8000
 
 The backend is configured by `.openai/hosting.json`. Package `dist/server/index.js`, hosting configuration and the generated Drizzle migration files with the Sites packaging helper. Source must be pushed to the Sites source repository before saving/deploying its version.
 
-The production frontend remains on GitHub Pages. `multiplayer-config.js` selects the local service on localhost and the Sites service elsewhere. The service must allow guest access before publishing the frontend integration. Its hosting audience is currently owner-private pending explicit approval for an unauthenticated network endpoint. Rooms themselves continue to require a code and player token; guest accessibility does not add room discovery.
+The production frontend remains on GitHub Pages. On localhost, `multiplayer-config.js` prefers the local service when its health route is reachable and otherwise uses the existing Sites service before sending a room-creation request; deployed frontends use the Sites service directly. Active sessions remember their validated service origin so polls and actions stay with the database that owns the room. The service must allow guest access before publishing the frontend integration. Rooms themselves continue to require a code and player token; guest accessibility does not add room discovery.
 
 Apply future schema changes using Drizzle migrations, not request-time schema creation. Do not rewrite an already deployed migration.

@@ -1,6 +1,7 @@
 import { config } from "./config.js";
+import { buildCountryFacts } from "./country-facts.js?v=20260911-explore1";
 import { loadCountryGeometry } from "./country-geometry.js?v=20260910-mobile-perf2";
-import { createMapAdapter } from "./map-adapter.js?v=20260910-mobile-perf2";
+import { createMapAdapter } from "./map-adapter.js?v=20260911-explore1";
 import { createRendererRecovery, getRendererPresentation, RENDERER_RECOVERY_STATES } from "./renderer-recovery.js";
 import { GAME_ROUTES, buildGameUrl, parseGameRoute, sameGameRoute } from "./game-routes.js";
 import { createGameLifecycle, GAME_LIFECYCLE_STATES, shouldConfirmSessionExit } from "./game-lifecycle.js?v=20260910-mobile-perf2";
@@ -29,6 +30,16 @@ const dom = {
   answerButton: $("#answer-form .answer-button"),
   voiceButton: $("#voice-button"),
   countryInput: $("#country-input"),
+  factCard: $("#country-fact-card"),
+  factClose: $("#country-fact-close"),
+  factFlag: $("#country-fact-flag"),
+  factName: $("#country-fact-name"),
+  factRegion: $("#country-fact-region"),
+  factPopulation: $("#country-fact-population"),
+  factCapital: $("#country-fact-capital"),
+  factContinent: $("#country-fact-continent"),
+  factCode: $("#country-fact-code"),
+  factSource: $("#country-fact-source"),
   appStatus: $("#app-status"),
   toast: $("#toast"),
   launcherTitle: $("#launcher-title"),
@@ -48,6 +59,7 @@ const state = {
   answerPending: false,
   voiceSupported: false,
   voiceListening: false,
+  exploreCountry: null,
   pendingHistoryRoute: null,
 };
 
@@ -171,7 +183,44 @@ async function proxyGuessToLegacy(value) {
   const frameDocument = await prepareRetainedBridge(checker);
   const result = await submitRetainedFreeMapGuess(frameDocument, value, { checker });
   showToast(result.message);
+  if (result.accepted && result.country) selectExploreCountry(result.country);
   return result;
+}
+
+function applyExploreCountryToAdapter(adapter, { focus = false } = {}) {
+  if (!adapter || !state.exploreCountry?.id) return false;
+  adapter.clearAllCountryStates?.();
+  const selected = adapter.setCountryState?.(state.exploreCountry.id, "selected") === true;
+  if (selected && focus) adapter.focusCountry?.(state.exploreCountry.id);
+  return selected;
+}
+
+function renderCountryFacts(country) {
+  const facts = buildCountryFacts(country);
+  dom.factFlag.textContent = facts.flag;
+  dom.factName.textContent = facts.name;
+  dom.factRegion.textContent = facts.regionLabel;
+  dom.factPopulation.textContent = facts.populationLabel;
+  dom.factPopulation.title = facts.populationExact ? `${facts.populationExact} people` : "Population not available";
+  dom.factCapital.textContent = facts.capitalLabel;
+  dom.factContinent.textContent = facts.continentLabel;
+  dom.factCode.textContent = facts.codeLabel;
+  dom.factSource.textContent = facts.populationYear
+    ? `Population source: ${facts.populationSource}, ${facts.populationYear} (latest available).`
+    : `Population source: ${facts.populationSource}; no value is available for this country.`;
+  dom.factCard.dataset.countryId = facts.id || "";
+  dom.factCard.hidden = false;
+  dom.factCard.setAttribute("aria-hidden", "false");
+}
+
+function selectExploreCountry(country) {
+  if (!country?.id) return false;
+  state.exploreCountry = country;
+  const adapters = new Set([localGlobeAdapter, googleGlobeAdapter].filter(Boolean));
+  adapters.forEach((adapter) => applyExploreCountryToAdapter(adapter, { focus: adapter === mapAdapter }));
+  renderCountryFacts(country);
+  announce(`${country.name} highlighted. Country facts are displayed.`);
+  return true;
 }
 
 function rootRendererInteractive() {
@@ -253,6 +302,8 @@ function setSurface(surface) {
   dom.legacyFrame.tabIndex = retained ? 0 : -1;
   dom.answerForm.inert = retained;
   dom.answerForm.setAttribute("aria-hidden", String(retained));
+  dom.factCard.inert = retained;
+  dom.factCard.setAttribute("aria-hidden", String(retained || dom.factCard.hidden));
 
   if (retained) {
     if (state.voiceListening) speechRecognition?.abort?.();
@@ -352,6 +403,7 @@ function activateLocalGlobe(reason = "local") {
     localGlobeAdapter?.setInteractionEnabled(false);
   }
   setRendererCopy({ warning: !state.localGeometryReady });
+  applyExploreCountryToAdapter(localGlobeAdapter, { focus: true });
   if (reason === "geometry-failure") {
     announce("Google 3D is unavailable. The local globe is active; typed Explore remains available.");
   } else if (reason === "renderer-failure" || reason === "timeout") {
@@ -523,6 +575,9 @@ async function initializeRenderers() {
     .then((data) => localGlobeAdapter.setCountryGeometry(data))
     .then((result) => {
       state.localGeometryReady = Boolean(result?.count);
+      if (state.localGeometryReady) {
+        applyExploreCountryToAdapter(localGlobeAdapter, { focus: mapAdapter === localGlobeAdapter });
+      }
       if (!rendererRecovery?.is3dActive()) setRendererCopy({ warning: !state.localGeometryReady });
       return result;
     })
@@ -553,6 +608,7 @@ async function initializeRenderers() {
     const data = await geometryPromise;
     const result = await googleGlobeAdapter.setCountryGeometry(data);
     if (!result?.count) throw new Error("Google 3D country boundaries are unavailable.");
+    applyExploreCountryToAdapter(googleGlobeAdapter);
     if (!rendererRecovery.activate3d()) {
       googleGlobeAdapter.destroy();
       await localGeometryPromise;
@@ -560,6 +616,7 @@ async function initializeRenderers() {
       return localGlobeAdapter;
     }
     mapAdapter = googleGlobeAdapter;
+    applyExploreCountryToAdapter(googleGlobeAdapter, { focus: true });
     localGlobeAdapter.setInteractionEnabled(false);
     if (state.currentRoute?.kind !== "solo" && state.currentRoute?.kind !== "multiplayer") setSurface("root");
     setRendererCopy({ live: true });
@@ -587,6 +644,12 @@ function wireInteractions() {
   });
 
   dom.homeButton.addEventListener("click", () => navigateToRoute(null, { reason: "home" }));
+
+  dom.factClose.addEventListener("click", () => {
+    dom.factCard.hidden = true;
+    dom.factCard.setAttribute("aria-hidden", "true");
+    announce("Country facts closed. The selected country remains highlighted.");
+  });
 
   dom.answerForm.addEventListener("submit", createTypedAnswerHandler({
     getValue: () => dom.countryInput.value,
