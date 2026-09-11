@@ -101,3 +101,12 @@ test('setup multiplayer CTA and geography answer fields resist browser color and
   assert.match(legacy, /hasAttribute\("data-free-map-active"\)/);
   assert.match(ui, /allowDesktopAutofocus: false/);
 });
+
+test('voice and multiplayer answers stay single-flight and preserve engine-owned duplicate feedback', () => {
+  assert.match(ui, /let remote = null,[^;]*remoteSubmission = null/);
+  assert.match(ui, /if\(remoteSubmission\)\{textFeedback\(`Still checking/);
+  assert.match(ui, /candidates=engine\.pool\.flatMap/);
+  assert.doesNotMatch(ui, /engine\.pool\.filter\(c=>!engine\.state\.completedCountries\.has/);
+  assert.match(legacy, /CountryMemoryVoice/);
+  assert.match(rootMain, /CountryMemoryVoice/);
+});

@@ -18,7 +18,7 @@ body:has(.platform) { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .platform-header h1 { font-size:22px; font-weight:800; letter-spacing:-.6px; line-height:1.15; }
 .platform button, .platform select, #resultsDialog button { min-height:44px; font-size:14px; border-radius:10px; }
 .platform button { background:#fff; box-shadow:none; }
-.platform .voice-button.listening { color:#fff;background:#c9343f;border-color:#9e202b;box-shadow:0 0 0 4px #d84b5530;animation:mic-live 900ms ease-in-out infinite alternate; }
+.platform .voice-button.starting, .platform .voice-button.listening { color:#fff;background:#c9343f;border-color:#9e202b;box-shadow:0 0 0 4px #d84b5530;animation:mic-live 900ms ease-in-out infinite alternate; }
 .platform .message.listening { color:#a51f2c; }
 @keyframes mic-live { from{box-shadow:0 0 0 3px #d84b5525} to{box-shadow:0 0 0 7px #d84b5548} }
 .platform button:hover { border-color:#4a8375; }
@@ -203,7 +203,7 @@ body:has(.platform) { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .platform.choosing .setup-panel {position:relative;inset:auto;grid-row:2;align-self:stretch;justify-self:center;width:min(520px,100%);height:100%;max-height:none;padding:14px;overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;}
 }
 @media (prefers-reduced-motion:reduce) {
-  .game-good,.game-bad,.game-pending,.game-feedback-ping,.score-pop,.counter-pulse,.streak-pulse,.milestone-pop {animation:none !important;}
+  .game-good,.game-bad,.game-pending,.game-feedback-ping,.score-pop,.counter-pulse,.streak-pulse,.milestone-pop,.voice-button.starting,.voice-button.listening {animation:none !important;}
   .game-bad {fill:#ec6669 !important;}
   .game-good {fill:#9ce8bf !important;stroke:#176d53 !important;filter:none !important;}
 }

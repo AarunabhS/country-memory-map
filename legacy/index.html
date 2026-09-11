@@ -618,6 +618,7 @@
   <script src="game-core.js?v=20260908-flags1"></script>
   <script src="countries-data.js?v=20260910-mobile-perf2"></script>
   <script src="capitals-data.js"></script>
+  <script src="voice-input.js?v=20260911-voice1"></script>
   <script>
     const svg = document.getElementById("map");
     const grid = document.getElementById("grid");
@@ -1470,60 +1471,59 @@
 
     function setupVoiceInput() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
+      const VoiceInputController = window.CountryMemoryVoice?.VoiceInputController;
+      if (!SpeechRecognition || !VoiceInputController) {
         voiceButton.setAttribute("aria-label", "Voice input unavailable; tap for help");
         voiceButton.title = "Voice input is not supported in this browser.";
         return;
       }
 
-      recognition = new SpeechRecognition();
-      recognition.lang = "en-US";
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 5;
-
-      recognition.addEventListener("start", () => {
-        isListening = true;
-        voiceButton.classList.add("listening");
-        voiceButton.setAttribute("aria-pressed", "true");
-        voiceButton.textContent = "● Listening";
-        setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`);
-      });
-
-      recognition.addEventListener("end", () => {
-        isListening = false;
-        voiceButton.classList.remove("listening");
-        voiceButton.setAttribute("aria-pressed", "false");
-        voiceButton.textContent = "Speak";
-      });
-
-      recognition.addEventListener("error", event => {
-        const reason = event.error === "not-allowed"
-          ? "Microphone permission was blocked."
-          : `Voice input did not work. Try again or type the ${quizMode === "capitals" ? "capital" : "country"}.`;
-        setMessage(reason, "bad");
-      });
-
-      recognition.addEventListener("result", event => {
-        const result = event.results[event.results.length - 1];
-        const alternatives = [...result].map(item => item.transcript.trim()).filter(Boolean);
-        const heard = alternatives[0] || "";
-        input.value = heard;
-        if (!result.isFinal) {
+      voiceButton.setAttribute("aria-busy", "false");
+      voiceButton.setAttribute("aria-pressed", "false");
+      recognition = new VoiceInputController({
+        Recognition: SpeechRecognition,
+        onState: ({ state, reason }) => {
+          isListening = state !== "idle";
+          voiceButton.classList.toggle("starting", state === "starting");
+          voiceButton.classList.toggle("listening", state === "listening");
+          voiceButton.setAttribute("aria-busy", String(state === "starting"));
+          voiceButton.setAttribute("aria-pressed", String(state === "listening"));
+          voiceButton.setAttribute("aria-label", state === "starting" ? "Cancel microphone start" : state === "listening" ? "Stop listening" : quizMode === "capitals" ? "Say capital name" : "Say country name");
+          voiceButton.textContent = state === "starting" ? "Starting…" : state === "listening" ? "● Listening" : "Speak";
+          if (state === "starting") setMessage("Starting microphone…", "listening");
+          if (state === "listening") setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
+          if (state === "idle" && reason === "cancelled") setMessage("Microphone cancelled. Press Speak to try again or type your answer.");
+        },
+        onPreview: (heard) => {
+          input.value = heard;
           const handled = window.gameController?.previewVoice?.(heard);
-          if (!handled) setMessage(`Hearing: “${heard}”…`);
-          return;
+          if (!handled) setMessage(`Hearing: “${heard}”…`, "listening");
+        },
+        onFinal: alternatives => {
+          const heard = alternatives[0] || "";
+          input.value = heard;
+          const gameHandled = window.gameController?.handleVoice?.(alternatives);
+          if (gameHandled) return;
+          const transcript = quizMode === "capitals"
+            ? alternatives.find(value => capitalByAlias.has(normalize(value))) || alternatives[0] || ""
+            : alternatives.find(value => countryAnswerValidator?.resolve(value)) || alternatives[0] || "";
+          input.value = transcript;
+          if (transcript) {
+            handleGuess(transcript);
+            input.value = "";
+          }
+          focusInput();
+        },
+        onError: ({ code }) => {
+          const reason = code === "not-allowed" || code === "service-not-allowed"
+            ? "Microphone permission was blocked. Allow it in browser settings or type your answer."
+            : code === "no-speech"
+              ? "No speech was heard. Try again, move closer to the microphone, or type your answer."
+              : code === "start-timeout"
+                ? "The microphone did not start. Check browser permission, then try again or type your answer."
+                : `Voice input did not work. Try again or type the ${quizMode === "capitals" ? "capital" : "country"}.`;
+          setMessage(reason, "bad");
         }
-        const gameHandled = window.gameController?.handleVoice?.(alternatives);
-        if (gameHandled) return;
-        const transcript = quizMode === "capitals"
-          ? alternatives.find(value => capitalByAlias.has(normalize(value))) || alternatives[0] || ""
-          : alternatives.find(value => countryAnswerValidator?.resolve(value)) || alternatives[0] || "";
-        input.value = transcript;
-        if (transcript) {
-          handleGuess(transcript);
-          input.value = "";
-        }
-        focusInput();
       });
     }
 
@@ -1536,15 +1536,11 @@
         setMessage("This browser does not support voice input. Use your keyboard’s microphone or type an answer.", "bad");
         return;
       }
-      if (isListening) {
-        recognition.stop();
+      if (recognition.active) {
+        recognition.abort();
         return;
       }
-      try {
-        recognition.start();
-      } catch (error) {
-        setMessage("Voice input is already starting. Try again in a moment.", "bad");
-      }
+      recognition.start();
     }
 
     function createLegend() {
@@ -1988,7 +1984,7 @@
     window.GameMap = {
       svg, countryRecords, regionRecords, labelRecords, capitalRecords,
       countries: countryRecords, capitals: capitalRecords, gameActive: false, gameRegion: "World",
-      stopVoice: () => { if (isListening) recognition?.abort(); },
+      stopVoice: () => recognition?.abort(),
       feature: id => countryById.get(id)?.feature,
       countryId: name => countryIdByName.get(name),
       aliases: id => [...countryByAlias].filter(([, value]) => value === id).map(([alias]) => alias),
@@ -2034,8 +2030,8 @@
   <script src="game-shell.js?v=20260910-recovery"></script>
   <script src="quiz-data.js?v=20260911-quiz1"></script>
   <script src="quiz-game.js?v=20260911-quiz1"></script>
-  <script src="game-ui.js?v=20260911-nine-player2"></script>
-  <script src="multiplayer-service.js?v=20260911-connect1"></script>
-  <script src="multiplayer-ui.js?v=20260911-nine-player4"></script>
+  <script src="game-ui.js?v=20260911-voice1"></script>
+  <script src="multiplayer-service.js?v=20260911-voice1"></script>
+  <script src="multiplayer-ui.js?v=20260911-voice1"></script>
 </body>
 </html>

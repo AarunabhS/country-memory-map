@@ -360,58 +360,63 @@ function setSurface(surface) {
 
 function setupVoiceInput() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  state.voiceSupported = Boolean(SpeechRecognition);
-  if (!SpeechRecognition) {
+  const VoiceInputController = window.CountryMemoryVoice?.VoiceInputController;
+  state.voiceSupported = Boolean(SpeechRecognition && VoiceInputController);
+  if (!state.voiceSupported) {
     dom.voiceButton.title = "Voice input is not supported in this browser. You can still type an answer.";
     dom.voiceButton.setAttribute("aria-label", "Voice input unavailable; type an answer instead");
     return;
   }
 
-  speechRecognition = new SpeechRecognition();
-  speechRecognition.lang = "en-US";
-  speechRecognition.interimResults = true;
-  speechRecognition.maxAlternatives = 5;
-  speechRecognition.addEventListener("start", () => {
-    state.voiceListening = true;
-    dom.voiceButton.classList.add("is-listening");
-    dom.voiceButton.setAttribute("aria-pressed", "true");
-    dom.voiceButton.title = "Stop listening";
-    announce(`Microphone on. Say one ${state.mode === "Capitals" ? "capital" : "country"} name.`);
-  });
-  speechRecognition.addEventListener("end", () => {
-    state.voiceListening = false;
-    dom.voiceButton.classList.remove("is-listening");
-    dom.voiceButton.setAttribute("aria-pressed", "false");
-    dom.voiceButton.title = `Speak a ${state.mode === "Capitals" ? "capital" : "country"} name`;
-    syncAnswerControls();
-  });
-  speechRecognition.addEventListener("error", (event) => {
-    const message = event.error === "not-allowed" || event.error === "service-not-allowed"
-      ? "Microphone permission was blocked. Type your answer or allow microphone access and try again."
-      : `Voice input did not work. Type the ${state.mode === "Capitals" ? "capital" : "country"} or try again.`;
-    showToast(message);
-  });
-  speechRecognition.addEventListener("result", (event) => {
-    const result = event.results[event.results.length - 1];
-    const transcript = [...result].map((item) => item.transcript.trim()).find(Boolean) || "";
-    dom.countryInput.value = transcript;
-    if (!result.isFinal || !transcript || !answerControlsCanRun()) {
-      if (!result.isFinal && transcript) announce(`Hearing: ${transcript}.`);
-      return;
+  speechRecognition = new VoiceInputController({
+    Recognition: SpeechRecognition,
+    onState: ({ state: voiceState, reason }) => {
+      const answerKind = state.mode === "Capitals" ? "capital" : "country";
+      state.voiceListening = voiceState !== "idle";
+      dom.voiceButton.classList.toggle("is-starting", voiceState === "starting");
+      dom.voiceButton.classList.toggle("is-listening", voiceState === "listening");
+      dom.voiceButton.setAttribute("aria-busy", String(voiceState === "starting"));
+      dom.voiceButton.setAttribute("aria-pressed", String(voiceState === "listening"));
+      if (voiceState === "starting") {
+        dom.voiceButton.setAttribute("aria-label", "Cancel microphone start");
+        dom.voiceButton.title = "Cancel microphone start";
+        announce("Starting microphone…");
+      } else if (voiceState === "listening") {
+        dom.voiceButton.setAttribute("aria-label", "Stop listening");
+        dom.voiceButton.title = "Stop listening";
+        announce(`Microphone on. Say one ${answerKind} name.`);
+      } else {
+        dom.voiceButton.setAttribute("aria-label", `Speak a ${answerKind} name`);
+        dom.voiceButton.title = `Speak a ${answerKind} name`;
+        if (reason === "cancelled") announce("Microphone cancelled. Press Speak to try again or type your answer.");
+        syncAnswerControls();
+      }
+    },
+    onPreview: transcript => {
+      dom.countryInput.value = transcript;
+      announce(`Hearing: ${transcript}.`);
+    },
+    onFinal: alternatives => {
+      const transcript = alternatives[0] || "";
+      dom.countryInput.value = transcript;
+      if (transcript && answerControlsCanRun()) dom.answerForm.requestSubmit();
+    },
+    onError: ({ code }) => {
+      const permissionBlocked = code === "not-allowed" || code === "service-not-allowed";
+      const message = permissionBlocked
+        ? "Microphone permission was blocked. Type your answer or allow microphone access and try again."
+        : code === "no-speech"
+          ? "No speech was heard. Try again, move closer to the microphone, or type your answer."
+          : code === "start-timeout"
+            ? "The microphone did not start. Check browser permission, then try again or type your answer."
+            : `Voice input did not work. Type the ${state.mode === "Capitals" ? "capital" : "country"} or try again.`;
+      showToast(message);
     }
-    dom.answerForm.requestSubmit();
   });
 
   dom.voiceButton.addEventListener("click", () => {
-    if (state.voiceListening) {
-      speechRecognition.stop();
-      return;
-    }
-    try {
-      speechRecognition.start();
-    } catch {
-      showToast("Voice input is already starting. Try again in a moment.");
-    }
+    if (speechRecognition.active) speechRecognition.abort();
+    else speechRecognition.start();
   });
 }
 

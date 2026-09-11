@@ -137,3 +137,53 @@ test('initial connection failure is not announced as a room reconnect', async ()
   assert.deepEqual(calls.map(call => call.url), [`${localApi}/health`, `${hostedApi}/health`]);
   assert.equal(statuses.at(-1), 'PLAY WITH FRIENDS UNAVAILABLE · Check your connection.');
 });
+
+test('a lost answer response reconciles an authoritative server commit instead of reporting failure', async () => {
+  const calls = [];
+  const session = { code: 'GEOABC123', token: 'token', api: hostedApi };
+  const { service, states, statuses } = serviceHarness({
+    session,
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url, method: options.method || 'GET' });
+      if ((options.method || 'GET') === 'POST') throw new TypeError('response lost after commit');
+      return response({
+        code: session.code,
+        revision: 8,
+        match: { id: 'match-1' },
+        nextSeq: 2,
+        game: { gameStatus: 'playing' },
+        serverNow: 1000
+      });
+    }
+  });
+
+  const room = await service.action('answer', { matchId: 'match-1', seq: 1, kind: 'text', value: 'India' });
+  service.suspend();
+
+  assert.equal(room.nextSeq, 2);
+  assert.equal(states.at(-1).revision, 8);
+  assert.equal(statuses.at(-1), '');
+  assert.deepEqual(calls.map(call => call.method), ['POST', 'POST', 'GET']);
+});
+
+test('an uncommitted answer still reports failure after retry and reconciliation poll', async () => {
+  const session = { code: 'GEOABC123', token: 'token', api: hostedApi };
+  let postCalls = 0;
+  const { service } = serviceHarness({
+    session,
+    fetchImpl: async (_url, options = {}) => {
+      if ((options.method || 'GET') === 'POST') {
+        postCalls++;
+        throw new TypeError('offline');
+      }
+      return response({ code: session.code, revision: 2, match: { id: 'match-1' }, nextSeq: 1, serverNow: 1000 });
+    }
+  });
+
+  await assert.rejects(
+    service.action('answer', { matchId: 'match-1', seq: 1, kind: 'text', value: 'India' }),
+    /Connection lost/
+  );
+  service.suspend();
+  assert.equal(postCalls, 2);
+});

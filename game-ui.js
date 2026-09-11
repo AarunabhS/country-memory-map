@@ -20,7 +20,7 @@
     const voice = document.querySelector('#voiceButton'), message = document.querySelector('#message');
     const families = { conquest: 'World Conquest', find: 'Find the Country', capital: 'Capital Clash', flag: 'Flag Games', quiz: 'Geo Quiz' };
     const variants = { relaxed:'Relaxed', sprint:'Sprint', blitz:'Blitz', sudden:'Sudden Death', continent:'Continent', standard:'Standard', classic:'Classic', recall:'Flag Recall', match:'Flag Match', trivia:'Trivia Challenge' };
-    let remote = null, remoteKey = null, lastRemoteEvent = null, soloReplay = null, queuedText = null, queuedCountry = null, hostNavigationHandler = null;
+    let remote = null, remoteKey = null, lastRemoteEvent = null, remoteSubmission = null, soloReplay = null, queuedText = null, queuedCountry = null, hostNavigationHandler = null;
     let family = profile.data.lastMode.family, lastConfig = null, result = null, platform = true, feedbackTimer, startToken = 0, suppressResults = false;
     let hostedGame = false;
     app.insertAdjacentHTML('afterbegin', `
@@ -90,12 +90,18 @@
       if (!platform || engine.state.gameStatus !== 'playing') return;
       if (!id && regionName) { if(remote)remote.submit('country','');else {soloReplay?.actions.push({kind:'country',value:'',at:Date.now()-engine.state.startedAt});engine.submitCountry(null, regionName);} return; }
       if (remote) {
+        if (remoteSubmission) return;
         const name=byId.get(id)?.canonical_name||'selection';
         map.pending(id);map.enableClick(false);textFeedback(`Checking ${name}…`,'pending');
-        Promise.resolve(remote.submit('country', id)).then(ok=>{
+        const attempt={kind:'country',value:id,label:name};remoteSubmission=attempt;
+        Promise.resolve().then(()=>remote.submit('country', id)).then(ok=>{
+          if(remoteSubmission!==attempt)return;
           map.clearPending();
           if(!ok){textFeedback('Could not submit. Tap the country again.','bad');if(engine.state.feedbackUntil===null)map.enableClick(true);}
-        });
+        }).catch(()=>{
+          if(remoteSubmission!==attempt)return;
+          map.clearPending();textFeedback('Could not submit. Tap the country again.','bad');if(engine.state.feedbackUntil===null)map.enableClick(true);
+        }).finally(()=>{if(remoteSubmission===attempt)remoteSubmission=null;});
         return;
       }
       tickSolo();
@@ -147,8 +153,10 @@
       const q=engine.state.currentQuestion;
       let candidates=[];
       if(engine.config?.family==='conquest'){
-        candidates=engine.pool.filter(c=>!engine.state.completedCountries.has(c.country_id))
-          .flatMap(c=>c.accepted_names.map(name=>({key:GeographyGame.normalize(name),answer:c.canonical_name,label:c.canonical_name})));
+        // Keep completed countries in the matcher. The engine owns duplicate
+        // semantics; filtering here mislabeled repeated final speech results as
+        // “no confident match” even when the country had just been accepted.
+        candidates=engine.pool.flatMap(c=>c.accepted_names.map(name=>({key:GeographyGame.normalize(name),answer:c.canonical_name,label:c.canonical_name})));
       }else if(q?.type===TYPES.CAPITAL_TYPING){
         const c=byId.get(q.countryId);
         candidates=c.capital.flatMap(capital=>[capital.name,...capital.aliases].map(name=>({key:GeographyGame.normalize(name),answer:capital.name,label:capital.name})));
@@ -584,14 +592,20 @@
         }
         if(remote){
           if(engine.state.gameStatus!=='playing'||!GeographyGame.normalize(raw))return true;
+          if(remoteSubmission){textFeedback(`Still checking ${remoteSubmission.label}…`,'pending');return 'pending';}
           const value=String(raw),pendingId=engine.config.family==='conquest'?engine.aliases.get(GeographyGame.normalize(value)):null;
           if(pendingId)map.pending(pendingId);
           input.disabled=true;voice.disabled=true;textFeedback(`Checking ${value}…`,'pending');
-          Promise.resolve(remote.submit('text',value)).then(ok=>{
+          const attempt={kind:'text',value,label:value};remoteSubmission=attempt;
+          Promise.resolve().then(()=>remote.submit('text',value)).then(ok=>{
+            if(remoteSubmission!==attempt)return;
             map.clearPending();
-            if(ok)input.value='';
+            if(ok){if(GeographyGame.normalize(input.value)===GeographyGame.normalize(value))input.value='';}
             else{input.value=value;textFeedback('Could not submit. Your answer is still here—try again.','bad');input.disabled=false;voice.disabled=false;focusTyping();}
-          });
+          }).catch(()=>{
+            if(remoteSubmission!==attempt)return;
+            map.clearPending();input.value=value;textFeedback('Could not submit. Your answer is still here—try again.','bad');input.disabled=false;voice.disabled=false;focusTyping();
+          }).finally(()=>{if(remoteSubmission===attempt)remoteSubmission=null;});
           return 'pending';
         }
         tickSolo();
@@ -599,7 +613,7 @@
         if(engine.state.gameStatus==='playing'){if(GeographyGame.normalize(raw))soloReplay?.actions.push({kind:'text',value:raw,at:Date.now()-engine.state.startedAt});engine.submitText(raw);}
         input.value='';focusTyping();return true;
       },
-      connectRemote(hooks) { remote=hooks;engine.now=()=>remote?remote.now():Date.now(); },
+      connectRemote(hooks) { remote=hooks;remoteSubmission=null;engine.now=()=>remote?remote.now():Date.now(); },
       renderRemote(data) {
         if(!remote||!data.game)return;
         startToken++; $('soloCountdown').hidden=true;
@@ -621,7 +635,7 @@
         $('gameTitle').textContent= families[data.config.family]+' · Friends';updateHUD(s);
       },
       blockRemote(value) {input.disabled=value;voice.disabled=value;},
-      exitRemote() { if (tracker?.hasActiveSession()) tracker.finish('abandoned', engine.state); remote=null;remoteKey=null;engine.state.gameStatus='idle';menu(); },
+      exitRemote() { if (tracker?.hasActiveSession()) tracker.finish('abandoned', engine.state); remote=null;remoteKey=null;remoteSubmission=null;engine.state.gameStatus='idle';menu(); },
       closeResults() {$('resultsDialog').close();}
 
     };

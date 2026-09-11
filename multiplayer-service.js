@@ -1,6 +1,6 @@
 /* Transport and reconnection are isolated from game rendering. No keystrokes are sent. */
 window.FriendService=class {
- constructor(onState,onConnection){this.onState=onState;this.onConnection=onConnection;this.room=null;this.offset=0;this.timer=null;this.busy=false;this.polling=false;this.suspended=false;this.apiResolution=null;this.key='country-memory-friend-session-v1';try{this.session=JSON.parse(localStorage.getItem(this.key)||'null');}catch{this.session=null;}const allowedApis=[window.FRIENDS_API,window.FRIENDS_API_FALLBACK].filter(Boolean);this.api=allowedApis.includes(this.session?.api)?this.session.api:null;window.addEventListener('online',()=>this.poll());document.addEventListener('visibilitychange',()=>{if(!document.hidden)this.poll();});}
+ constructor(onState,onConnection){this.onState=onState;this.onConnection=onConnection;this.room=null;this.offset=0;this.timer=null;this.busy=false;this.polling=false;this.pollPromise=null;this.suspended=false;this.apiResolution=null;this.key='country-memory-friend-session-v1';try{this.session=JSON.parse(localStorage.getItem(this.key)||'null');}catch{this.session=null;}const allowedApis=[window.FRIENDS_API,window.FRIENDS_API_FALLBACK].filter(Boolean);this.api=allowedApis.includes(this.session?.api)?this.session.api:null;window.addEventListener('online',()=>this.poll());document.addEventListener('visibilitychange',()=>{if(!document.hidden)this.poll();});}
  now(){return Date.now()+this.offset;}
  save(){try{if(this.session)localStorage.setItem(this.key,JSON.stringify(this.session));else localStorage.removeItem(this.key);}catch{}}
  async resolveApi(){if(this.api)return this.api;const fallback=window.FRIENDS_API_FALLBACK;if(!fallback)return this.api=FRIENDS_API;if(!this.apiResolution)this.apiResolution=(async()=>{for(const candidate of [...new Set([FRIENDS_API,fallback])]){try{const response=await fetch(candidate+'/health',{headers:{Accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(candidate===FRIENDS_API?1800:10000)});const data=await response.json();if(response.ok&&data?.ok)return this.api=candidate;}catch{}}throw new Error('No friends service is reachable.');})().finally(()=>{this.apiResolution=null;});return this.apiResolution;}
@@ -9,8 +9,30 @@ window.FriendService=class {
  async create(name,challenge=null){const data=await this.request(challenge?'/challenges':'/rooms',{name,...(challenge||{})},false);this.session={code:data.code,token:data.token,api:this.api};this.save();return this.accept(data);}
  async inspect(code){return this.request('/rooms/'+encodeURIComponent(code),null,false);}
  async join(code,name){const data=await this.request('/rooms/'+encodeURIComponent(code),{action:'join',name},false);this.session={code:data.code,token:data.token,api:this.api};this.save();return this.accept(data);}
- async poll(){if(!this.session||this.polling||this.suspended)return;this.polling=true;try{this.accept(await this.request('/rooms/'+this.session.code));}catch(e){this.onConnection(e.message);if(['PLAYER_REMOVED','ROOM_EXPIRED','ROOM_NOT_FOUND'].includes(e.code)){clearTimeout(this.timer);this.onState({error:e.code,message:e.message});}else if(!this.suspended)this.timer=setTimeout(()=>this.poll(),2500);}finally{this.polling=false;}}
- async action(action,fields={}){if(!this.session)throw new Error('Join a room first.');const payload={action,...fields};try{return this.accept(await this.request('/rooms/'+this.session.code,payload));}catch(e){if(e.message.includes('Reconnecting')&&action==='answer'){try{return this.accept(await this.request('/rooms/'+this.session.code,payload));}catch{}}await this.poll();throw e;}}
+ async poll(){
+  if(!this.session||this.suspended)return null;
+  if(this.pollPromise)return this.pollPromise;
+  this.polling=true;
+  const task=(async()=>{try{return this.accept(await this.request('/rooms/'+this.session.code));}catch(e){this.onConnection(e.message);if(['PLAYER_REMOVED','ROOM_EXPIRED','ROOM_NOT_FOUND'].includes(e.code)){clearTimeout(this.timer);this.onState({error:e.code,message:e.message});}else if(!this.suspended)this.timer=setTimeout(()=>this.poll(),2500);return null;}})();
+  this.pollPromise=task;
+  try{return await task;}finally{if(this.pollPromise===task)this.pollPromise=null;this.polling=false;}
+ }
+ answerCommitted(payload){return payload.action==='answer'&&this.room?.match?.id===payload.matchId&&Number.isSafeInteger(payload.seq)&&Number(this.room?.nextSeq)>payload.seq;}
+ async action(action,fields={}){
+  if(!this.session)throw new Error('Join a room first.');
+  const payload={action,...fields};
+  try{return this.accept(await this.request('/rooms/'+this.session.code,payload));}
+  catch(error){
+   let failure=error;
+   if(action==='answer'&&error.message.includes('Reconnecting')){
+    try{return this.accept(await this.request('/rooms/'+this.session.code,payload));}
+    catch(retryError){failure=retryError;}
+   }
+   await this.poll();
+   if(this.answerCommitted(payload)){this.onConnection('');return this.room;}
+   throw failure;
+  }
+ }
  async leave(){try{await this.action('leave');}finally{clearTimeout(this.timer);this.session=null;this.room=null;this.save();}}
  suspend(){this.suspended=true;clearTimeout(this.timer);}
  resume(){this.suspended=false;return this.poll();}

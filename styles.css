@@ -845,11 +845,20 @@ a:focus-visible {
   background: #194362;
 }
 
+.voice-button.is-starting,
 .voice-button.is-listening {
   border-color: #ffc6cb;
   background: #9d2733;
   color: #ffffff;
   box-shadow: 0 0 0 4px rgba(255, 107, 121, 0.2);
+}
+
+.voice-button.is-starting {
+  animation: voice-starting 700ms ease-in-out infinite alternate;
+}
+
+@keyframes voice-starting {
+  to { opacity: 0.72; }
 }
 
 .answer-button:hover {
