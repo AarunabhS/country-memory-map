@@ -4,11 +4,15 @@ const fs = require('node:fs');
 
 const shell = fs.readFileSync('game-shell.js', 'utf8');
 const shellCss = fs.readFileSync('game-shell.css', 'utf8');
+const gameCss = fs.readFileSync('game.css', 'utf8');
+const flagCss = fs.readFileSync('flag-game.css', 'utf8');
 const ui = fs.readFileSync('game-ui.js', 'utf8');
 const legacy = fs.readFileSync('legacy/index.html', 'utf8');
 const core = fs.readFileSync('game-core.js', 'utf8');
 const multiplayerCss = fs.readFileSync('multiplayer.css', 'utf8');
 const rootHtml = fs.readFileSync('index.html', 'utf8');
+const rootCss = fs.readFileSync('styles.css', 'utf8');
+const rootMain = fs.readFileSync('src/main.js', 'utf8');
 
 function colorToken(source, name) {
   return source.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1];
@@ -39,7 +43,7 @@ test('GameShell is a shallow presentation adapter, not another game store', () =
 });
 
 test('all retained experiences load one shared cinematic shell treatment', () => {
-  assert.match(legacy, /game-shell\.css\?v=20260910-mobile-perf2/);
+  assert.match(legacy, /game-shell\.css\?v=20260911-mobile-viewport2/);
   assert.match(legacy, /game-shell\.js\?v=20260910-recovery/);
   assert.match(shellCss, /--shell-cyan/);
   assert.match(shellCss, /data-game-shell-stage="flag"/);
@@ -65,6 +69,22 @@ test('a Home-launched game keeps real setup controls without repeating the five-
   assert.match(ui, /gameVariant/);
   assert.match(ui, /gameDifficulty/);
   assert.match(ui, /gameQuestionTime/);
+});
+
+test('mobile retained screens own the visual viewport without hiding essential controls', () => {
+  assert.match(rootCss, /height: var\(--visual-viewport-height, 100dvh\)/);
+  assert.match(rootMain, /--visual-viewport-height/);
+  assert.match(rootMain, /syncViewport\?\.\(\{ height: vh, offsetTop: 0 \}\)/);
+  assert.match(legacy, /window\.parent\.visualViewport/);
+  assert.match(ui, /syncViewport\(\{ height, offsetTop = 0 \} = \{\}\)/);
+  assert.match(gameCss, /height: var\(--app-height, 100dvh\)/);
+  assert.match(gameCss, /\.platform\.choosing \{[\s\S]*?grid-template-rows: auto minmax\(0, 1fr\)/);
+  assert.match(gameCss, /\.platform\.choosing \.setup-panel \{[\s\S]*?position:relative;[\s\S]*?grid-row:2;[\s\S]*?overflow-y: auto/);
+  assert.match(gameCss, /\.platform \.control \{ inset:auto;/);
+  assert.match(gameCss, /\.platform\.keyboard-open \.question-panel \{display:block/);
+  assert.doesNotMatch(gameCss, /\.platform\.keyboard-open \.question-panel \{display:none/);
+  assert.match(flagCss, /\.flag-platform \{[\s\S]*?height: var\(--app-height, 100dvh\);[\s\S]*?overflow: hidden/);
+  assert.match(gameCss, /@media \(max-height:500px\) and \(min-width:600px\) \{[\s\S]*?height:var\(--app-height,100dvh\);[\s\S]*?\.platform\.choosing \.setup-panel/);
 });
 
 test('flag countdown hides stale retained-map feedback until the first flag question', () => {

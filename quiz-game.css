@@ -30,6 +30,11 @@
   min-height: 0;
 }
 
+.quiz-platform .zoom-controls,
+.quiz-platform .legend-panel {
+  display: none !important;
+}
+
 .quiz-header-bar {
   display: flex;
   align-items: center;

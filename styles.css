@@ -964,9 +964,12 @@ a:focus-visible {
 #app-shell[data-surface="retained"] .legacy-map-frame {
   position: fixed;
   z-index: 100;
-  inset: 0;
+  top: var(--visual-viewport-top, 0px);
+  right: 0;
+  bottom: auto;
+  left: 0;
   width: 100vw;
-  height: 100dvh;
+  height: var(--visual-viewport-height, 100dvh);
   visibility: visible;
   opacity: 1;
   pointer-events: auto;

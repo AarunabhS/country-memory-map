@@ -643,6 +643,11 @@
         if (engine.state.gameStatus === 'playing') return { state: 'playing', family: engine.config?.family, variant: engine.config?.variant };
         return { state: 'setup', family, variant: $('gameVariant').value };
       },
+      syncViewport({ height, offsetTop = 0 } = {}) {
+        if (Number.isFinite(height) && height > 0) document.documentElement.style.setProperty('--app-height', `${Math.round(height)}px`);
+        document.documentElement.style.setProperty('--keyboard-top', `${Math.max(0, Math.round(offsetTop))}px`);
+        syncKeyboard();
+      },
       setHostNavigationHandler(handler) { hostNavigationHandler = typeof handler === 'function' ? handler : null; },
       requestHostNavigation(payload) {
         if (!hostNavigationHandler) return false;
@@ -684,10 +689,14 @@
     $('openGames').addEventListener('click',()=>{ if (!window.CountryMemoryRetained.requestHostNavigation({ type: 'home' })) menu(); });
     $('resultsDialog').addEventListener('cancel',e=>{e.preventDefault();menu();});
     function syncKeyboard() {
-      const viewport = window.visualViewport, height = viewport?.height || window.innerHeight;
+      const viewport = window.visualViewport;
+      const configuredHeight = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-height'));
+      const height = Number.isFinite(configuredHeight) && configuredHeight > 0 ? configuredHeight : (viewport?.height || window.innerHeight);
       const typing = document.activeElement === input && !input.disabled && !form.hidden;
       app.classList.toggle('keyboard-open', platform && typing && window.innerWidth < 600 && height < 500);
-      app.style.setProperty('--keyboard-top',`${viewport?.offsetTop||0}px`);
+      if (!document.documentElement.style.getPropertyValue('--keyboard-top')) {
+        document.documentElement.style.setProperty('--keyboard-top', `${viewport?.offsetTop || 0}px`);
+      }
     }
     window.visualViewport?.addEventListener('resize', syncKeyboard);
     input.addEventListener('focus', syncKeyboard);

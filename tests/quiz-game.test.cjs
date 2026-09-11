@@ -4,6 +4,7 @@ const path = require('path');
 const { AnswerValidator } = require('../game-core.js');
 const countries = require('../scripts/load-game-data.cjs');
 const quizData = require('../quiz-data.js');
+const quizCss = require('fs').readFileSync(path.join(__dirname, '../quiz-game.css'), 'utf8');
 
 const countriesByIso = new Map(countries.map(c => [c.iso_code, c]));
 
@@ -139,4 +140,8 @@ test('quiz-game controller loads cleanly in DOM environment and resolves countri
   assert.ok(resolved, 'Validator must resolve Nepal');
   assert.equal(resolved.iso_code, 'NPL');
   assert.ok(nepalQ.accepted.includes(resolved.iso_code));
+});
+
+test('quiz stage removes retained map chrome that would overlap mobile prompts', () => {
+  assert.match(quizCss, /\.quiz-platform \.zoom-controls,[\s\S]*?\.quiz-platform \.legend-panel \{[\s\S]*?display: none !important/);
 });

@@ -118,11 +118,17 @@ function restoreLegacyFrameStyles(frameDocument) {
 }
 
 function syncIframeViewport(frameDocument = legacyDocument()) {
+  const viewport = window.visualViewport;
+  const vh = Math.max(1, Math.round(viewport?.height || window.innerHeight));
+  const viewportTop = Math.max(0, Math.round(viewport?.offsetTop || 0));
+  document.documentElement.style.setProperty("--visual-viewport-height", `${vh}px`);
+  document.documentElement.style.setProperty("--visual-viewport-top", `${viewportTop}px`);
   if (!frameDocument?.documentElement) return;
-  const vh = window.visualViewport?.height || window.innerHeight;
   frameDocument.documentElement.style.setProperty("--app-height", `${vh}px`);
+  frameDocument.documentElement.style.setProperty("--keyboard-top", "0px");
   const safeBottom = getComputedStyle(document.documentElement).getPropertyValue("--safe-bottom") || "0px";
   frameDocument.documentElement.style.setProperty("--safe-bottom", safeBottom);
+  retainedHost(frameDocument)?.syncViewport?.({ height: vh, offsetTop: 0 });
 }
 
 window.visualViewport?.addEventListener("resize", () => syncIframeViewport());

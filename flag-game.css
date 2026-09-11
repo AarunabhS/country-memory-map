@@ -51,11 +51,12 @@
 }
 @media (max-width:760px) {
   .flag-platform {
-    min-height: var(--app-height, 100dvh);
-    height: auto;
+    min-height: 0;
+    height: var(--app-height, 100dvh);
+    max-height: var(--app-height, 100dvh);
     padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(18px, calc(var(--safe-bottom, env(safe-area-inset-bottom, 0px)) + 14px)) max(8px, env(safe-area-inset-left));
     grid-template-rows: auto auto minmax(140px, 1fr) auto;
-    overflow-y: auto;
+    overflow: hidden;
     -webkit-overflow-scrolling: touch;
   }
   .flag-game-view { gap:10px; padding:8px 4px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
