@@ -2,6 +2,7 @@ import Game from './shared/game-core.cjs';
 import countries from './shared/countries.json' with { type:'json' };
 export const {Engine,normalize,calculateScore}=Game;
 const DATA=countries, byId=new Map(DATA.map(c=>[c.country_id,c]));
+export const MAX_PLAYERS=9;
 export class RoomError extends Error { constructor(code,message,status=400){super(message);this.code=code;this.status=status;} }
 const fail=(code,message,status)=>{throw new RoomError(code,message,status);};
 export const rng=Game.seededRandom;
@@ -48,7 +49,7 @@ export function syncRoom(room,now){
   if((timed&&now>=room.match.endAt)||(!timed&&room.players.every(p=>p.game?.state.gameStatus==='ended'))){room.state='RESULTS';room.expiresAt=now+14400000;}
  }
 }
-export function joinRoom(room,{id,tokenHash,name},now){syncRoom(room,now);if(room.state==='CLOSED')fail('ROOM_EXPIRED','THIS ROOM HAS EXPIRED',410);if(room.players.length>=8)fail(room.kind==='challenge'?'CHALLENGE_FULL':'ROOM_FULL','This room already has 8 players.',409);if(room.kind==='live'&&['COUNTDOWN','PLAYING'].includes(room.state))fail('MATCH_ALREADY_STARTED','Match in progress. Wait for the next round.',409);
+export function joinRoom(room,{id,tokenHash,name},now){syncRoom(room,now);if(room.state==='CLOSED')fail('ROOM_EXPIRED','THIS ROOM HAS EXPIRED',410);if(room.players.length>=MAX_PLAYERS)fail(room.kind==='challenge'?'CHALLENGE_FULL':'ROOM_FULL',`This room already has ${MAX_PLAYERS} players.`,409);if(room.kind==='live'&&['COUNTDOWN','PLAYING'].includes(room.state))fail('MATCH_ALREADY_STARTED','Match in progress. Wait for the next round.',409);
  name=safeName(name);if(room.players.some(p=>p.name.normalize('NFKC').toLocaleLowerCase()===name.normalize('NFKC').toLocaleLowerCase()))fail('NAME_TAKEN','That name is already in use. Choose another name.',409);
  room.players.push({id,tokenHash,name,joinedAt:now,lastSeenAt:now,ready:false,game:null,dnf:false});return id;
 }
@@ -95,7 +96,7 @@ export function ranking(players){const list=players.map(p=>{const s=p.game?.stat
 }
 export function publicRoom(room,player,now,event=null){
  const own=player?.game,s=own?.state;
- const payload={code:room.code,kind:room.kind,state:room.state,config:room.config,hostPlayerId:room.hostPlayerId,hostName:room.players.find(p=>p.id===room.hostPlayerId)?.name||'A friend',serverNow:now,expiresAt:room.expiresAt,notice:room.notice,players:room.players.map(p=>({id:p.id,name:p.name,ready:p.ready,connected:connected(p,now)})),standings:ranking(room.players),you:player?.id||null,match:room.match?{id:room.match.id,startAt:room.match.startAt,endAt:room.match.endAt}:null,event:player?.feedback||event};
+ const payload={code:room.code,kind:room.kind,state:room.state,maxPlayers:MAX_PLAYERS,config:room.config,hostPlayerId:room.hostPlayerId,hostName:room.players.find(p=>p.id===room.hostPlayerId)?.name||'A friend',serverNow:now,expiresAt:room.expiresAt,notice:room.notice,players:room.players.map(p=>({id:p.id,name:p.name,ready:p.ready,connected:connected(p,now)})),standings:ranking(room.players),you:player?.id||null,match:room.match?{id:room.match.id,startAt:room.match.startAt,endAt:room.match.endAt}:null,event:player?.feedback||event};
  if(s){const q=s.currentQuestion;payload.game={...s,currentQuestion:q?{id:q.id,type:q.type,countryId:q.countryId,prompt:q.prompt,role:q.role,timeLimit:q.timeLimit,deadline:q.deadline,resolved:q.resolved}:null,completedCountries:s.completedCountries,questionHistory:undefined,submissions:undefined,elapsedTime:Math.max(0,(now-s.startedAt)/1000),remainingTime:s.deadline===null?null:Math.max(0,(s.deadline-now)/1000)};payload.nextSeq=player.lastSeq+1;payload.result=own.result;}
  return payload;
 }

@@ -631,6 +631,11 @@
       submitFreeMapGuess: hostSubmitFreeMapGuess,
       deactivate: hostDeactivate,
       focusPrimary() {
+        const friendsPanel = $('friendsPanel');
+        if (friendsPanel && !friendsPanel.hidden) {
+          const primary = friendsPanel.querySelector('#friendName, #setReady, #acceptInvite, #createFriendRoom, #joinCode');
+          return (primary || friendsPanel.querySelector('button, select, input'))?.focus({ preventScroll: true });
+        }
         if (!platform) return input.focus({ preventScroll: true });
         if ($('resultsDialog').open) return $('playAgain').focus({ preventScroll: true });
         return $('startGame').focus({ preventScroll: true });
@@ -655,7 +660,22 @@
         return true;
       },
       getHostedInviteUrl(room) { return hostNavigationHandler?.({ type: 'invite-url', room }) || null; },
-      openMultiplayer(options) { return window.CountryMemoryMultiplayer?.open?.(options); },
+      openMultiplayer(options) {
+        if (window.CountryMemoryMultiplayer?.open) return window.CountryMemoryMultiplayer.open(options);
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            document.removeEventListener('country-memory-multiplayer-ready', open);
+            reject(new Error('Play with Friends did not become ready.'));
+          }, 15000);
+          const open = () => {
+            clearTimeout(timeout);
+            const multiplayer = window.CountryMemoryMultiplayer;
+            if (!multiplayer?.open) return reject(new Error('Play with Friends is unavailable.'));
+            Promise.resolve(multiplayer.open(options)).then(resolve, reject);
+          };
+          document.addEventListener('country-memory-multiplayer-ready', open, { once: true });
+        });
+      },
       suspendMultiplayer() { return window.CountryMemoryMultiplayer?.suspend?.(); },
     };
     document.querySelectorAll('[data-family]').forEach(b=>b.addEventListener('click',()=>chooseFamily(b.dataset.family,b.dataset.flagVariant)));

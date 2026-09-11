@@ -1,0 +1,33 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+
+const ui = fs.readFileSync('multiplayer-ui.js', 'utf8');
+const gameUi = fs.readFileSync('game-ui.js', 'utf8');
+const styles = fs.readFileSync('multiplayer.css', 'utf8');
+
+test('friends UI presents one host plus eight friends from the server capacity', () => {
+  assert.match(ui, /DEFAULT_MAX_PLAYERS=9/);
+  assert.match(ui, /data\?\.maxPlayers/);
+  assert.match(ui, /up to eight friends/);
+  assert.match(ui, /Create 9-player room/);
+  assert.doesNotMatch(ui, /2–8 players|\/ 8 players|Up to 8 players/);
+});
+
+test('nine-person lobby exposes capacity, readiness, roster, and responsive standings', () => {
+  assert.match(ui, /<progress class="friend-capacity"/);
+  assert.match(ui, /role="list" aria-label="Players in this room"/);
+  assert.match(ui, /aria-describedby="friendStartHint"/);
+  assert.match(styles, /max-height:min\(52vh,430px\)/);
+  assert.match(styles, /@media\(max-height:500px\) and \(min-width:600px\)/);
+});
+
+test('first-load multiplayer routes wait for the controller and focus the visible panel', () => {
+  assert.match(gameUi, /addEventListener\('country-memory-multiplayer-ready', open, \{ once: true \}\)/);
+  assert.match(ui, /dispatchEvent\(new CustomEvent\('country-memory-multiplayer-ready'\)\)/);
+  assert.match(gameUi, /const primary = friendsPanel\.querySelector\('#friendName, #setReady, #acceptInvite, #createFriendRoom, #joinCode'\)/);
+  assert.match(gameUi, /\(primary \|\| friendsPanel\.querySelector\('button, select, input'\)\)\?\.focus/);
+  assert.match(ui, /panel\.contains\(document\.activeElement\)/);
+  assert.match(ui, /pendingFocusId=target\.id/);
+  assert.match(ui, /next\?\.focus\(\{preventScroll:true\}\)/);
+});

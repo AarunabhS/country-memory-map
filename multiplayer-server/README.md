@@ -1,6 +1,6 @@
 # Country Memory Map friends service
 
-This service reuses the frontend's `game-core.js` and country adapter. `build.mjs` regenerates its shared rules/data snapshots, then bundles an ESM Worker. D1 stores room state with compare-and-swap revisions so simultaneous joins cannot exceed eight people.
+This service reuses the frontend's `game-core.js` and country adapter. `build.mjs` regenerates its shared rules/data snapshots, then bundles an ESM Worker. D1 stores room state with compare-and-swap revisions so one host and eight friends can join without a tenth participant exceeding the nine-player room limit.
 
 ## Local development
 

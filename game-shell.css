@@ -356,6 +356,36 @@
   background: rgba(132, 229, 181, 0.16);
 }
 
+.game-shell .friend-player.is-you {
+  background: rgba(132, 229, 181, 0.13);
+}
+
+.game-shell .friend-capacity {
+  background: rgba(159, 210, 241, 0.14);
+  accent-color: var(--shell-green);
+}
+
+.game-shell .friend-capacity::-webkit-progress-bar {
+  background: rgba(159, 210, 241, 0.14);
+}
+
+.game-shell .friend-capacity::-webkit-progress-value {
+  background: linear-gradient(90deg, var(--shell-green), var(--shell-cyan));
+}
+
+.game-shell .friend-capacity::-moz-progress-bar {
+  background: linear-gradient(90deg, var(--shell-green), var(--shell-cyan));
+}
+
+.game-shell .friend-divider {
+  color: var(--shell-muted);
+}
+
+.game-shell .friend-divider::before,
+.game-shell .friend-divider::after {
+  background: rgba(159, 210, 241, 0.2);
+}
+
 .game-shell .milestone,
 .game-shell .solo-countdown {
   border: 1px solid var(--shell-line);
