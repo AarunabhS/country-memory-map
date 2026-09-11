@@ -85,6 +85,8 @@ test('mobile retained screens own the visual viewport without hiding essential c
   assert.doesNotMatch(gameCss, /\.platform\.keyboard-open \.question-panel \{display:none/);
   assert.match(flagCss, /\.flag-platform \{[\s\S]*?height: var\(--app-height, 100dvh\);[\s\S]*?overflow: hidden/);
   assert.match(gameCss, /@media \(max-height:500px\) and \(min-width:600px\) \{[\s\S]*?height:var\(--app-height,100dvh\);[\s\S]*?\.platform\.choosing \.setup-panel/);
+  assert.match(gameCss, /\.platform \{[\s\S]*?height: var\(--app-height, 100dvh\);[\s\S]*?overflow: hidden/);
+  assert.match(gameCss, /\.platform \.map-shell \{[\s\S]*?height:100%;[\s\S]*?overflow:hidden;/);
 });
 
 test('flag countdown hides stale retained-map feedback until the first flag question', () => {

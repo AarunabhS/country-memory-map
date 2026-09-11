@@ -2,14 +2,13 @@
 [hidden] { display: none !important; }
 .platform-header, .game-hud { display: none; }
 .platform { --highlight: #80e3b7; --highlight-stroke: #11694c;
-  min-height: var(--app-height, 100dvh); height: auto;
+  min-height: 0; height: var(--app-height, 100dvh); max-height: var(--app-height, 100dvh);
   box-sizing: border-box;
-  display: grid; grid-template-rows: auto auto auto minmax(140px, 1fr) auto; gap: 8px;
+  display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: 8px;
   padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, calc(var(--safe-bottom, env(safe-area-inset-bottom, 0px)) + 12px)) max(16px, env(safe-area-inset-left));
   background: #f3f6f6;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch; }
-body:has(.platform) { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  overflow: hidden; }
+body:has(.platform) { overflow: hidden; -webkit-overflow-scrolling: touch; }
 .platform .topbar { display: none; }
 .platform-header { grid-row: 1; align-items:center; gap:16px; }
 .platform .platform-header { display:flex; }
@@ -32,7 +31,7 @@ body:has(.platform) { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .urgent { color:#ba353a; }
 .platform .continentbar { position:static; grid-row:3; flex-wrap:nowrap; overflow-x:auto; pointer-events:auto; gap:6px; padding:0 0 2px; }
 .platform .continentbar button { flex:0 0 auto; min-height:36px; font-size:13px; padding:6px 12px; }
-.platform .map-shell { grid-row:4; position:relative; padding:0; min-height:0; }
+.platform .map-shell { grid-row:4; position:relative; padding:0; min-height:0; height:100%; overflow:hidden; }
 .platform #map { border-radius:16px; background:#dcecee; border-color:#c1d7d9; -webkit-tap-highlight-color:transparent; }
 .platform .zoom-controls { top:10px; right:10px; bottom:auto; padding:4px; gap:4px; box-shadow:none; border-radius:12px; background:#ffffffdf; }
 .platform .zoom-controls button { min-width:44px; }
