@@ -145,18 +145,20 @@
 
   function resolveCountry(text) {
     ensureCountryData();
+    const allowFuzzy = !currentRound || currentRound.tier === 'easy' || currentRound.tier === 'all';
     if (validator) {
-      const resolved = validator.resolve(text);
+      const resolved = validator.resolve(text, { allowFuzzy });
       if (resolved) return resolved;
     }
     const norm = global.GeographyGame?.normalize ? global.GeographyGame.normalize(text) : String(text || '').trim().toLowerCase();
     for (const c of countriesByIso.values()) {
       const canonicalNorm = global.GeographyGame?.normalize ? global.GeographyGame.normalize(c.canonical_name) : String(c.canonical_name || '').trim().toLowerCase();
       if (canonicalNorm === norm) return c;
+      if (allowFuzzy && canonicalNorm.length > 5 && global.GeographyGame?.isOneEditAway?.(norm, canonicalNorm)) return c;
       if (Array.isArray(c.accepted_names)) {
         const matched = c.accepted_names.some(n => {
           const aNorm = global.GeographyGame?.normalize ? global.GeographyGame.normalize(n) : String(n || '').trim().toLowerCase();
-          return aNorm === norm;
+          return aNorm === norm || (allowFuzzy && aNorm.length > 5 && global.GeographyGame?.isOneEditAway?.(norm, aNorm));
         });
         if (matched) return c;
       }

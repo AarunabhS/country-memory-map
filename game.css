@@ -1,11 +1,15 @@
 /* Game surfaces sit around the retained map; the free checker keeps its existing layout. */
 [hidden] { display: none !important; }
 .platform-header, .game-hud { display: none; }
-.platform { --highlight: #80e3b7; --highlight-stroke: #11694c; height: var(--app-height,100dvh); min-height: 520px;
-  display: grid; grid-template-rows: auto auto auto minmax(140px,1fr) auto; gap: 8px;
-  padding: max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
-  background: #f3f6f6; }
-body:has(.platform) { overflow: auto; }
+.platform { --highlight: #80e3b7; --highlight-stroke: #11694c;
+  min-height: var(--app-height, 100dvh); height: auto;
+  box-sizing: border-box;
+  display: grid; grid-template-rows: auto auto auto minmax(140px, 1fr) auto; gap: 8px;
+  padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, calc(var(--safe-bottom, env(safe-area-inset-bottom, 0px)) + 12px)) max(16px, env(safe-area-inset-left));
+  background: #f3f6f6;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; }
+body:has(.platform) { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .platform .topbar { display: none; }
 .platform-header { grid-row: 1; align-items:center; gap:16px; }
 .platform .platform-header { display:flex; }
@@ -117,7 +121,13 @@ body:has(.platform) { overflow: auto; }
 .result-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:20px; }
 .result-actions button { flex:1 0 40%; }
 @media (max-width:760px) {
-  .platform { padding:8px; gap:6px; min-height:500px; }
+  .platform {
+    min-height: var(--app-height, 100dvh);
+    height: auto;
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(18px, calc(var(--safe-bottom, env(safe-area-inset-bottom, 0px)) + 14px)) max(8px, env(safe-area-inset-left));
+    gap: 6px;
+    grid-template-rows: auto auto auto minmax(100px, 1fr) auto;
+  }
   .platform-header { gap:8px; }
   .brand-kicker { font-size:10px; margin-bottom:3px; }
   .platform-header h1 { font-size:18px; }
@@ -127,14 +137,24 @@ body:has(.platform) { overflow: auto; }
   .hud-stat span { font-size:11px; }
   #gameLives { font-size:18px; padding:0 4px; letter-spacing:0; }
   .platform .continentbar button { min-height:36px; padding:6px 10px; }
-  .platform .control { padding:10px; }
+  .platform .control { padding:10px; margin-bottom:2px; position:relative; z-index:5; }
   .platform .message { font-size:13px; }
   .question-panel h2 { font-size:22px; }
   .question-panel p { font-size:12px; }
   .platform .zoom-controls { top:6px;right:6px; }
   .platform .legend-panel { bottom:6px;left:6px;max-width:calc(100% - 12px); }
   .platform .legend-panel summary { padding:10px; }
-  .setup-panel { top:76px;left:12px;width:calc(100% - 24px);max-height:calc(100% - 92px);padding:20px; }
+  .setup-panel {
+    top: max(16px, env(safe-area-inset-top) + 8px);
+    bottom: max(16px, env(safe-area-inset-bottom) + 8px);
+    left: 12px;
+    width: calc(100% - 24px);
+    height: auto;
+    max-height: calc(100dvh - 32px);
+    padding: 18px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   .setup-panel h2 { font-size:26px; }
   .results-content { padding:20px; }
   .result-stats { grid-template-columns:repeat(2,1fr); }

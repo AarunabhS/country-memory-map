@@ -658,6 +658,13 @@
     $('gameDifficulty').value=profile.data.difficulty;
     ['gameVariant','gameDifficulty','gameRegion','gameQuestionTime'].forEach(id=>$(id).addEventListener('change',updateSetup));
     $('startGame').addEventListener('click',()=>start());
+    input.addEventListener('focus', () => {
+      if (window.innerWidth <= 768) {
+        setTimeout(() => {
+          input.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+        }, 280);
+      }
+    });
     $('endGame').addEventListener('click',()=>{
       if (window.QuizGame?.isActive()) { window.QuizGame.deactivate(); menu(); return; }
       remote?remote.finish():engine.finish('manual');

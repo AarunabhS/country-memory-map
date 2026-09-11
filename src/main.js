@@ -117,6 +117,19 @@ function restoreLegacyFrameStyles(frameDocument) {
   frameDocument?.getElementById("country-memory-map-legacy-bridge")?.remove();
 }
 
+function syncIframeViewport(frameDocument = legacyDocument()) {
+  if (!frameDocument?.documentElement) return;
+  const vh = window.visualViewport?.height || window.innerHeight;
+  frameDocument.documentElement.style.setProperty("--app-height", `${vh}px`);
+  const safeBottom = getComputedStyle(document.documentElement).getPropertyValue("--safe-bottom") || "0px";
+  frameDocument.documentElement.style.setProperty("--safe-bottom", safeBottom);
+}
+
+window.visualViewport?.addEventListener("resize", () => syncIframeViewport());
+window.visualViewport?.addEventListener("scroll", () => syncIframeViewport());
+window.addEventListener("resize", () => syncIframeViewport());
+window.addEventListener("orientationchange", () => syncIframeViewport());
+
 function loadLegacyEngine() {
   if (state.legacyReady) return Promise.resolve(legacyDocument());
   if (state.legacyLoadPromise) return state.legacyLoadPromise;
@@ -144,10 +157,11 @@ function loadLegacyEngine() {
         settled = true;
         cleanup();
         state.legacyReady = true;
+        syncIframeViewport(frameDocument);
         resolve(frameDocument);
         return;
       }
-      if (Date.now() - started >= 7000) {
+      if (Date.now() - started >= 15000) {
         fail("The game engine did not become ready.");
         return;
       }
@@ -502,6 +516,7 @@ async function applyRoute(route, { reason = "route" } = {}) {
 
     const ready = await getRetainedHost(token);
     if (!ready || !gameLifecycle.isCurrent(token)) return;
+    syncIframeViewport(ready.frameDocument);
     restoreLegacyFrameStyles(ready.frameDocument);
     if (previous?.kind === "multiplayer" && route.kind !== "multiplayer") ready.host.suspendMultiplayer?.();
 

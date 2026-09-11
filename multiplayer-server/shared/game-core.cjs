@@ -17,7 +17,8 @@
     conquest: { relaxed: {}, sprint: { duration: 180 }, blitz: { duration: 60 }, sudden: { lives: 3 }, continent: {} },
     find: { standard: { questions: 20 }, blitz: { duration: 60 }, continent: { questions: 20 } },
     capital: { classic: { questions: 20 }, blitz: { duration: 60 }, continent: { questions: 20 } },
-    flag: { recall: { questions: 20 }, match: { questions: 20 } }
+    flag: { recall: { questions: 20 }, match: { questions: 20 } },
+    quiz: { trivia: { questions: 10 } }
   };
 
   /*
@@ -59,6 +60,40 @@
     ['Eswatini', 'Swaziland'],
     ['Vatican', 'Vatican City', 'Holy See']
   ]);
+
+  /*
+   * Checks whether two normalized strings differ by at most one single-letter
+   * edit (substitution, insertion, or deletion).
+   */
+  function isOneEditAway(s1, s2) {
+    if (s1 === s2) return true;
+    const len1 = s1.length;
+    const len2 = s2.length;
+    if (Math.abs(len1 - len2) > 1) return false;
+
+    let i = 0;
+    let j = 0;
+    let diffFound = false;
+
+    while (i < len1 && j < len2) {
+      if (s1[i] !== s2[j]) {
+        if (diffFound) return false;
+        diffFound = true;
+        if (len1 > len2) {
+          i++;
+        } else if (len2 > len1) {
+          j++;
+        } else {
+          i++;
+          j++;
+        }
+      } else {
+        i++;
+        j++;
+      }
+    }
+    return true;
+  }
 
   class AnswerValidator {
     constructor(entries = [], { aliasGroups = COMMON_ALIAS_GROUPS } = {}) {
@@ -104,18 +139,42 @@
       }
     }
 
-    resolve(value) {
-      const id = this.aliases.get(normalize(value));
-      return id == null ? null : this.entries.get(id) || null;
+    resolve(value, { allowFuzzy = false } = {}) {
+      const normalized = normalize(value);
+      if (!normalized) return null;
+      const directId = this.aliases.get(normalized);
+      if (directId != null) return this.entries.get(directId) || null;
+
+      if (allowFuzzy) {
+        for (const [alias, id] of this.aliases) {
+          if (alias.length > 5 && isOneEditAway(normalized, alias)) {
+            return this.entries.get(id) || null;
+          }
+        }
+      }
+      return null;
     }
 
-    resolveId(value) {
-      return this.resolve(value)?.id ?? null;
+    resolveId(value, options) {
+      return this.resolve(value, options)?.id ?? null;
     }
 
-    matches(value, target) {
+    matches(value, target, { allowFuzzy = false } = {}) {
       const targetId = typeof target === 'object' ? target?.id ?? target?.country_id : target;
-      return targetId != null && this.resolveId(value) === targetId;
+      if (targetId == null) return false;
+      const normalized = normalize(value);
+      if (!normalized) return false;
+      if (this.resolveId(value) === targetId) return true;
+      if (allowFuzzy) {
+        const targetNames = this.namesFor(targetId);
+        for (const name of targetNames) {
+          const normName = normalize(name);
+          if (normName.length > 5 && isOneEditAway(normalized, normName)) {
+            return true;
+          }
+        }
+      }
+      return false;
     }
 
     namesFor(id) {
@@ -251,11 +310,15 @@
       }
       this.emit('tick');
     }
+    isFuzzyAllowed() {
+      return this.config?.difficulty === 'easy' || this.config?.variant === 'relaxed';
+    }
     submitText(raw) {
       this.tick(); const s = this.state, answer = normalize(raw);
       if (s.gameStatus !== 'playing' || !answer || s.feedbackUntil !== null) return;
+      const allowFuzzy = this.isFuzzyAllowed();
       if (this.config.family === 'conquest') {
-        const id = this.validator.resolveId(raw);
+        const id = this.validator.resolveId(raw, { allowFuzzy });
         if (!id || !this.targetIds.has(id)) { this.failConquest(raw, id); return; }
         if (s.completedCountries.has(id)) { this.emit('duplicate', { countryId: id }); return; }
         const at = this.now(), seconds = this.responseDuration(Math.max(0, (at - s.lastCorrectAt) / 1000));
@@ -265,7 +328,7 @@
         if ([10, 25, 50, 75, 100, 150].includes(s.completedCountries.size)) this.emit('milestone', { count: s.completedCountries.size });
         if (s.completedCountries.size === this.pool.length) this.finish('complete', at);
       } else if (s.currentQuestion?.type === TYPES.FLAG_RECALL) {
-        if (this.validator.matches(raw, s.currentQuestion.countryId) && this.targetIds.has(s.currentQuestion.countryId)) this.resolveQuestion(true, this.now(), 'correct');
+        if (this.validator.matches(raw, s.currentQuestion.countryId, { allowFuzzy }) && this.targetIds.has(s.currentQuestion.countryId)) this.resolveQuestion(true, this.now(), 'correct');
         else this.failQuestion({ answer: raw });
       } else if (s.currentQuestion?.type === TYPES.CAPITAL_TYPING) {
         if (s.currentQuestion.acceptedAnswers.includes(answer)) this.resolveQuestion(true, this.now(), 'correct');
@@ -397,5 +460,5 @@
       return result;
     }
   }
-  return { TYPES, MODES, Engine, LocalProfile, AnswerValidator, COMMON_ALIAS_GROUPS, calculateScore, normalize, matchesDifficulty, seededRandom, selectFlagOptions };
+  return { TYPES, MODES, Engine, LocalProfile, AnswerValidator, COMMON_ALIAS_GROUPS, calculateScore, normalize, matchesDifficulty, seededRandom, selectFlagOptions, isOneEditAway };
 });

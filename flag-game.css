@@ -50,28 +50,35 @@
   .flag-platform .control { background:#20322c; border-color:#48665d; }
 }
 @media (max-width:760px) {
-  .flag-platform { min-height:500px; grid-template-rows:auto auto minmax(250px,1fr) auto; }
-  .flag-game-view { gap:10px; padding:8px 4px; }
-  .flag-stage { min-height:clamp(150px,27vh,230px); }
-  .flag-frame--hero { height:clamp(150px,27vh,230px); padding:10px; border-radius:12px; }
-  .flag-prompt { font-size:clamp(22px,7vw,30px); }
-  .flag-outline-stage { flex-basis:64px; width:min(180px,100%); }
+  .flag-platform {
+    min-height: var(--app-height, 100dvh);
+    height: auto;
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(18px, calc(var(--safe-bottom, env(safe-area-inset-bottom, 0px)) + 14px)) max(8px, env(safe-area-inset-left));
+    grid-template-rows: auto auto minmax(140px, 1fr) auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .flag-game-view { gap:10px; padding:8px 4px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .flag-stage { min-height:clamp(130px,22vh,200px); }
+  .flag-frame--hero { height:clamp(130px,22vh,200px); padding:10px; border-radius:12px; }
+  .flag-prompt { font-size:clamp(20px,6vw,28px); }
+  .flag-outline-stage { flex-basis:60px; width:min(180px,100%); }
   .flag-choices { gap:8px; }
-  .flag-choices .flag-option { min-height:125px; padding:6px; border-radius:11px; }
-  .flag-frame--card { height:clamp(78px,15vh,112px); padding:7px; }
+  .flag-choices .flag-option { min-height:115px; padding:6px; border-radius:11px; }
+  .flag-frame--card { height:clamp(70px,13vh,100px); padding:6px; }
   .flag-tools { flex-wrap:wrap; gap:5px 10px; }
   .flag-hint { flex-basis:100%; order:2; }
-  .flag-platform .control { padding:8px; }
+  .flag-platform .control { padding:10px; margin-bottom:2px; position:relative; z-index:5; }
 }
 @media (max-width:430px) {
-  .flag-platform { grid-template-rows:auto auto minmax(230px,1fr) auto; }
+  .flag-platform { grid-template-rows:auto auto minmax(130px,1fr) auto; }
   .flag-game-view { gap:7px; }
-  .flag-stage { min-height:140px; }
-  .flag-frame--hero { height:140px; }
-  .flag-outline-stage { flex-basis:54px; }
-  .flag-choices .flag-option { min-height:112px; }
-  .flag-frame--card { height:70px; }
-  .flag-platform #guessInput { font-size:14px; }
+  .flag-stage { min-height:120px; }
+  .flag-frame--hero { height:120px; }
+  .flag-outline-stage { flex-basis:50px; }
+  .flag-choices .flag-option { min-height:105px; }
+  .flag-frame--card { height:64px; }
+  .flag-platform #guessInput { font-size:16px; }
   .flag-round-heading { font-size:10px; }
 }
 @media (max-height:500px) and (min-width:600px) {

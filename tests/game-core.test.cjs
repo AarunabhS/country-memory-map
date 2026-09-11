@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const {Engine,LocalProfile,calculateScore,MODES,TYPES,normalize} = require('../game-core.js');
+const {Engine,LocalProfile,calculateScore,MODES,TYPES,normalize,AnswerValidator,isOneEditAway} = require('../game-core.js');
 const countries = Array.from({length:30},(_,i)=>({country_id:`C${i}`,canonical_name:`Country ${i}`,accepted_names:[`Country ${i}`,`alias${i}`],continent:i<15?'Africa':'Asia',countryLocationDifficulty:i%4+1,capitalDifficulty:4-i%4,capital:[{name:`Capital ${i}`,aliases:[`city${i}`],role:'capital'},...(i===0?[{name:'Second capital',aliases:['Second'],role:'legislative capital'}]:[])]}));
 function game(config={family:'conquest',variant:'relaxed'}) {let time=0;const events=[];const engine=new Engine(countries,{now:()=>time,random:()=>0.42,onEvent:e=>events.push(e)});engine.start(config);return {engine,events,advance:ms=>{time+=ms;engine.tick();},at:ms=>{time=ms;},now:()=>time};}
 function answer(engine) {const q=engine.state.currentQuestion;if(q.type===TYPES.CAPITAL_TYPING)engine.submitText(engine.byId.get(q.countryId).capital[0].name);else engine.submitCountry(q.countryId);}
@@ -20,3 +20,51 @@ test('difficulty fields are independent; continent question pools stay in scope'
 test('results separate question accuracy from incorrect attempts and retain retry practice targets',()=>{const {engine:e,advance}=game({family:'find',variant:'standard'});const id=e.state.currentQuestion.countryId;e.submitCountry('bad');advance(1000);answer(e);advance(701);e.finish();assert.equal(e.result.correct,1);assert.equal(e.result.total,2);assert.equal(e.result.accuracy,50);assert.equal(e.result.wrong,1);assert.equal(e.result.missedQuestions,1);assert.equal(e.result.incorrectAttempts,2);assert.ok(e.result.missedCountries.includes(id));assert.equal(e.result.averageResponseTime,1);const practice=game({family:'find',variant:'standard',practiceIds:e.result.missedCountries}).engine;assert.equal(practice.pool.length,e.result.missedCountries.length);assert.equal(practice.state.questionLimit,e.result.missedCountries.length);});
 test('a 17 of 20 round reports 85% accuracy and 3 missed questions',()=>{const {engine:e,advance}=game({family:'find',variant:'standard'});for(let n=0;n<17;n++){answer(e);advance(701);}for(let n=0;n<3;n++){advance(10000);advance(701);}assert.equal(e.result.correct,17);assert.equal(e.result.total,20);assert.equal(e.result.accuracy,85);assert.equal(e.result.wrong,3);assert.equal(e.result.missedQuestions,3);assert.equal(e.result.incorrectAttempts,3);});
 test('persistence tolerates corrupt/denied storage, scopes bests, keeps recent results',()=>{const data=new Map();const storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)};const profile=new LocalProfile(storage);const {engine:e}=game({family:'conquest',variant:'sprint'});e.submitText('alias0');e.finish();profile.record(e.result);assert.equal(e.result.personalBest,true);assert.equal(new LocalProfile(storage).data.recent.length,1);const slower={...e.result,score:0,personalBest:false};profile.record(slower);assert.equal(slower.personalBest,false);const denied=new LocalProfile({getItem(){throw Error();},setItem(){throw Error();}});denied.record(e.result);assert.equal(denied.available,false);const corrupt=new LocalProfile({getItem:()=>'{nope'});assert.equal(corrupt.data.recent.length,0);});
+test('isOneEditAway correctly identifies 1-letter differences and rejects multi-letter edits',()=>{
+  assert.equal(isOneEditAway('albania','albenia'),true);
+  assert.equal(isOneEditAway('albania','albanian'),true);
+  assert.equal(isOneEditAway('albania','albani'),true);
+  assert.equal(isOneEditAway('albania','albania'),true);
+  assert.equal(isOneEditAway('albania','albonio'),false);
+  assert.equal(isOneEditAway('albania','albanianxx'),false);
+  assert.equal(isOneEditAway('germany','germeny'),true);
+  assert.equal(isOneEditAway('colombia','columbia'),true);
+});
+test('AnswerValidator fuzzy matching accepts 1-letter typos only for names > 5 letters in easy mode',()=>{
+  const validator = new AnswerValidator([
+    { country_id: 'ALB', canonical_name: 'Albania' },
+    { country_id: 'IND', canonical_name: 'India' },
+    { country_id: 'DEU', canonical_name: 'Germany' },
+    { country_id: 'TGO', canonical_name: 'Togo' }
+  ]);
+  assert.equal(validator.resolveId('Albenia', { allowFuzzy: true }), 'ALB');
+  assert.equal(validator.resolveId('Germeny', { allowFuzzy: true }), 'DEU');
+  assert.equal(validator.resolveId('Albenia', { allowFuzzy: false }), null);
+  assert.equal(validator.resolveId('Indie', { allowFuzzy: true }), null);
+  assert.equal(validator.resolveId('Toga', { allowFuzzy: true }), null);
+  assert.equal(validator.resolveId('Albonio', { allowFuzzy: true }), null);
+  assert.equal(validator.matches('Albenia', 'ALB', { allowFuzzy: true }), true);
+  assert.equal(validator.matches('Albenia', 'ALB', { allowFuzzy: false }), false);
+  assert.equal(validator.matches('Indie', 'IND', { allowFuzzy: true }), false);
+});
+test('World Conquest Relaxed allows 1-letter spelling mistakes for names > 5 letters while strict modes reject them',()=>{
+  const testCountries = [
+    { country_id: 'ALB', canonical_name: 'Albania', accepted_names: ['Albania'], continent: 'Europe', countryLocationDifficulty: 1, capitalDifficulty: 1, capital: [{ name: 'Tirana', aliases: [], role: 'capital' }] },
+    { country_id: 'IND', canonical_name: 'India', accepted_names: ['India'], continent: 'Asia', countryLocationDifficulty: 1, capitalDifficulty: 1, capital: [{ name: 'New Delhi', aliases: [], role: 'capital' }] }
+  ];
+  const relaxed = new Engine(testCountries, { now: () => 1000 });
+  relaxed.start({ family: 'conquest', variant: 'relaxed' });
+  relaxed.submitText('Albenia');
+  assert.equal(relaxed.state.correctAnswers, 1);
+  assert.ok(relaxed.state.completedCountries.has('ALB'));
+  relaxed.submitText('Indie');
+  assert.equal(relaxed.state.correctAnswers, 1);
+  assert.equal(relaxed.state.wrongAnswers, 1);
+
+  const blitz = new Engine(testCountries, { now: () => 1000 });
+  blitz.start({ family: 'conquest', variant: 'blitz', difficulty: 'hard' });
+  blitz.submitText('Albenia');
+  assert.equal(blitz.state.correctAnswers, 0);
+  assert.equal(blitz.state.wrongAnswers, 1);
+});
+
