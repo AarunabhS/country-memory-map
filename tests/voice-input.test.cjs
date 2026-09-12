@@ -95,7 +95,7 @@ test('unsupported and throwing recognizers fail without trapping the control', (
   assert.deepEqual(errors, ['start-failed']);
 });
 
-test('permission is requested only on click and released before a fresh speech gesture', async () => {
+test('permission is requested only on click and auto-starts recognition after grant', async () => {
   let requests = 0, released = 0, grant;
   const states = [];
   const controller = new VoiceInputController({ Recognition: FakeRecognition,
@@ -111,10 +111,8 @@ test('permission is requested only on click and released before a fresh speech g
   grant({ getTracks: () => [{ stop: () => released++ }] });
   await Promise.resolve();
   assert.equal(released, 1);
-  assert.equal(controller.state, 'idle');
+  assert.equal(controller.state, 'starting');
   assert.equal(states.at(-1).reason, 'permission-granted');
-  assert.equal(controller.recognition.startCalls, 0);
-  controller.start();
   assert.equal(controller.recognition.startCalls, 1);
   controller.abort();
 });

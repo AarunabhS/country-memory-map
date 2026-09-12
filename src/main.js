@@ -379,7 +379,6 @@ function setupVoiceInput() {
       dom.voiceButton.setAttribute("aria-pressed", String(voiceState === "listening"));
       if (voiceState === "permission") {
         dom.voiceButton.setAttribute("aria-label", "Cancel microphone permission request");
-        showToast("Allow microphone access in the browser prompt. Tap again to cancel.");
       } else if (voiceState === "starting") {
         dom.voiceButton.setAttribute("aria-label", "Cancel microphone start");
         dom.voiceButton.title = "Cancel microphone start";
@@ -391,7 +390,6 @@ function setupVoiceInput() {
       } else {
         dom.voiceButton.setAttribute("aria-label", `Speak a ${answerKind} name`);
         dom.voiceButton.title = `Speak a ${answerKind} name`;
-        if (reason === "permission-granted") showToast("Microphone enabled. Tap Speak to say your answer.");
         if (reason === "cancelled") announce("Microphone cancelled. Press Speak to try again or type your answer.");
         syncAnswerControls();
       }

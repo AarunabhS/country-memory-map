@@ -104,15 +104,31 @@
           this.reset({ reason: 'permission-timeout' });
           this.onError({ code: 'permission-timeout' });
         }, 15000);
-        // Called directly by Speak's click handler. Do not retain a recording
-        // stream or start speech from an asynchronous permission callback.
+        // Called directly by Speak's click handler. After permission succeeds,
+        // immediately start recognition so the user needs only one tap.
         try {
           Promise.resolve(this.requestMicrophone()).then(stream => {
             stream.getTracks().forEach(track => track.stop());
             if (this.permissionAttempt !== attempt) return;
             this.permissionAttempt = null;
+            this.clearStartTimer();
             this.microphoneReady = true;
-            this.reset({ reason: 'permission-granted' });
+            this.userStopped = false;
+            this.processedFinals.clear();
+            this.finalDelivered = false;
+            this.setState('starting', { reason: 'permission-granted' });
+            this.startTimer = this.setTimer(() => {
+              if (this.state !== 'starting') return;
+              this.replaceStalledRecognition('timeout');
+              this.onError({ code: 'start-timeout' });
+            }, this.startTimeout);
+            try {
+              this.recognition.start();
+            } catch (error) {
+              this.installRecognition();
+              this.reset({ reason: 'start-failed' });
+              this.onError({ code: 'start-failed', error });
+            }
           }, error => {
             if (this.permissionAttempt !== attempt) return;
             this.permissionAttempt = null;

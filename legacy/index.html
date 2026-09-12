@@ -1490,8 +1490,6 @@
           voiceButton.setAttribute("aria-pressed", String(state === "listening"));
           voiceButton.setAttribute("aria-label", (state === "starting" || state === "permission") ? "Cancel microphone start" : state === "listening" ? "Stop listening" : quizMode === "capitals" ? "Say capital name" : "Say country name");
           voiceButton.textContent = state === "permission" ? "Cancel" : state === "starting" ? "Starting…" : state === "listening" ? "● Listening" : "Speak";
-          if (state === "permission") setMessage("Allow microphone access in the browser prompt. Tap again to cancel.", "listening");
-          if (state === "idle" && reason === "permission-granted") setMessage("Microphone enabled. Tap Speak to say your answer.");
           if (state === "starting") setMessage("Starting microphone…", "listening");
           if (state === "listening") setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
           if (state === "idle" && reason === "cancelled") setMessage("Microphone cancelled. Press Speak to try again or type your answer.");
