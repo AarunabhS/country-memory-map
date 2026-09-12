@@ -371,18 +371,22 @@ function setupVoiceInput() {
   speechRecognition = new VoiceInputController({
     Recognition: SpeechRecognition,
     onState: ({ state: voiceState, reason }) => {
+      const isListening = voiceState === "listening" || voiceState === "starting";
       const answerKind = state.mode === "Capitals" ? "capital" : "country";
-      state.voiceListening = voiceState === "listening";
-      dom.voiceButton.classList.toggle("is-listening", voiceState === "listening");
-      dom.voiceButton.setAttribute("aria-busy", "false");
-      dom.voiceButton.setAttribute("aria-pressed", String(voiceState === "listening"));
-      if (voiceState === "listening") {
+      state.voiceListening = isListening;
+      dom.voiceButton.classList.toggle("is-listening", isListening);
+      dom.voiceButton.setAttribute("aria-busy", String(voiceState === "starting"));
+      dom.voiceButton.setAttribute("aria-pressed", String(isListening));
+      if (isListening) {
         dom.voiceButton.setAttribute("aria-label", "Stop listening");
         dom.voiceButton.title = "Stop listening";
+        dom.countryInput.placeholder = `Listening… say a ${answerKind} name`;
+        dom.countryInput.focus();
         announce(`Microphone on. Say one ${answerKind} name.`);
       } else {
         dom.voiceButton.setAttribute("aria-label", `Speak a ${answerKind} name`);
         dom.voiceButton.title = `Speak a ${answerKind} name`;
+        dom.countryInput.placeholder = `Type a ${answerKind} name…`;
         if (reason === "cancelled") announce("Microphone stopped. Press Speak to try again or type your answer.");
         syncAnswerControls();
       }

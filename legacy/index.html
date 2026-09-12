@@ -1480,18 +1480,17 @@
 
     function setupVoiceInput() {
       const createRecognition = (function() {
+        const LocalSR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (LocalSR) return () => new LocalSR();
         try {
           if (window.top && typeof window.top.createSpeechRecognition === "function") {
-            const test = window.top.createSpeechRecognition();
-            if (test) return () => window.top.createSpeechRecognition();
+            return () => window.top.createSpeechRecognition();
           }
           if (window.top && (window.top.SpeechRecognition || window.top.webkitSpeechRecognition)) {
             const TopSR = window.top.SpeechRecognition || window.top.webkitSpeechRecognition;
             return () => new TopSR();
           }
         } catch (e) {}
-        const LocalSR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (LocalSR) return () => new LocalSR();
         return null;
       })();
       const VoiceInputController = window.CountryMemoryVoice?.VoiceInputController;
@@ -1506,13 +1505,13 @@
       recognition = new VoiceInputController({
         createRecognition,
         onState: ({ state, reason }) => {
-          isListening = state === "listening";
-          voiceButton.classList.toggle("listening", state === "listening");
-          voiceButton.setAttribute("aria-busy", "false");
-          voiceButton.setAttribute("aria-pressed", String(state === "listening"));
-          voiceButton.setAttribute("aria-label", state === "listening" ? "Stop listening" : quizMode === "capitals" ? "Say capital name" : "Say country name");
-          voiceButton.textContent = state === "listening" ? "● Listening" : "Speak";
-          if (state === "listening") setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
+          isListening = state === "listening" || state === "starting";
+          voiceButton.classList.toggle("listening", isListening);
+          voiceButton.setAttribute("aria-busy", String(state === "starting"));
+          voiceButton.setAttribute("aria-pressed", String(isListening));
+          voiceButton.setAttribute("aria-label", isListening ? "Stop listening" : quizMode === "capitals" ? "Say capital name" : "Say country name");
+          voiceButton.textContent = isListening ? "● Listening" : "Speak";
+          if (isListening) setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
           if (state === "idle" && reason === "cancelled") setMessage("Microphone stopped. Press Speak to try again or type your answer.");
         },
         onPreview: (heard) => {

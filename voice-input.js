@@ -8,9 +8,17 @@
 
   function alternativesFor(result) {
     if (!result) return [];
-    return [...result]
-      .map(item => String(item?.transcript || '').trim())
-      .filter(Boolean);
+    if (typeof result[Symbol.iterator] === 'function') {
+      return [...result]
+        .map(item => String(item?.transcript || '').trim())
+        .filter(Boolean);
+    }
+    const items = [];
+    for (let i = 0; i < (result.length || 0); i++) {
+      const text = String(result[i]?.transcript || '').trim();
+      if (text) items.push(text);
+    }
+    return items;
   }
 
   class VoiceInputController {
@@ -217,6 +225,7 @@
 
     handleResult(event) {
       if (!this.active || this.finalDelivered) return;
+      if (this.state !== 'listening') this.handleStart();
       const results = event?.results;
       if (!results?.length) return;
       const from = Number.isInteger(event.resultIndex) ? Math.max(0, event.resultIndex) : Math.max(0, results.length - 1);
