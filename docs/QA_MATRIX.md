@@ -43,3 +43,7 @@ The Worker build is `npm --prefix multiplayer-server run build`. It regenerates 
 ## Minimum manual matrix for user-facing changes
 
 Test every affected game/route at desktop, narrow mobile portrait, and short mobile landscape; repeat the affected flow with keyboard only and reduced motion. Include loading/error/fallback states whenever the change touches network, persistence, microphone, profiles, map/globe, or multiplayer. Record browser, viewport/device, route, result, and evidence location.
+
+## 2026-09-13 multiplayer recovery evidence
+
+**AUTOMATED VERIFIED** — microphone permission/start lifecycle, response-aware polling, parked session retention, and immediate timed-room completion after all players end. **MANUALLY VERIFIED WITH EVIDENCE** — local two-origin gameplay, early DNF results/rematch, Home membership retention/reentry, copyable room code, keyboard Home action, and desktop/portrait/landscape captures in the [execution record](exec-plans/completed/2026-09-13-multiplayer-voice-results-latency.md). **MANUAL VERIFICATION REQUIRED** — physical iPhone speech and permissions, device background behavior, assistive/reduced-motion modes, deployed frontend/Worker, and mobile-network latency.

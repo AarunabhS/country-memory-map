@@ -375,9 +375,12 @@ function setupVoiceInput() {
       state.voiceListening = voiceState !== "idle";
       dom.voiceButton.classList.toggle("is-starting", voiceState === "starting");
       dom.voiceButton.classList.toggle("is-listening", voiceState === "listening");
-      dom.voiceButton.setAttribute("aria-busy", String(voiceState === "starting"));
+      dom.voiceButton.setAttribute("aria-busy", String(voiceState === "starting" || voiceState === "permission"));
       dom.voiceButton.setAttribute("aria-pressed", String(voiceState === "listening"));
-      if (voiceState === "starting") {
+      if (voiceState === "permission") {
+        dom.voiceButton.setAttribute("aria-label", "Cancel microphone permission request");
+        showToast("Allow microphone access in the browser prompt. Tap again to cancel.");
+      } else if (voiceState === "starting") {
         dom.voiceButton.setAttribute("aria-label", "Cancel microphone start");
         dom.voiceButton.title = "Cancel microphone start";
         announce("Starting microphone…");
@@ -388,6 +391,7 @@ function setupVoiceInput() {
       } else {
         dom.voiceButton.setAttribute("aria-label", `Speak a ${answerKind} name`);
         dom.voiceButton.title = `Speak a ${answerKind} name`;
+        if (reason === "permission-granted") showToast("Microphone enabled. Tap Speak to say your answer.");
         if (reason === "cancelled") announce("Microphone cancelled. Press Speak to try again or type your answer.");
         syncAnswerControls();
       }
@@ -407,6 +411,8 @@ function setupVoiceInput() {
         ? "Microphone permission was blocked. Type your answer or allow microphone access and try again."
         : code === "no-speech"
           ? "No speech was heard. Try again, move closer to the microphone, or type your answer."
+          : code === "permission-timeout"
+            ? "Microphone permission is still pending. Tap Speak to retry or type your answer."
           : code === "start-timeout"
             ? "The microphone did not start. Check browser permission, then try again or type your answer."
             : `Voice input did not work. Type the ${state.mode === "Capitals" ? "capital" : "country"} or try again.`;

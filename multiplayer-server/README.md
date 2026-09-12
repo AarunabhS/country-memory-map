@@ -23,7 +23,7 @@ Use Node 22.13 or newer for the local SQLite adapter. The normal frontend delibe
 - `multiplayer-service.js`: transport, server clock offset, revision ordering, retry and session recovery.
 - `multiplayer-ui.js`: invitation/lobby/results and adapter to the existing game UI.
 - No public room directory, matchmaking, accounts or opponent answer histories.
-- Foreground clients poll about every 1.5 seconds, with deadline-aware polls; background clients poll every eight seconds where the browser permits. Scores are near real time, not WebSocket updates.
+- Foreground clients target a 1.5-second request cadence, subtracting response duration from the next wait (250ms minimum), with deadline-aware polls; background clients poll every eight seconds where the browser permits. Back to Home after finishing preserves this background presence and room membership. Timed live rooms finalize as soon as every player ends, including DNF. Scores are near real time, not WebSocket updates.
 - Clock offset uses request midpoint. Answers carry a measured response duration; the server limits latency compensation to one second. High latency can still affect competitive speed bonuses.
 - Guest identity lives on the device. One official challenge attempt is enforced per room session; clearing storage or using another browser can create another identity. This is a casual friend-game system, not identity-verified competition.
 - Solo challenge creators submit a recorded action timeline which is replayed through the rules. Final score claims are ignored. Since that initial round was offline, its timeline cannot be independently attested; subsequent guest attempts are server validated.

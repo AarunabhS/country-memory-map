@@ -18,7 +18,9 @@
       Recognition,
       language = 'en-US',
       maxAlternatives = 5,
-      startTimeout = 15000,
+      startTimeout = 8000,
+      requestMicrophone = typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia
+        ? () => navigator.mediaDevices.getUserMedia({ audio: true }) : null,
       onState = () => {},
       onPreview = () => {},
       onFinal = () => {},
@@ -33,6 +35,9 @@
       this.onFinal = onFinal;
       this.onError = onError;
       this.startTimeout = startTimeout;
+      this.requestMicrophone = requestMicrophone;
+      this.microphoneReady = !requestMicrophone;
+      this.permissionAttempt = null;
       this.setTimer = setTimer;
       this.clearTimer = clearTimer;
       this.startTimer = null;
@@ -47,7 +52,7 @@
     }
 
     get active() {
-      return this.state === 'starting' || this.state === 'listening';
+      return this.state === 'permission' || this.state === 'starting' || this.state === 'listening';
     }
 
     setState(state, detail = {}) {
@@ -67,7 +72,13 @@
       recognition.interimResults = true;
       recognition.maxAlternatives = this.maxAlternatives;
       recognition.addEventListener('start', () => { if (this.recognition === recognition) this.handleStart(); });
-      recognition.addEventListener('end', () => { if (this.recognition === recognition) this.reset({ reason: 'ended' }); });
+      recognition.addEventListener('audiostart', () => { if (this.recognition === recognition) this.handleStart(); });
+      recognition.addEventListener('end', () => {
+        if (this.recognition !== recognition) return;
+        const empty = this.active && !this.finalDelivered && !this.userStopped;
+        this.reset({ reason: 'ended' });
+        if (empty) this.onError({ code: 'no-speech' });
+      });
       recognition.addEventListener('error', event => { if (this.recognition === recognition) this.handleError(event); });
       recognition.addEventListener('result', event => { if (this.recognition === recognition) this.handleResult(event); });
       this.recognition = recognition;
@@ -83,6 +94,38 @@
 
     start() {
       if (!this.supported || this.active) return false;
+      if (!this.microphoneReady) {
+        const attempt = {};
+        this.permissionAttempt = attempt;
+        this.setState('permission');
+        this.startTimer = this.setTimer(() => {
+          if (this.permissionAttempt !== attempt) return;
+          this.permissionAttempt = null;
+          this.reset({ reason: 'permission-timeout' });
+          this.onError({ code: 'permission-timeout' });
+        }, 15000);
+        // Called directly by Speak's click handler. Do not retain a recording
+        // stream or start speech from an asynchronous permission callback.
+        try {
+          Promise.resolve(this.requestMicrophone()).then(stream => {
+            stream.getTracks().forEach(track => track.stop());
+            if (this.permissionAttempt !== attempt) return;
+            this.permissionAttempt = null;
+            this.microphoneReady = true;
+            this.reset({ reason: 'permission-granted' });
+          }, error => {
+            if (this.permissionAttempt !== attempt) return;
+            this.permissionAttempt = null;
+            this.reset({ reason: 'permission-denied' });
+            this.onError({ code: error?.name === 'NotAllowedError' ? 'not-allowed' : 'audio-capture' });
+          });
+        } catch (error) {
+          this.permissionAttempt = null;
+          this.reset({ reason: 'permission-denied' });
+          this.onError({ code: 'audio-capture', error });
+        }
+        return true;
+      }
       this.userStopped = false;
       this.processedFinals.clear();
       this.finalDelivered = false;
@@ -107,6 +150,11 @@
       if (!this.active) return false;
       this.userStopped = true;
       this.clearStartTimer();
+      if (this.state === 'permission') {
+        this.permissionAttempt = null;
+        this.reset({ reason: 'cancelled' });
+        return true;
+      }
       if (abort || this.state === 'starting') {
         this.replaceStalledRecognition('cancelled');
         return true;
@@ -124,6 +172,7 @@
     }
 
     handleStart() {
+      if (this.state === 'listening') return;
       this.clearStartTimer();
       if (this.userStopped || this.state === 'idle') {
         try { this.recognition.abort(); } catch {}
@@ -159,6 +208,7 @@
 
     handleError(event) {
       const code = String(event?.error || 'unknown');
+      if (code === 'not-allowed' || code === 'audio-capture') this.microphoneReady = !this.requestMicrophone;
       const silent = this.userStopped && code === 'aborted';
       this.reset({ reason: 'error' });
       if (!silent) this.onError({ code, event });

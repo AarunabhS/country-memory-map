@@ -554,9 +554,9 @@
   </style>
   <link rel="stylesheet" href="game.css?v=20260912-desktop-viewport1">
   <link rel="stylesheet" href="flag-game.css?v=20260911-mobile-viewport2">
-  <link rel="stylesheet" href="multiplayer.css?v=20260912-invite3">
+  <link rel="stylesheet" href="multiplayer.css?v=20260913-friends1">
   <link rel="stylesheet" href="player-profile.css?v=20260911-mobile-viewport2">
-  <link rel="stylesheet" href="game-shell.css?v=20260911-nine-player2">
+  <link rel="stylesheet" href="game-shell.css?v=20260913-friends1">
   <link rel="stylesheet" href="quiz-game.css?v=20260911-mobile-viewport2">
 </head>
 <body>
@@ -618,7 +618,7 @@
   <script src="game-core.js?v=20260908-flags1"></script>
   <script src="countries-data.js?v=20260910-mobile-perf2"></script>
   <script src="capitals-data.js"></script>
-  <script src="voice-input.js?v=20260911-voice1"></script>
+  <script src="voice-input.js?v=20260913-voice2"></script>
   <script>
     const svg = document.getElementById("map");
     const grid = document.getElementById("grid");
@@ -1486,10 +1486,12 @@
           isListening = state !== "idle";
           voiceButton.classList.toggle("starting", state === "starting");
           voiceButton.classList.toggle("listening", state === "listening");
-          voiceButton.setAttribute("aria-busy", String(state === "starting"));
+          voiceButton.setAttribute("aria-busy", String(state === "starting" || state === "permission"));
           voiceButton.setAttribute("aria-pressed", String(state === "listening"));
-          voiceButton.setAttribute("aria-label", state === "starting" ? "Cancel microphone start" : state === "listening" ? "Stop listening" : quizMode === "capitals" ? "Say capital name" : "Say country name");
-          voiceButton.textContent = state === "starting" ? "Starting…" : state === "listening" ? "● Listening" : "Speak";
+          voiceButton.setAttribute("aria-label", (state === "starting" || state === "permission") ? "Cancel microphone start" : state === "listening" ? "Stop listening" : quizMode === "capitals" ? "Say capital name" : "Say country name");
+          voiceButton.textContent = state === "permission" ? "Cancel" : state === "starting" ? "Starting…" : state === "listening" ? "● Listening" : "Speak";
+          if (state === "permission") setMessage("Allow microphone access in the browser prompt. Tap again to cancel.", "listening");
+          if (state === "idle" && reason === "permission-granted") setMessage("Microphone enabled. Tap Speak to say your answer.");
           if (state === "starting") setMessage("Starting microphone…", "listening");
           if (state === "listening") setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
           if (state === "idle" && reason === "cancelled") setMessage("Microphone cancelled. Press Speak to try again or type your answer.");
@@ -1519,6 +1521,8 @@
             ? "Microphone permission was blocked. Allow it in browser settings or type your answer."
             : code === "no-speech"
               ? "No speech was heard. Try again, move closer to the microphone, or type your answer."
+              : code === "permission-timeout"
+                ? "Microphone permission is still pending. Tap Speak to retry or type your answer."
               : code === "start-timeout"
                 ? "The microphone did not start. Check browser permission, then try again or type your answer."
                 : `Voice input did not work. Try again or type the ${quizMode === "capitals" ? "capital" : "country"}.`;
@@ -2025,13 +2029,13 @@
   <script src="game-map.js?v=20260910-mobile-perf2"></script>
   <script src="flag-component.js?v=20260908-flags1"></script>
   <script src="country-outline.js?v=20260908-flags1"></script>
-  <script src="multiplayer-config.js?v=20260912-invite3"></script>
+  <script src="multiplayer-config.js?v=20260913-friends1"></script>
   <script src="player-system.js?v=20260909-release1"></script>
   <script src="game-shell.js?v=20260910-recovery"></script>
   <script src="quiz-data.js?v=20260911-quiz1"></script>
   <script src="quiz-game.js?v=20260911-quiz1"></script>
-  <script src="game-ui.js?v=20260912-invite3"></script>
-  <script src="multiplayer-service.js?v=20260912-invite3"></script>
-  <script src="multiplayer-ui.js?v=20260912-invite3"></script>
+  <script src="game-ui.js?v=20260913-friends1"></script>
+  <script src="multiplayer-service.js?v=20260913-friends1"></script>
+  <script src="multiplayer-ui.js?v=20260913-friends1"></script>
 </body>
 </html>

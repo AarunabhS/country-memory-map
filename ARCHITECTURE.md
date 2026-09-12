@@ -85,6 +85,7 @@ Status date: 2026-09-12. This map describes verified repository structure. Label
 
 **VERIFIED CURRENT ARCHITECTURE**
 
+- Finished-round Home navigation preserves membership using background presence polling without rendering or navigating the hidden room. Live rounds finalize when all players end, including DNF, even before a timed deadline. See [ADR 0004](docs/architecture/0004-finished-room-home-presence.md).
 - `multiplayer-service.js` is the browser transport and polling client. `multiplayer-ui.js` adapts room, challenge, standings, and replay flows to the retained game controller.
 - A room code supplied by the canonical multiplayer route takes precedence over a different browser-stored session. Terminal missing, expired, or removed sessions are cleared; they may not republish an obsolete room into the root route.
 - Normal browser clients use the public persistent room service regardless of whether the frontend was opened from the public site, localhost, or a LAN device. Local room-service use requires an exact allowlisted loopback override, and player-facing share links use the canonical public frontend rather than the current device address.

@@ -94,3 +94,72 @@ test('unsupported and throwing recognizers fail without trapping the control', (
   assert.equal(controller.state, 'idle');
   assert.deepEqual(errors, ['start-failed']);
 });
+
+test('permission is requested only on click and released before a fresh speech gesture', async () => {
+  let requests = 0, released = 0, grant;
+  const states = [];
+  const controller = new VoiceInputController({ Recognition: FakeRecognition,
+    requestMicrophone: () => { requests++; return new Promise(resolve => { grant = resolve; }); },
+    onState: state => states.push(state)
+  });
+  assert.equal(requests, 0);
+  controller.start();
+  assert.equal(requests, 1);
+  assert.equal(controller.state, 'permission');
+  assert.equal(controller.recognition.startCalls, 0);
+  assert.equal(controller.start(), false);
+  grant({ getTracks: () => [{ stop: () => released++ }] });
+  await Promise.resolve();
+  assert.equal(released, 1);
+  assert.equal(controller.state, 'idle');
+  assert.equal(states.at(-1).reason, 'permission-granted');
+  assert.equal(controller.recognition.startCalls, 0);
+  controller.start();
+  assert.equal(controller.recognition.startCalls, 1);
+  controller.abort();
+});
+
+test('cancel and timeout cannot start a microphone after a late permission grant', async () => {
+  for (const cancel of [true, false]) {
+    let grant, timeout, stopped = 0;
+    const errors = [];
+    const controller = new VoiceInputController({ Recognition: FakeRecognition,
+      requestMicrophone: () => new Promise(resolve => { grant = resolve; }),
+      setTimer: fn => { timeout = fn; return 1; }, clearTimer() {},
+      onError: e => errors.push(e.code)
+    });
+    controller.start();
+    if (cancel) controller.abort(); else timeout();
+    grant({ getTracks: () => [{ stop: () => stopped++ }] });
+    await Promise.resolve();
+    assert.equal(stopped, 1);
+    assert.equal(controller.state, 'idle');
+    assert.equal(controller.microphoneReady, false);
+    assert.equal(controller.recognition.startCalls, 0);
+    assert.deepEqual(errors, cancel ? [] : ['permission-timeout']);
+  }
+});
+
+test('denied microphone permissions recover and silent recognition end reports failure', async () => {
+  const errors = [];
+  const controller = new VoiceInputController({ Recognition: FakeRecognition,
+    requestMicrophone: () => Promise.reject({ name: 'NotAllowedError' }), onError: e => errors.push(e.code)
+  });
+  controller.start();
+  await Promise.resolve();
+  assert.equal(controller.state, 'idle');
+  assert.deepEqual(errors, ['not-allowed']);
+  const speech = new VoiceInputController({ Recognition: FakeRecognition, onError: e => errors.push(e.code) });
+  speech.start();
+  speech.recognition.emit('end');
+  assert.equal(speech.state, 'idle');
+  assert.equal(errors.at(-1), 'no-speech');
+});
+
+test('audio capture acknowledges listening even when the start event is missing', () => {
+  const controller = new VoiceInputController({ Recognition: FakeRecognition });
+  controller.start();
+  controller.recognition.emit('audiostart');
+  assert.equal(controller.state, 'listening');
+  controller.abort();
+});

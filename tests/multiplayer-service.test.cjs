@@ -23,7 +23,7 @@ function response(body, status = 200) {
   });
 }
 
-function serviceHarness({ fetchImpl, session = null } = {}) {
+function serviceHarness({ fetchImpl, session = null, clock = Date, setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
   const values = new Map(session ? [['country-memory-friend-session-v1', JSON.stringify(session)]] : []);
   const storage = {
     getItem: key => values.get(key) || null,
@@ -34,15 +34,15 @@ function serviceHarness({ fetchImpl, session = null } = {}) {
   const states = [];
   const context = {
     AbortSignal,
-    Date,
+    Date: clock,
     Response,
     URL,
-    clearTimeout,
+    clearTimeout: clearTimer,
     document: { hidden: false, addEventListener() {} },
     fetch: fetchImpl,
     localStorage: storage,
     location: { origin: 'http://127.0.0.1:8000', pathname: '/' },
-    setTimeout,
+    setTimeout: setTimer,
     FRIENDS_API: localApi,
     FRIENDS_API_FALLBACK: hostedApi,
     FRIENDS_SHARE_URL: hostedSite
@@ -253,4 +253,39 @@ test('an uncommitted answer still reports failure after retry and reconciliation
   );
   service.suspend();
   assert.equal(postCalls, 2);
+});
+
+test('slow responses do not add a full polling interval and background membership uses eight seconds', async () => {
+  let now = 100000, timer;
+  const delays = [];
+  const session = { code: 'GEOLAT123', token: 'test-token', api: hostedApi };
+  const { service, storage } = serviceHarness({ session, clock: { now: () => now },
+    setTimer: (fn, delay) => { timer = fn; delays.push(delay); return 1; }, clearTimer() {},
+    fetchImpl: async () => { now += 750; return response({ code: session.code, revision: now, serverNow: now, state: 'RESULTS', game: { gameStatus: 'ended' } }); }
+  });
+  await service.poll();
+  assert.equal(delays.at(-1), 750);
+  assert.equal(750 + delays.at(-1), 1500, 'cadence remains bounded at 40 foreground polls/minute');
+  service.suspend({ keepAlive: true });
+  assert.equal(delays.at(-1), 8000);
+  assert.equal(JSON.parse(storage.getItem(service.key)).token, session.token);
+  await timer();
+  assert.equal(delays.at(-1), 8000);
+  assert.equal(service.session.code, session.code);
+  await service.resume();
+  assert.equal(service.background, false);
+  assert.equal(delays.at(-1), 750);
+  service.suspend();
+  assert.equal(service.suspended, true);
+});
+
+test('very slow transport has a retry floor instead of creating a polling storm', async () => {
+  let now = 100000, delay;
+  const { service } = serviceHarness({ session: { code: 'GEOSLO123', token: 'test', api: hostedApi },
+    clock: { now: () => now }, setTimer: (fn, value) => { delay = value; return 1; }, clearTimer() {},
+    fetchImpl: async () => { now += 2000; return response({ code: 'GEOSLO123', revision: 1 }); }
+  });
+  await service.poll();
+  assert.equal(delay, 250);
+  service.suspend();
 });

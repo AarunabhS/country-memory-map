@@ -46,7 +46,7 @@ export function syncRoom(room,now){
  }
  if(room.kind==='live'&&room.state==='PLAYING'){
   const timed=room.match.endAt!==null;
-  if((timed&&now>=room.match.endAt)||(!timed&&room.players.every(p=>p.game?.state.gameStatus==='ended'))){room.state='RESULTS';room.expiresAt=now+14400000;}
+  if((timed&&now>=room.match.endAt)||room.players.every(p=>p.game?.state.gameStatus==='ended')){room.state='RESULTS';room.expiresAt=now+14400000;}
  }
 }
 export function joinRoom(room,{id,tokenHash,name},now){syncRoom(room,now);if(room.state==='CLOSED')fail('ROOM_EXPIRED','THIS ROOM HAS EXPIRED',410);if(room.players.length>=MAX_PLAYERS)fail(room.kind==='challenge'?'CHALLENGE_FULL':'ROOM_FULL',`This room already has ${MAX_PLAYERS} players.`,409);if(room.kind==='live'&&['COUNTDOWN','PLAYING'].includes(room.state))fail('MATCH_ALREADY_STARTED','Match in progress. Wait for the next round.',409);

@@ -28,8 +28,8 @@ test('friends UI exposes a resilient room-code join and sharing path', () => {
   assert.match(ui, /pressEnter\('joinCode','joinFriendRoom'\)/);
   assert.match(ui, /id="copyRoomCode"/);
   assert.match(ui, /Room code: \$\{service\.room\?\.code/);
-  assert.match(ui, /Share with the buttons below—not the browser address/);
-  assert.match(styles, /\.friend-code-share/);
+  assert.match(styles, /\.friend-room-code/);
+  assert.doesNotMatch(ui, /Share this code or link\. Friends choose/);
 });
 
 test('friends mode clears unrelated profile UI and exits an old remote game for a different invite', () => {
@@ -38,7 +38,7 @@ test('friends mode clears unrelated profile UI and exits an old remote game for 
   assert.match(gameUi, /function friendsRouteRequested\(\)/);
   assert.match(gameUi, /searchParams\.get\('game'\) === 'multiplayer'/);
   assert.match(gameUi, /!players\.active && !friendsRouteRequested\(\)/);
-  assert.match(ui, /suspend\(\)\{window\.CountryMemoryFriendsActive=false/);
+  assert.match(ui, /suspend\(\{keepRoom=false\}=\{\}\)\{window\.CountryMemoryFriendsActive=false/);
   assert.match(ui, /!invite\.matchesSession&&activeGameKey\)\{gameController\.exitRemote\(\);activeGameKey=null/);
 });
 

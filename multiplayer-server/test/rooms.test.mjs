@@ -59,3 +59,30 @@ test('untimed challenges allow a normal manual finish',()=>{
  const r=createChallenge({config:{family:'conquest',variant:'relaxed'},seed:42,actions:[],elapsed:1000},{code:'GEOMANUAL',id:'host',name:'Host'},base);
  joinRoom(r,{id:'guest',name:'Guest'},base+10);const p=r.players[1];roomAction(r,p,{action:'attempt'},base+20);roomAction(r,p,{action:'finish'},base+5000);assert.equal(p.dnf,false);assert.equal(p.game.state.gameStatus,'ended');
 });
+
+test('timed rounds finalize immediately when every player finishes early, preserving rematch membership', () => {
+ for (const variant of ['blitz', 'sprint', 'continent']) {
+  const r=room();r.config=configFor(variant);ready(r);
+  roomAction(r,r.players[0],{action:'finish'},base+4000);
+  assert.equal(r.state,'PLAYING');
+  assert.throws(()=>roomAction(r,r.players[0],{action:'rematch'},base+4100),/everyone finishes/);
+  roomAction(r,r.players[1],{action:'finish'},base+5000);
+  assert.equal(r.state,'RESULTS');
+  assert.ok(r.match.endAt>base+5000);
+  assert.ok(r.players.every(p=>p.dnf));
+  const ids=r.players.map(p=>p.id);
+  roomAction(r,r.players[0],{action:'rematch'},base+5001);
+  assert.equal(r.state,'REMATCH_LOBBY');
+  assert.deepEqual(r.players.map(p=>p.id),ids);
+  assert.equal(r.players[1].ready,false);
+ }
+ function configFor(variant){return {family:'conquest',variant,region:'Africa',difficulty:'medium',questionCount:20,questionTime:20};}
+});
+
+test('all-disconnected timed rooms finalize before the unused deadline', () => {
+ const r=room();r.config={...r.config,variant:'sprint'};ready(r);
+ syncRoom(r,base+46001);
+ assert.equal(r.state,'RESULTS');
+ assert.ok(r.players.every(p=>p.dnf&&p.game.state.gameStatus==='ended'));
+ assert.ok(r.match.endAt>base+46001);
+});

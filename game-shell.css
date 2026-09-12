@@ -461,3 +461,5 @@
     content: "Try again: ";
   }
 }
+
+.game-shell #friendsPanel .friend-room-code{background:var(--shell-panel-solid);color:var(--shell-ink);-webkit-text-fill-color:var(--shell-ink);border-color:var(--shell-line);}
