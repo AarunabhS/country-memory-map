@@ -70,16 +70,36 @@
       recognition.continuous = false;
       recognition.interimResults = true;
       recognition.maxAlternatives = this.maxAlternatives;
-      recognition.addEventListener('start', () => { if (this.recognition === recognition) this.handleStart(); });
-      recognition.addEventListener('audiostart', () => { if (this.recognition === recognition) this.handleStart(); });
-      recognition.addEventListener('end', () => {
+
+      const onStart = () => { if (this.recognition === recognition) this.handleStart(); };
+      const onEnd = () => {
         if (this.recognition !== recognition) return;
         const empty = this.active && !this.finalDelivered && !this.userStopped;
         this.reset({ reason: 'ended' });
         if (empty) this.onError({ code: 'no-speech' });
-      });
-      recognition.addEventListener('error', event => { if (this.recognition === recognition) this.handleError(event); });
-      recognition.addEventListener('result', event => { if (this.recognition === recognition) this.handleResult(event); });
+      };
+      const onError = event => { if (this.recognition === recognition) this.handleError(event); };
+      const onResult = event => { if (this.recognition === recognition) this.handleResult(event); };
+
+      // Support both EventTarget addEventListener and standard Web Speech IDL on* properties
+      // across Chrome, Safari, and WebKit implementations.
+      if (typeof recognition.addEventListener === 'function') {
+        recognition.addEventListener('start', onStart);
+        recognition.addEventListener('audiostart', onStart);
+        recognition.addEventListener('soundstart', onStart);
+        recognition.addEventListener('speechstart', onStart);
+        recognition.addEventListener('end', onEnd);
+        recognition.addEventListener('error', onError);
+        recognition.addEventListener('result', onResult);
+      }
+      recognition.onstart = onStart;
+      recognition.onaudiostart = onStart;
+      recognition.onsoundstart = onStart;
+      recognition.onspeechstart = onStart;
+      recognition.onend = onEnd;
+      recognition.onerror = onError;
+      recognition.onresult = onResult;
+
       this.recognition = recognition;
       return recognition;
     }
@@ -103,9 +123,6 @@
           this.reset({ reason: 'permission-timeout' });
           this.onError({ code: 'permission-timeout' });
         }, 15000);
-        // Only entered when a consumer explicitly passes a requestMicrophone
-        // function. Do not retain the stream or start speech from the async
-        // callback—the user gesture has expired by then.
         try {
           Promise.resolve(this.requestMicrophone()).then(stream => {
             stream.getTracks().forEach(track => track.stop());
@@ -135,8 +152,10 @@
         this.replaceStalledRecognition('timeout');
         this.onError({ code: 'start-timeout' });
       }, this.startTimeout);
+      // Ensure a fresh, non-stale Recognition instance is used for each session
+      const recognition = this.installRecognition();
       try {
-        this.recognition.start();
+        recognition.start();
       } catch (error) {
         this.installRecognition();
         this.reset({ reason: 'start-failed' });
