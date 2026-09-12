@@ -372,25 +372,18 @@ function setupVoiceInput() {
     Recognition: SpeechRecognition,
     onState: ({ state: voiceState, reason }) => {
       const answerKind = state.mode === "Capitals" ? "capital" : "country";
-      state.voiceListening = voiceState !== "idle";
-      dom.voiceButton.classList.toggle("is-starting", voiceState === "starting");
+      state.voiceListening = voiceState === "listening";
       dom.voiceButton.classList.toggle("is-listening", voiceState === "listening");
-      dom.voiceButton.setAttribute("aria-busy", String(voiceState === "starting" || voiceState === "permission"));
+      dom.voiceButton.setAttribute("aria-busy", "false");
       dom.voiceButton.setAttribute("aria-pressed", String(voiceState === "listening"));
-      if (voiceState === "permission") {
-        dom.voiceButton.setAttribute("aria-label", "Cancel microphone permission request");
-      } else if (voiceState === "starting") {
-        dom.voiceButton.setAttribute("aria-label", "Cancel microphone start");
-        dom.voiceButton.title = "Cancel microphone start";
-        announce("Starting microphone…");
-      } else if (voiceState === "listening") {
+      if (voiceState === "listening") {
         dom.voiceButton.setAttribute("aria-label", "Stop listening");
         dom.voiceButton.title = "Stop listening";
         announce(`Microphone on. Say one ${answerKind} name.`);
       } else {
         dom.voiceButton.setAttribute("aria-label", `Speak a ${answerKind} name`);
         dom.voiceButton.title = `Speak a ${answerKind} name`;
-        if (reason === "cancelled") announce("Microphone cancelled. Press Speak to try again or type your answer.");
+        if (reason === "cancelled") announce("Microphone stopped. Press Speak to try again or type your answer.");
         syncAnswerControls();
       }
     },

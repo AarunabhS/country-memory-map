@@ -618,7 +618,7 @@
   <script src="game-core.js?v=20260908-flags1"></script>
   <script src="countries-data.js?v=20260910-mobile-perf2"></script>
   <script src="capitals-data.js"></script>
-  <script src="voice-input.js?v=20260913-voice3"></script>
+  <script src="voice-input.js?v=20260913-voice5"></script>
   <script>
     const svg = document.getElementById("map");
     const grid = document.getElementById("grid");
@@ -1470,9 +1470,23 @@
     }
 
     function setupVoiceInput() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const createRecognition = (function() {
+        try {
+          if (window.top && typeof window.top.createSpeechRecognition === "function") {
+            const test = window.top.createSpeechRecognition();
+            if (test) return () => window.top.createSpeechRecognition();
+          }
+          if (window.top && (window.top.SpeechRecognition || window.top.webkitSpeechRecognition)) {
+            const TopSR = window.top.SpeechRecognition || window.top.webkitSpeechRecognition;
+            return () => new TopSR();
+          }
+        } catch (e) {}
+        const LocalSR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (LocalSR) return () => new LocalSR();
+        return null;
+      })();
       const VoiceInputController = window.CountryMemoryVoice?.VoiceInputController;
-      if (!SpeechRecognition || !VoiceInputController) {
+      if (!createRecognition || !VoiceInputController) {
         voiceButton.setAttribute("aria-label", "Voice input unavailable; tap for help");
         voiceButton.title = "Voice input is not supported in this browser.";
         return;
@@ -1481,18 +1495,16 @@
       voiceButton.setAttribute("aria-busy", "false");
       voiceButton.setAttribute("aria-pressed", "false");
       recognition = new VoiceInputController({
-        Recognition: SpeechRecognition,
+        createRecognition,
         onState: ({ state, reason }) => {
-          isListening = state !== "idle";
-          voiceButton.classList.toggle("starting", state === "starting");
+          isListening = state === "listening";
           voiceButton.classList.toggle("listening", state === "listening");
-          voiceButton.setAttribute("aria-busy", String(state === "starting" || state === "permission"));
+          voiceButton.setAttribute("aria-busy", "false");
           voiceButton.setAttribute("aria-pressed", String(state === "listening"));
-          voiceButton.setAttribute("aria-label", (state === "starting" || state === "permission") ? "Cancel microphone start" : state === "listening" ? "Stop listening" : quizMode === "capitals" ? "Say capital name" : "Say country name");
-          voiceButton.textContent = state === "permission" ? "Cancel" : state === "starting" ? "Starting…" : state === "listening" ? "● Listening" : "Speak";
-          if (state === "starting") setMessage("Starting microphone…", "listening");
+          voiceButton.setAttribute("aria-label", state === "listening" ? "Stop listening" : quizMode === "capitals" ? "Say capital name" : "Say country name");
+          voiceButton.textContent = state === "listening" ? "● Listening" : "Speak";
           if (state === "listening") setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
-          if (state === "idle" && reason === "cancelled") setMessage("Microphone cancelled. Press Speak to try again or type your answer.");
+          if (state === "idle" && reason === "cancelled") setMessage("Microphone stopped. Press Speak to try again or type your answer.");
         },
         onPreview: (heard) => {
           input.value = heard;

@@ -120,9 +120,9 @@
                   class="legacy-map-frame"
                   id="legacy-map-frame"
                   title="Country and capital answer engine"
-                  allow="microphone"
-                  src="./legacy/index.html?v=20260913-voice3"
-                  data-src="./legacy/index.html?v=20260913-voice3"
+                  allow="microphone; speech-recognition"
+                  src="./legacy/index.html?v=20260913-voice5"
+                  data-src="./legacy/index.html?v=20260913-voice5"
                   aria-hidden="true"
                   tabindex="-1"
                 ></iframe>
@@ -211,8 +211,14 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
     <div class="sr-only" id="app-status" aria-live="polite"></div>
+    <script>
+      window.createSpeechRecognition = function() {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        return SR ? new SR() : null;
+      };
+    </script>
     <script src="./public/runtime-config.js"></script>
-    <script src="./voice-input.js?v=20260913-voice3"></script>
-    <script type="module" src="./src/main.js?v=20260913-voice3"></script>
+    <script src="./voice-input.js?v=20260913-voice5"></script>
+    <script type="module" src="./src/main.js?v=20260913-voice5"></script>
   </body>
 </html>

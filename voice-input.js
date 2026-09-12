@@ -16,6 +16,7 @@
   class VoiceInputController {
     constructor({
       Recognition,
+      createRecognition = null,
       language = 'en-US',
       maxAlternatives = 5,
       startTimeout = 8000,
@@ -27,7 +28,9 @@
       setTimer = setTimeout,
       clearTimer = clearTimeout
     } = {}) {
-      this.supported = typeof Recognition === 'function';
+      this.createRecognition = createRecognition;
+      this.Recognition = Recognition || (typeof createRecognition === 'function' ? createRecognition : null);
+      this.supported = typeof this.createRecognition === 'function' || typeof this.Recognition === 'function';
       this.state = 'idle';
       this.onState = onState;
       this.onPreview = onPreview;
@@ -44,7 +47,6 @@
       this.finalDelivered = false;
       this.userStopped = false;
       if (!this.supported) return;
-      this.Recognition = Recognition;
       this.language = language;
       this.maxAlternatives = maxAlternatives;
       this.installRecognition();
@@ -65,7 +67,15 @@
     }
 
     installRecognition() {
-      const recognition = new this.Recognition();
+      let recognition;
+      try {
+        recognition = typeof this.createRecognition === 'function'
+          ? this.createRecognition()
+          : new this.Recognition();
+      } catch (err) {
+        return null;
+      }
+      if (!recognition) return null;
       recognition.lang = this.language;
       recognition.continuous = false;
       recognition.interimResults = true;
@@ -154,6 +164,11 @@
       }, this.startTimeout);
       // Ensure a fresh, non-stale Recognition instance is used for each session
       const recognition = this.installRecognition();
+      if (!recognition) {
+        this.reset({ reason: 'start-failed' });
+        this.onError({ code: 'start-failed' });
+        return false;
+      }
       try {
         recognition.start();
       } catch (error) {
