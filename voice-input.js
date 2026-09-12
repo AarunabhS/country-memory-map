@@ -19,8 +19,7 @@
       language = 'en-US',
       maxAlternatives = 5,
       startTimeout = 8000,
-      requestMicrophone = typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia
-        ? () => navigator.mediaDevices.getUserMedia({ audio: true }) : null,
+      requestMicrophone = null,
       onState = () => {},
       onPreview = () => {},
       onFinal = () => {},
@@ -104,31 +103,16 @@
           this.reset({ reason: 'permission-timeout' });
           this.onError({ code: 'permission-timeout' });
         }, 15000);
-        // Called directly by Speak's click handler. After permission succeeds,
-        // immediately start recognition so the user needs only one tap.
+        // Only entered when a consumer explicitly passes a requestMicrophone
+        // function. Do not retain the stream or start speech from the async
+        // callback—the user gesture has expired by then.
         try {
           Promise.resolve(this.requestMicrophone()).then(stream => {
             stream.getTracks().forEach(track => track.stop());
             if (this.permissionAttempt !== attempt) return;
             this.permissionAttempt = null;
-            this.clearStartTimer();
             this.microphoneReady = true;
-            this.userStopped = false;
-            this.processedFinals.clear();
-            this.finalDelivered = false;
-            this.setState('starting', { reason: 'permission-granted' });
-            this.startTimer = this.setTimer(() => {
-              if (this.state !== 'starting') return;
-              this.replaceStalledRecognition('timeout');
-              this.onError({ code: 'start-timeout' });
-            }, this.startTimeout);
-            try {
-              this.recognition.start();
-            } catch (error) {
-              this.installRecognition();
-              this.reset({ reason: 'start-failed' });
-              this.onError({ code: 'start-failed', error });
-            }
+            this.reset({ reason: 'permission-granted' });
           }, error => {
             if (this.permissionAttempt !== attempt) return;
             this.permissionAttempt = null;

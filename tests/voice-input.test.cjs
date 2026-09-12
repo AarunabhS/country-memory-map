@@ -95,7 +95,18 @@ test('unsupported and throwing recognizers fail without trapping the control', (
   assert.deepEqual(errors, ['start-failed']);
 });
 
-test('permission is requested only on click and auto-starts recognition after grant', async () => {
+test('default config skips permission branch and starts recognition directly from click', () => {
+  const states = [];
+  const controller = new VoiceInputController({ Recognition: FakeRecognition, onState: s => states.push(s.state) });
+  assert.equal(controller.microphoneReady, true);
+  controller.start();
+  assert.equal(controller.state, 'starting');
+  assert.equal(controller.recognition.startCalls, 1);
+  assert.deepEqual(states, ['starting']);
+  controller.abort();
+});
+
+test('explicit requestMicrophone gates the first start behind a permission flow', async () => {
   let requests = 0, released = 0, grant;
   const states = [];
   const controller = new VoiceInputController({ Recognition: FakeRecognition,
@@ -111,8 +122,10 @@ test('permission is requested only on click and auto-starts recognition after gr
   grant({ getTracks: () => [{ stop: () => released++ }] });
   await Promise.resolve();
   assert.equal(released, 1);
-  assert.equal(controller.state, 'starting');
+  assert.equal(controller.state, 'idle');
   assert.equal(states.at(-1).reason, 'permission-granted');
+  assert.equal(controller.recognition.startCalls, 0);
+  controller.start();
   assert.equal(controller.recognition.startCalls, 1);
   controller.abort();
 });
