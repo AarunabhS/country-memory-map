@@ -13,6 +13,10 @@ Static geography games, published from `main` at https://www.arunabhosom.com/cou
 
 All games use the same 195-country classification as the original checker. Small pools repeat only after every eligible country has been served. Practice Missed uses exactly the countries missed or answered with retries and is separate from personal-best comparisons.
 
+## Play with Friends
+
+Create a room to receive both a public invite link and a room code. Friends can open the link, or choose **Play with Friends → Join a Room** and enter the code. Normal rooms use the public persistent friends service even when the frontend is previewed on a development device. When the page is opened from localhost or a LAN address, share **Copy Invite Link**, **Share**, or **Copy Room Code** rather than copying the browser address, which is reachable only on that device or network.
+
 ## Architecture
 
 - `index.html`, `styles.css`, `src/`: cinematic Home, first-screen five-game launcher, Countries/Capitals Explore controls, Google/local globe renderers, canonical game routes, and the narrow answer bridge into the retained checker.

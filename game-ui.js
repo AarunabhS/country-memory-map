@@ -126,8 +126,15 @@
         suppressResults = false;
       }
     }) : null;
+    function friendsRouteRequested() {
+      if (window.CountryMemoryFriendsActive) return true;
+      try {
+        const route = new URL(window.top.location.href);
+        return route.searchParams.get('game') === 'multiplayer' || route.searchParams.has('room');
+      } catch { return false; }
+    }
     profileUI?.mount();
-    players?.initialize().then(() => { if (!players.active) profileUI?.open('create'); });
+    players?.initialize().then(() => { if (!players.active && !friendsRouteRequested()) profileUI?.open('create'); });
     function tickSolo() {
       const at=Date.now(),s=engine.state;
       if(s.gameStatus==='playing'&&((s.deadline!==null&&at>=s.deadline)||(s.feedbackUntil!==null&&at>=s.feedbackUntil)||(s.currentQuestion&&!s.currentQuestion.resolved&&at>=s.currentQuestion.deadline)))soloReplay?.actions.push({kind:'tick',at:at-s.startedAt});

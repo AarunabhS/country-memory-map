@@ -2,6 +2,16 @@
 
 This file records actual governance decisions and identifies candidates that still need a decision. It is not a substitute for ADRs.
 
+## 2026-09-12 — Multiplayer invitation reliability
+
+Status: local implementation **AUTOMATED VERIFIED** and **MANUALLY VERIFIED WITH EVIDENCE** against the public room service; deployment and physical-device verification remain **MANUAL VERIFICATION REQUIRED**.
+
+- Made an explicit room in a WhatsApp/shared route authoritative over a different stored room, preventing returning browsers from polling and republishing the old code before the requested invitation is inspected.
+- Cleared expired, missing, and removed stored sessions, kept invitation errors inside Friends mode with recovery actions, and suppressed the unrelated local-profile prompt while a no-account Friends route is opening.
+- Made Create a Room and Join a Room explicit, added normalized pasted-code entry plus keyboard submission, and exposed Copy Room Code alongside the canonical public invite link and native share action.
+- Normal frontend previews now use the same public persistent room service as the public site and always generate a public-site invitation. A local room service is available only through an exact loopback developer override.
+- Preserved the Worker schema and room engine, nine-player limit, privacy, gameplay, scoring, readiness, host transfer, rematch, routes, and browser storage format. No generated Worker snapshot changed.
+
 ## 2026-09-11 — Explore country selection and facts
 
 Status: accepted in [ADR 0003](architecture/0003-explore-country-selection-and-facts.md); local implementation **AUTOMATED VERIFIED**; production/device verification remains **MANUAL VERIFICATION REQUIRED**.

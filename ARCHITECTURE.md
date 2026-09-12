@@ -1,6 +1,6 @@
 # Country Memory Map architecture
 
-Status date: 2026-09-11. This map describes verified repository structure. Labels prevent proposals and known defects from being mistaken for shipped behavior.
+Status date: 2026-09-12. This map describes verified repository structure. Labels prevent proposals and known defects from being mistaken for shipped behavior.
 
 ## Application and routing
 
@@ -86,6 +86,8 @@ Status date: 2026-09-11. This map describes verified repository structure. Label
 **VERIFIED CURRENT ARCHITECTURE**
 
 - `multiplayer-service.js` is the browser transport and polling client. `multiplayer-ui.js` adapts room, challenge, standings, and replay flows to the retained game controller.
+- A room code supplied by the canonical multiplayer route takes precedence over a different browser-stored session. Terminal missing, expired, or removed sessions are cleared; they may not republish an obsolete room into the root route.
+- Normal browser clients use the public persistent room service regardless of whether the frontend was opened from the public site, localhost, or a LAN device. Local room-service use requires an exact allowlisted loopback override, and player-facing share links use the canonical public frontend rather than the current device address.
 - `multiplayer-server/room-engine.mjs` owns room rules. `worker.mjs` exposes the Cloudflare Worker API backed by D1. `build.mjs` bundles the Worker and regenerates `shared/game-core.cjs` and `shared/countries.json` from root sources.
 
 - The generated multiplayer snapshots were deliberately refreshed on 2026-09-09 and matched their canonical sources at that point. Future rule/data changes must regenerate them through `multiplayer-server/build.mjs`; current changes do not touch those inputs or outputs.

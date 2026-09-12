@@ -14,7 +14,7 @@ node multiplayer-server/local.mjs
 python3 -m http.server 8000
 ```
 
-Use Node 22.13 or newer for the local SQLite adapter. Open http://127.0.0.1:8000 in separate browser profiles for independent guest identities. The local database is `/private/tmp/country-memory-friends-local.sqlite`; override `FRIENDS_DB` to choose a different test database.
+Use Node 22.13 or newer for the local SQLite adapter. The normal frontend deliberately uses the public persistent friends service even on loopback so copied codes and invite links remain reachable from other devices. An isolated test harness may set `window.COUNTRY_MEMORY_FRIENDS_API_OVERRIDE` to the exact loopback API URL before loading `multiplayer-config.js`; the override is accepted only on a loopback page and falls back to the hosted service if local health checking fails. Open the page in separate browser profiles for independent guest identities. The local database is `/private/tmp/country-memory-friends-local.sqlite`; override `FRIENDS_DB` to choose a different test database.
 
 ## Architecture and boundaries
 
@@ -35,6 +35,6 @@ Use Node 22.13 or newer for the local SQLite adapter. Open http://127.0.0.1:8000
 
 The backend is configured by `.openai/hosting.json`. Package `dist/server/index.js`, hosting configuration and the generated Drizzle migration files with the Sites packaging helper. Source must be pushed to the Sites source repository before saving/deploying its version.
 
-The production frontend remains on GitHub Pages. On localhost, `multiplayer-config.js` prefers the local service when its health route is reachable and otherwise uses the existing Sites service before sending a room-creation request; deployed frontends use the Sites service directly. Active sessions remember their validated service origin so polls and actions stay with the database that owns the room. The service must allow guest access before publishing the frontend integration. Rooms themselves continue to require a code and player token; guest accessibility does not add room discovery.
+The production frontend remains on GitHub Pages. `multiplayer-config.js` uses the Sites service and the canonical public frontend URL by default on every host, including localhost and LAN previews; this prevents device-only rooms and unshareable localhost links. Only the explicit, allowlisted loopback developer override selects the local service. Active sessions remember their validated service origin so polls and actions stay with the database that owns the room. The service must allow guest access before publishing the frontend integration. Rooms themselves continue to require a code and player token; guest accessibility does not add room discovery.
 
 Apply future schema changes using Drizzle migrations, not request-time schema creation. Do not rewrite an already deployed migration.

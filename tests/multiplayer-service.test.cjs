@@ -7,12 +7,13 @@ const configSource = fs.readFileSync('multiplayer-config.js', 'utf8');
 const serviceSource = fs.readFileSync('multiplayer-service.js', 'utf8');
 const localApi = 'http://127.0.0.1:8787';
 const hostedApi = 'https://country-memory-friends.arunabh007.chatgpt.site';
+const hostedSite = 'https://www.arunabhosom.com/country-memory-map/?game=multiplayer';
 
-function readConfig(hostname) {
-  const context = { location: { hostname } };
+function readConfig(hostname, override = null) {
+  const context = { location: { hostname }, COUNTRY_MEMORY_FRIENDS_API_OVERRIDE: override };
   context.window = context;
   vm.runInNewContext(configSource, context);
-  return { api: context.FRIENDS_API, fallback: context.FRIENDS_API_FALLBACK };
+  return { api: context.FRIENDS_API, fallback: context.FRIENDS_API_FALLBACK, share: context.FRIENDS_SHARE_URL };
 }
 
 function response(body, status = 200) {
@@ -35,6 +36,7 @@ function serviceHarness({ fetchImpl, session = null } = {}) {
     AbortSignal,
     Date,
     Response,
+    URL,
     clearTimeout,
     document: { hidden: false, addEventListener() {} },
     fetch: fetchImpl,
@@ -42,7 +44,8 @@ function serviceHarness({ fetchImpl, session = null } = {}) {
     location: { origin: 'http://127.0.0.1:8000', pathname: '/' },
     setTimeout,
     FRIENDS_API: localApi,
-    FRIENDS_API_FALLBACK: hostedApi
+    FRIENDS_API_FALLBACK: hostedApi,
+    FRIENDS_SHARE_URL: hostedSite
   };
   context.window = context;
   context.addEventListener = () => {};
@@ -51,11 +54,50 @@ function serviceHarness({ fetchImpl, session = null } = {}) {
   return { service, states, statuses, storage };
 }
 
-test('loopback configuration keeps local service first and hosted service as fallback', () => {
-  assert.deepEqual(readConfig('127.0.0.1'), { api: localApi, fallback: hostedApi });
-  assert.deepEqual(readConfig('localhost'), { api: localApi, fallback: hostedApi });
-  assert.deepEqual(readConfig('[::1]'), { api: localApi, fallback: hostedApi });
-  assert.deepEqual(readConfig('www.arunabhosom.com'), { api: hostedApi, fallback: null });
+test('all normal clients use the public persistent room service', () => {
+  assert.deepEqual(readConfig('127.0.0.1'), { api: hostedApi, fallback: null, share: hostedSite });
+  assert.deepEqual(readConfig('localhost'), { api: hostedApi, fallback: null, share: hostedSite });
+  assert.deepEqual(readConfig('[::1]'), { api: hostedApi, fallback: null, share: hostedSite });
+  assert.deepEqual(readConfig('www.arunabhosom.com'), { api: hostedApi, fallback: null, share: hostedSite });
+});
+
+test('a loopback service requires an exact local developer override', () => {
+  assert.deepEqual(readConfig('localhost', localApi), { api: localApi, fallback: hostedApi, share: null });
+  assert.deepEqual(readConfig('www.arunabhosom.com', localApi), { api: hostedApi, fallback: null, share: hostedSite });
+  assert.deepEqual(readConfig('localhost', 'https://untrusted.example'), { api: hostedApi, fallback: null, share: hostedSite });
+});
+
+test('share links use the public website even when the frontend runs on a device', () => {
+  const session = { code: 'GEOABC123', token: 'token', api: hostedApi };
+  const { service } = serviceHarness({ session, fetchImpl: async () => { throw new Error('No request expected'); } });
+  assert.equal(service.invite(), `${hostedSite}&room=GEOABC123`);
+  service.suspend();
+});
+
+test('room codes normalize common WhatsApp copy and paste formats', () => {
+  const { service } = serviceHarness({ fetchImpl: async () => { throw new Error('No request expected'); } });
+  assert.equal(service.normalizeCode(' geo abc-123 '), 'GEOABC123');
+  assert.equal(service.normalizeCode('https://www.arunabhosom.com/country-memory-map/?game=multiplayer&room=geoabc123'), 'GEOABC123');
+  assert.equal(service.validCode('GEO ABC-123'), true);
+  assert.equal(service.validCode('bad!'), false);
+  service.suspend();
+});
+
+test('a different invite pauses the stored room without polling or replacing it', () => {
+  let calls = 0;
+  const session = { code: 'GEOOLD123', token: 'old-token', api: hostedApi };
+  const { service, storage } = serviceHarness({
+    session,
+    fetchImpl: async () => { calls++; throw new Error('No request expected'); }
+  });
+
+  const invite = service.prepareInvite('https://www.arunabhosom.com/country-memory-map/?game=multiplayer&room=GEONEW456');
+
+  assert.equal(invite.code, 'GEONEW456');
+  assert.equal(invite.matchesSession, false);
+  assert.equal(service.suspended, true);
+  assert.equal(calls, 0);
+  assert.deepEqual(JSON.parse(storage.getItem('country-memory-friend-session-v1')), session);
 });
 
 test('room creation health-checks before falling back and never retries the POST', async () => {
@@ -98,6 +140,31 @@ test('an established room reuses its persisted service without probing another d
   service.suspend();
 
   assert.deepEqual(calls, [{ url: `${hostedApi}/rooms/GEOABC123`, method: 'GET' }]);
+});
+
+test('an expired stored room is cleared and no longer announced as active', async () => {
+  const session = { code: 'GEOOLD123', token: 'token', api: hostedApi };
+  const { service, states, statuses, storage } = serviceHarness({
+    session,
+    fetchImpl: async () => response({
+      error: 'ROOM_EXPIRED',
+      message: 'THIS ROOM HAS EXPIRED',
+      serverNow: 1000
+    }, 410)
+  });
+
+  const result = await service.poll();
+
+  assert.equal(result, null);
+  assert.equal(service.session, null);
+  assert.equal(service.room, null);
+  assert.equal(storage.getItem('country-memory-friend-session-v1'), null);
+  assert.deepEqual({ ...states.at(-1) }, {
+    error: 'ROOM_EXPIRED',
+    message: 'THIS ROOM HAS EXPIRED',
+    code: 'GEOOLD123'
+  });
+  assert.equal(statuses.at(-1), '');
 });
 
 test('a stored session cannot redirect its bearer token to an unconfigured API', async () => {
