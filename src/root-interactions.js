@@ -1,7 +1,7 @@
 const COUNTRY_CLICK_ANSWER_MODES = new Set(["Explore", "Countries"]);
 
 function retainedHost(frameDocument) {
-  return frameDocument?.defaultView?.CountryMemoryRetained || null;
+  return frameDocument?.defaultView?.CountryMemoryApp || null;
 }
 
 function retainedFreeMapIsActive(frameDocument, checker) {

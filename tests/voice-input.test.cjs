@@ -174,3 +174,20 @@ test('audio capture acknowledges listening even when the start event is missing'
   assert.equal(controller.state, 'listening');
   controller.abort();
 });
+
+test('leaving a game rejects late speech results even after a new microphone session starts', () => {
+  const finals=[];
+  const voice=new VoiceInputController({Recognition:FakeRecognition,onFinal:values=>finals.push(values)});
+  voice.start();
+  const old=voice.recognition;
+  old.emit('start');
+  voice.abort();
+  old.emit('result',{results:[result(['India'],true)]});
+  assert.deepEqual(finals,[]);
+  voice.start();
+  old.emit('result',{results:[result(['Brazil'],true)]});
+  voice.recognition.emit('start');
+  voice.recognition.emit('result',{results:[result(['France'],true)]});
+  assert.deepEqual(finals,[['France']]);
+  voice.abort();
+});

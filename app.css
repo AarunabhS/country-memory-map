@@ -1,0 +1,112 @@
+/* One application shell, shared by rooms, practice, and every game. */
+[hidden] { display: none !important; }
+.app { --nav-height: 72px; }
+.app-nav { position: absolute; top: env(safe-area-inset-top, 0px); left: 0; right: 0; height: var(--nav-height); z-index: 35; display: flex; align-items: center; gap: 10px; padding: 12px 28px; background: #061321; border-bottom: 1px solid #ffffff16; }
+.app-brand { display: flex; align-items: center; gap: 10px; margin-right: auto; color: #f5faff; text-decoration: none; font-size: 16px; font-weight: 750; }
+.app-nav button { min-height: 44px; padding: 9px 16px; border-radius: 12px; }
+.app-nav #exitRoom { border-color: #ff9da8; color: #ffbac2; background: #281b2a; }
+#welcome { position: absolute; inset: 72px 0 0; display: grid; grid-template-columns: 1fr 1fr; align-items: center; padding: clamp(24px,6vw,100px); gap: 30px; overflow: auto; }
+.welcome-copy { position: relative; z-index: 1; max-width: 590px; }
+#welcome h1 { margin: 20px 0; font-size: clamp(40px,5.4vw,78px); font-weight: 750; line-height: 1.05; letter-spacing: -.055em; color: #f5faff; }
+#welcome p { color: #b8c9d9; font-size: 18px; line-height: 1.6; max-width: 440px; }
+#welcome .eyebrow { color: #84e5b5; font-size: 11px; letter-spacing: .16em; }
+#welcomeFriends { margin-top: 20px; min-height: 58px; width: min(100%,370px); display: flex; justify-content: space-between; align-items: center; padding: 16px 22px; border-radius: 14px; background: #a9f0ca; border: 0; color: #062c25; font-size: 17px; font-weight: 750; }
+#welcome .welcome-note { font-size: 12px; color: #adbdce; }
+.welcome-secondary { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.welcome-secondary button { min-height: 48px; padding: 12px 18px; border-radius: 12px; }
+#welcomeGlobe { width: 100%; aspect-ratio: 1; max-width: 650px; border-radius: 50%; touch-action: none; filter: drop-shadow(0 0 50px #439dbc35); }
+.app[data-page="home"] > :not(.app-nav):not(#welcome):not(.game-shell-atmosphere),
+.app[data-page="friends"] .setup-panel,
+.app[data-page="friends"] .profile-chip { display: none !important; }
+.app[data-page="home"] .app-nav #appHome { display: none; }
+.app[data-page="friends"]:has(#friendsPanel:not([hidden])) .platform-header,
+.app[data-page="friends"]:has(#friendsPanel:not([hidden])) .control,
+.app[data-page="friends"]:has(#friendsPanel:not([hidden])) .game-hud,
+.app[data-page="friends"]:has(#friendsPanel:not([hidden])) .map-shell { visibility: hidden; }
+.app .setup-panel { top: 154px; max-height: calc(var(--app-height,100dvh) - 166px); }
+.app #friendsPanel { top: calc(var(--nav-height) + env(safe-area-inset-top, 0px) + 22px); bottom: 22px; left: 50%; transform: translateX(-50%); width: min(640px,calc(100% - 40px)); max-height: none; padding: 28px; border-radius: 24px; }
+.app #friendsPanel h2 { font-size: 32px; letter-spacing: -1px; }
+.app #friendsPanel input,.app #friendsPanel select { min-height: 48px; border-radius: 10px; }
+.app #friendsPanel .friend-room-code { font-size: 28px; padding: 18px; color: #a9f0ca; letter-spacing: .14em; }
+.app[data-page="friends"] #endGame { display: none; }
+.app .friend-settings { grid-template-columns: 1fr 1fr; }
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,canvas:focus-visible { outline: 3px solid #a9f0ca; outline-offset: 4px; }
+@media(max-width:760px) {
+  .app { --nav-height: 64px; }
+  .app-nav { padding: 8px 12px; gap: 6px; }
+  .app-brand { font-size: 13px; gap: 6px; }
+  .app-nav button { padding: 8px 11px; font-size: 12px; }
+  #welcome { inset: calc(64px + env(safe-area-inset-top,0px)) 0 0; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 30px 24px max(24px,env(safe-area-inset-bottom)); }
+  #welcome h1 { font-size: clamp(38px,10vw,60px); margin: 12px 0 18px; }
+  #welcome p { font-size: 15px; margin: 10px 0; }
+  #welcomeFriends { width: 100%; margin-top: 24px; }
+  #welcomeGlobe { width: 72%; max-width: 320px; margin: 8px auto 0; flex-shrink: 0; }
+  .welcome-secondary { margin-top: 20px; }
+  .welcome-secondary button { flex: 1; font-size: 13px; }
+  .app #friendsPanel { top: calc(74px + env(safe-area-inset-top,0px)); bottom: max(10px,env(safe-area-inset-bottom)); width: calc(100% - 20px); padding: 20px 16px; border-radius: 18px; }
+  .app #friendsPanel h2 { font-size: 27px; }
+  .app .setup-panel { top: 136px; max-height: calc(var(--app-height,100dvh) - 148px); }
+  .app .friend-settings { grid-template-columns: 1fr 1fr; gap: 0 10px; }
+  .app .friend-settings label { min-width: 0; }
+  .app .friend-settings select { font-size: 14px; }
+  .app #liveBoard { top: 64px; bottom: auto; max-height: 40%; }
+}
+@media(max-height:500px) and (min-width:600px) {
+  .app { --nav-height: 56px; }
+  #welcome { display: grid; grid-template-columns: 1.3fr 1fr; inset: 56px 0 0; padding: 20px 36px; }
+  #welcome h1 { font-size: 36px; }
+  #welcomeGlobe { width: 100%; }
+  .app .setup-panel { top: 66px; bottom: 10px; max-height: none; }
+}
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior: auto !important; } }
+.app .app-nav #exitRoom { -webkit-text-fill-color: #ffbac2; }
+.game-shell .friend-player b { color: #9cedc3; }
+.game-shell .friend-player small { color: #c2d2e1; }
+.app.platform { padding-top: calc(var(--nav-height) + env(safe-area-inset-top,0px) + 10px); }
+.app .loading.hidden { display: none !important; }
+@media(max-width:760px), (max-height:500px) and (min-width:600px) {
+  .app.platform.choosing .setup-panel { top: auto; bottom: auto; max-height: none; }
+}
+@media(max-height:500px) and (min-width:600px) {
+  .app.platform:not(.choosing):not(.flag-platform):not(.quiz-platform) {
+    grid-template-columns: minmax(250px,32%) minmax(0,1fr);
+    grid-template-rows: auto auto minmax(0,1fr);
+  }
+  .app.platform:not(.choosing):not(.flag-platform):not(.quiz-platform) .platform-header { grid-column: 1; grid-row: 1; padding: 8px; gap: 8px; }
+  .app.platform:not(.choosing):not(.flag-platform):not(.quiz-platform) .profile-chip { display: none; }
+  .app.platform:not(.choosing):not(.flag-platform):not(.quiz-platform) .game-hud { grid-column: 1; grid-row: 2; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 0; }
+  .app.platform:not(.choosing):not(.flag-platform):not(.quiz-platform) .hud-stat { display: block; padding: 0 8px; text-align: left; }
+  .app.platform:not(.choosing):not(.flag-platform):not(.quiz-platform) .map-shell { grid-column: 2; grid-row: 1 / -1; }
+  .app.platform:not(.choosing):not(.flag-platform):not(.quiz-platform) .control { grid-column: 1; grid-row: 3; align-self: stretch; width: 100%; overflow-y: auto; padding: 8px; }
+  .app.platform:not(.choosing):not(.flag-platform):not(.quiz-platform) .control form { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .app.platform:not(.choosing):not(.flag-platform):not(.quiz-platform) .control input { grid-column: 1 / -1; min-width: 0; }
+}
+/* Explore uses the same viewport and navigation space as scored rounds. */
+.app[data-free-map-active] {
+  display: grid; height: var(--app-height,100dvh); min-height: 0; overflow: hidden;
+  grid-template-rows: auto auto minmax(0,1fr) auto;
+  padding: calc(var(--nav-height) + env(safe-area-inset-top,0px) + 10px) 10px max(10px,env(safe-area-inset-bottom)); gap: 8px;
+}
+.app[data-free-map-active] .topbar { position: static; grid-row: 1; background: var(--shell-panel); color: var(--shell-ink); border-color: var(--shell-line); }
+.app[data-free-map-active] #appTitle, .app[data-free-map-active] #openGames { display: none; }
+.app[data-free-map-active] .continentbar { position: static; grid-row: 2; overflow-x: auto; flex-wrap: nowrap; }
+.app[data-free-map-active] .continentbar button { flex: 0 0 auto; }
+.app[data-free-map-active] .map-shell { position: relative; grid-row: 3; padding: 0; min-height: 0; }
+.app[data-free-map-active] .control { position: static; grid-row: 4; width: 100%; }
+.app[data-free-map-active] button { color: #17384e; -webkit-text-fill-color: #17384e; }
+.app[data-free-map-active] .mode-switch button.active { color: white; -webkit-text-fill-color: white; }
+.app[data-free-map-active] .legend-panel { color: #17384e; background: #f3f9fd; }
+@media(max-width:1100px), (max-height:600px) {
+  .app[data-free-map-active] .topbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; }
+  .app[data-free-map-active] .topbar .score { flex: 1; max-width: none; font-size: 12px; }
+}
+.app[data-free-map-active] .mode-switch { background: #142d43; border-color: var(--shell-line); }
+.app[data-free-map-active] .mode-switch button { color: #d8e7f4; -webkit-text-fill-color: #d8e7f4; }
+.app[data-free-map-active] .score { color: #bdccdc; }
+@media(max-width:760px) {
+  .app[data-free-map-active] .topbar { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) 94px; }
+  .app[data-free-map-active] .topbar .mode-switch { grid-column: 1 / 3; grid-row: 1; min-width: 0; }
+  .app[data-free-map-active] .topbar .score { grid-column: 3; grid-row: 1; width: auto; max-width: none; font-size: 11px; line-height: 1.4; text-align: right; }
+  .app[data-free-map-active] .topbar #revealButton { grid-column: 1 / 3; grid-row: 2; }
+  .app[data-free-map-active] .topbar #resetButton { grid-column: 3; grid-row: 2; }
+}

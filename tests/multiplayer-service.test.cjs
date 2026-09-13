@@ -289,3 +289,111 @@ test('very slow transport has a retry floor instead of creating a polling storm'
   assert.equal(delay, 250);
   service.suspend();
 });
+
+test('leaving is immediate offline and a late poll cannot restore the room', async () => {
+  let finishPoll;
+  const requests=[];
+  const session={code:'GEOABC123',token:'test-token',api:localApi};
+  const {service,states,storage}=serviceHarness({session, fetchImpl:async(url,options)=>{
+    requests.push({url,options});
+    if(options.method==='GET')return new Promise(resolve=>{finishPoll=resolve;});
+    return new Promise(()=>{}); // a stalled leave request must not trap the UI
+  }});
+  const polling=service.poll();
+  await new Promise(resolve=>setImmediate(resolve));
+  await service.leave();
+  assert.equal(service.session,null);
+  assert.equal(storage.getItem(service.key),null);
+  finishPoll(response({code:session.code,revision:2}));
+  await polling;
+  assert.equal(service.room,null);
+  assert.equal(states.length,0);
+  assert.equal(requests.at(-1).options.headers.Authorization,'Bearer test-token');
+  assert.equal(service.suspended,true);
+});
+
+test('a delayed create response is discarded after leaving and its membership is released', async () => {
+  let completeCreate;
+  const sent=[];
+  const {service,states,storage}=serviceHarness({fetchImpl:async(url,options)=>{
+    const body=JSON.parse(options.body||'null');sent.push({url,body,headers:options.headers});
+    if(url.endsWith('/health'))return response({ok:true});
+    if(url.endsWith('/rooms'))return new Promise(resolve=>{completeCreate=resolve;});
+    return response({ok:true});
+  }});
+  const creating=service.create('Host');
+  await new Promise(resolve=>setImmediate(resolve));
+  await service.leave();
+  completeCreate(response({code:'GEONEW123',token:'new-token',revision:1}));
+  assert.equal(await creating,null);
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(service.session,null);
+  assert.equal(storage.getItem(service.key),null);
+  assert.equal(states.length,0);
+  assert.equal(sent.at(-1).body.action,'leave');
+  assert.equal(sent.at(-1).headers.Authorization,'Bearer new-token');
+});
+
+test('a new room can poll while a previous room request is still unresolved', async t => {
+  let completeOldPoll;
+  const old={code:'GEOOLD123',token:'old-token',api:localApi};
+  const {service,states}=serviceHarness({session:old,fetchImpl:async(url,options)=>{
+    if(url.endsWith(old.code)&&options.method==='GET')return new Promise(resolve=>{completeOldPoll=resolve;});
+    if(options.method==='POST'&&JSON.parse(options.body).action==='join')return response({code:'GEONEW123',token:'new-token',revision:1});
+    if(url.endsWith('GEONEW123'))return response({code:'GEONEW123',revision:2});
+    return response({ok:true});
+  }});
+  t.after(()=>service.suspend());
+  const oldPoll=service.poll();
+  await new Promise(resolve=>setImmediate(resolve));
+  await service.join('GEONEW123','Guest');
+  await service.poll();
+  assert.equal(service.room.revision,2);
+  completeOldPoll(response({code:old.code,revision:99}));
+  await oldPoll;
+  assert.equal(service.room.code,'GEONEW123');
+  assert.equal(service.room.revision,2);
+  assert.ok(states.every(s=>s.code==='GEONEW123'));
+});
+
+test('duplicate create/join clicks cannot create competing memberships', async t => {
+  let finish;
+  const {service}=serviceHarness({session:{code:'GEOOLD123',token:'old-token',api:localApi},fetchImpl:async(url,options)=>{
+    if(url.endsWith('/rooms'))return new Promise(resolve=>{finish=resolve;});
+    return response({ok:true});
+  }});
+  t.after(()=>service.suspend());
+  const creation=service.create('Host');
+  await new Promise(resolve=>setImmediate(resolve));
+  await assert.rejects(service.join('GEONEW123','Guest'),/already in progress/);
+  finish(response({code:'GEONEW123',token:'new-token',revision:1}));
+  await creation;
+  assert.equal(service.session.code,'GEONEW123');
+});
+
+test('an old room failure cannot block or report disconnection in a newly joined room', async t => {
+  let rejectOld;
+  const {service,statuses}=serviceHarness({session:{code:'GEOOLD123',token:'old-token',api:localApi},fetchImpl:async(url,options)=>{
+    if(url.endsWith('GEOOLD123')&&options.method==='GET')return new Promise((_,reject)=>{rejectOld=reject;});
+    if(options.method==='POST'&&JSON.parse(options.body).action==='join')return response({code:'GEONEW123',token:'new-token',revision:1});
+    return response({ok:true});
+  }});
+  t.after(()=>service.suspend());
+  const oldPoll=service.poll();
+  await new Promise(resolve=>setImmediate(resolve));
+  await service.join('GEONEW123','Guest');
+  statuses.length=0;
+  rejectOld(new TypeError('offline'));
+  await oldPoll;
+  assert.equal(service.room.code,'GEONEW123');
+  assert.deepEqual(statuses,[]);
+});
+
+test('damaged saved membership cannot send malformed room requests', async () => {
+  let calls=0;
+  const {service,storage}=serviceHarness({session:{code:'?',token:123},fetchImpl:async()=>{calls++;throw Error('should not fetch');}});
+  assert.equal(service.session,null);
+  assert.equal(await service.resume(),null);
+  assert.equal(calls,0);
+  assert.equal(storage.getItem(service.key),null);
+});

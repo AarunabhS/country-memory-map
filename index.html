@@ -1,224 +1,101 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="theme-color" content="#030812" />
-    <meta
-      name="description"
-      content="Country Memory Map — explore the globe and play five geography games."
-    />
-    <title>Country Memory Map</title>
-    <link rel="icon" href="./public/earth-preview.webp" type="image/webp" />
-    <link rel="stylesheet" href="./styles.css?v=20260913-voice6" />
-  </head>
-  <body>
-    <a class="skip-link" href="#main-content">Skip to games</a>
-    <div class="universe" aria-hidden="true">
-      <div class="star-field star-field-one"></div>
-      <div class="star-field star-field-two"></div>
-      <div class="horizon-glow"></div>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>Country Memory Map</title>
+  <link rel="stylesheet" href="world-map.css">
+  <link rel="stylesheet" href="game.css?v=20260912-desktop-viewport1">
+  <link rel="stylesheet" href="flag-game.css?v=20260911-mobile-viewport2">
+  <link rel="stylesheet" href="multiplayer.css?v=20260913-friends1">
+  <link rel="stylesheet" href="player-profile.css?v=20260911-mobile-viewport2">
+  <link rel="stylesheet" href="game-shell.css?v=20260913-friends1">
+  <link rel="stylesheet" href="quiz-game.css?v=20260911-mobile-viewport2">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <main class="app" data-page="home">
+    <nav class="app-nav" aria-label="Main navigation"><a class="app-brand" href="?">🌍 <span>Country Memory Map</span></a><button id="appHome" type="button">Home</button><button id="exitRoom" type="button" hidden>Leave room</button></nav>
+    <section id="welcome" aria-labelledby="welcomeTitle">
+      <div class="welcome-copy"><p class="eyebrow">A WORLD OF FRIENDLY COMPETITION</p><h1 id="welcomeTitle">Small planet.<br>Big bragging rights.</h1><p>Gather your friends. Name countries, find places, and race across the world.</p>
+      <button id="welcomeFriends" class="primary-button" type="button">Play with friends <span aria-hidden="true">→</span></button><p class="welcome-note">2–9 players · Private rooms · No account needed</p>
+      <div class="welcome-secondary"><button id="welcomeSolo" type="button">Play solo</button><button id="welcomeExplore" type="button">Explore the map</button></div>
+      <p class="welcome-note">Type your answers or tap Speak to use your voice.</p></div>
+      <canvas id="welcomeGlobe" aria-label="Earth with country borders. Drag to rotate." tabindex="0"></canvas>
+    </section>
+    <div class="topbar">
+      <button type="button" id="openGames">Games</button>
+      <h1 id="appTitle">Country Memory Map</h1>
+      <div class="mode-switch" role="group" aria-label="Choose quiz type">
+        <button type="button" id="countryModeButton" class="active" aria-pressed="true">Countries</button>
+        <button type="button" id="capitalModeButton" aria-pressed="false">Capitals</button>
+      </div>
+      <div class="score" id="score">0 found</div>
+      <button type="button" id="revealButton">Reveal names</button>
+      <button type="button" id="resetButton">Reset</button>
     </div>
 
-    <div class="app-shell" id="app-shell" data-surface="root">
-      <header class="topbar">
-        <button class="brand" type="button" id="home-button" aria-label="Return to Country Memory Map Home">
-          <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">
-            <defs>
-              <radialGradient id="brand-ocean" cx="34%" cy="28%">
-                <stop offset="0" stop-color="#69dfff" />
-                <stop offset="0.55" stop-color="#176cac" />
-                <stop offset="1" stop-color="#071e41" />
-              </radialGradient>
-            </defs>
-            <circle cx="24" cy="24" r="20" fill="url(#brand-ocean)" />
-            <path d="M11 18c4-4 9-4 12-2l2 3-5 2-3 5-6-1zM27 25l6-4 5 4-4 5-1 7-7-5z" fill="#84c49a" />
-            <circle cx="24" cy="24" r="20" fill="none" stroke="#b5edff" stroke-width="1.5" />
-          </svg>
-          <span class="brand-copy">
-            <span class="brand-title">Country Memory Map</span>
-            <span class="brand-tagline">Explore · Remember · Conquer</span>
-          </span>
-        </button>
+    <div class="continentbar" id="continentButtons" aria-label="Choose continent"></div>
 
-        <div class="topbar-actions">
-          <div class="renderer-chip" id="renderer-chip" aria-live="polite">
-            <span class="status-dot" aria-hidden="true"></span>
-            <span id="renderer-chip-label">Local globe</span>
-          </div>
-          <button class="friends-button" type="button" data-game="multiplayer">
-            <span aria-hidden="true">◎</span>
-            <span>Play with friends</span>
-          </button>
-        </div>
-      </header>
-
-      <main id="main-content" class="main-content">
-        <section class="map-workspace" aria-label="Country Memory Map Home">
-          <aside class="game-launcher glass-panel" aria-labelledby="launcher-title">
-            <div class="launcher-heading">
-              <p class="eyebrow">Choose your challenge</p>
-              <h1 id="launcher-title">Play the world.</h1>
-            </div>
-
-            <section class="explore-panel" aria-labelledby="explore-title">
-              <div class="explore-heading">
-                <span class="launcher-icon" aria-hidden="true">⌖</span>
-                <div>
-                  <h2 id="explore-title">Explore</h2>
-                  <p>Mark places at your own pace.</p>
-                </div>
-              </div>
-              <div class="explore-options" role="group" aria-label="Explore by countries or capitals">
-                <button class="explore-option is-active" type="button" data-mode="Countries" data-game="countries" aria-pressed="true">
-                  Countries
-                </button>
-                <button class="explore-option" type="button" data-mode="Capitals" data-game="capitals" aria-pressed="false">
-                  Capitals
-                </button>
-              </div>
-            </section>
-
-            <nav class="game-list" aria-label="Six geography games">
-              <button class="game-card" type="button" data-mode="World Conquest" data-game="world-conquest">
-                <span class="game-number" aria-hidden="true">01</span>
-                <span class="game-copy"><strong>World Conquest</strong><small>Name countries. Build a streak.</small></span>
-                <span class="game-arrow" aria-hidden="true">↗</span>
-              </button>
-              <button class="game-card" type="button" data-mode="Find the Country" data-game="find-country">
-                <span class="game-number" aria-hidden="true">02</span>
-                <span class="game-copy"><strong>Find the Country</strong><small>Locate the country on the map.</small></span>
-                <span class="game-arrow" aria-hidden="true">↗</span>
-              </button>
-              <button class="game-card" type="button" data-mode="Capital Clash" data-game="capital-clash">
-                <span class="game-number" aria-hidden="true">03</span>
-                <span class="game-copy"><strong>Capital Clash</strong><small>Connect capitals and countries.</small></span>
-                <span class="game-arrow" aria-hidden="true">↗</span>
-              </button>
-              <button class="game-card" type="button" data-mode="Flag Recall" data-game="flag-recall">
-                <span class="game-number" aria-hidden="true">04</span>
-                <span class="game-copy"><strong>Flag Recall</strong><small>See a flag. Name its country.</small></span>
-                <span class="game-arrow" aria-hidden="true">↗</span>
-              </button>
-              <button class="game-card" type="button" data-mode="Flag Match" data-game="flag-match">
-                <span class="game-number" aria-hidden="true">05</span>
-                <span class="game-copy"><strong>Flag Match</strong><small>Choose the matching flag.</small></span>
-                <span class="game-arrow" aria-hidden="true">↗</span>
-              </button>
-              <button class="game-card" type="button" data-mode="Geo Quiz" data-game="geo-quiz">
-                <span class="game-number" aria-hidden="true">06</span>
-                <span class="game-copy"><strong>Geo Quiz</strong><small>Trivia & fascinating categories.</small></span>
-                <span class="game-arrow" aria-hidden="true">↗</span>
-              </button>
-            </nav>
-          </aside>
-
-          <section class="globe-stage" aria-label="Explore the globe">
-            <div class="globe-core">
-              <div class="globe-mount" id="globe-mount">
-                <iframe
-                  class="legacy-map-frame"
-                  id="legacy-map-frame"
-                  title="Country and capital answer engine"
-                  allow="microphone; speech-recognition"
-                  src="./legacy/index.html?v=20260913-voice5"
-                  data-src="./legacy/index.html?v=20260913-voice5"
-                  aria-hidden="true"
-                  tabindex="-1"
-                ></iframe>
-                <canvas
-                  class="local-globe"
-                  id="local-globe"
-                  tabindex="0"
-                  role="application"
-                  aria-label="Interactive rotating Earth. Drag left or right to rotate. Use arrow keys to rotate, plus and minus to zoom, or type a country below."
-                >Interactive rotating Earth</canvas>
-                <div class="live-globe" id="live-globe" hidden></div>
-                <div class="attribution-safe-zone" id="attribution-safe-zone" hidden>Google Maps · imagery attribution</div>
-              </div>
-            </div>
-
-            <aside class="country-fact-card glass-panel" id="country-fact-card" aria-labelledby="country-fact-name" aria-live="polite" hidden>
-              <button class="country-fact-close" id="country-fact-close" type="button" aria-label="Close country facts">×</button>
-              <div class="country-fact-heading">
-                <span class="country-fact-flag" id="country-fact-flag" aria-hidden="true">🌍</span>
-                <div>
-                  <p class="country-fact-kicker">Country snapshot</p>
-                  <h2 id="country-fact-name">Selected country</h2>
-                  <p id="country-fact-region">Region</p>
-                </div>
-              </div>
-              <dl class="country-fact-grid">
-                <div>
-                  <dt>Population</dt>
-                  <dd id="country-fact-population">Not available</dd>
-                </div>
-                <div>
-                  <dt>Capital</dt>
-                  <dd id="country-fact-capital">Not available</dd>
-                </div>
-                <div>
-                  <dt>Continent</dt>
-                  <dd id="country-fact-continent">Not available</dd>
-                </div>
-                <div>
-                  <dt>Country code</dt>
-                  <dd id="country-fact-code">—</dd>
-                </div>
-              </dl>
-              <p class="country-fact-source" id="country-fact-source">Population source: World Bank.</p>
-            </aside>
-
-            <div class="planet-hud glass-panel">
-              <span class="planet-pulse" aria-hidden="true"></span>
-              <div class="hud-copy">
-                <strong id="hud-title">Explore countries</strong>
-                <span id="hud-subtitle">Drag the globe or type a country below.</span>
-              </div>
-            </div>
-
-            <div class="globe-input-zone">
-              <form class="answer-dock" id="answer-form" autocomplete="off">
-                <label class="sr-only" for="country-input">Type a country name</label>
-                <span class="search-icon" aria-hidden="true"></span>
-                <input id="country-input" type="text" autocomplete="new-password" enterkeyhint="go" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Type a country name…" disabled />
-                <button class="voice-button" id="voice-button" type="button" aria-label="Speak a country name" aria-pressed="false" title="Speak a country name" disabled>
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 1 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z" />
-                    <path d="M5.5 10.5v.5a6.5 6.5 0 0 0 13 0v-.5M12 17.5V21M8.5 21h7" />
-                  </svg>
-                </button>
-                <button class="answer-button" type="submit" disabled>Mark Country <span aria-hidden="true">→</span></button>
-              </form>
-              <p class="answer-hint" id="answer-hint">Try India, Brazil, Japan, France, or Australia.</p>
-            </div>
-          </section>
-        </section>
-      </main>
+    <div class="map-shell">
+    <div class="zoom-controls" aria-label="Map zoom controls">
+      <button type="button" id="zoomOutButton" aria-label="Zoom out">-</button>
+      <button type="button" id="zoomResetButton">Reset zoom</button>
+      <button type="button" id="zoomInButton" aria-label="Zoom in or focus islands" title="Zoom in or focus an island group">+</button>
     </div>
 
-    <dialog class="session-exit-dialog" id="session-exit-dialog" aria-labelledby="session-exit-title" aria-describedby="session-exit-description">
-      <form method="dialog">
-        <p class="eyebrow">Game in progress</p>
-        <h2 id="session-exit-title">Leave this game?</h2>
-        <p id="session-exit-description">Your current run will end and its progress will be lost.</p>
-        <div class="session-exit-actions">
-          <button class="stay-button" type="submit" value="stay">Stay in game</button>
-          <button class="leave-button" type="submit" value="leave">Leave game</button>
-        </div>
+
+      <svg id="map" class="country-mode" viewBox="0 0 1000 520" role="img" aria-label="Interactive world map with country names hidden">
+        <defs>
+          <pattern id="unTerritoryPattern" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="8" height="8" fill="#d8cbb5"></rect>
+            <line x1="0" y1="0" x2="0" y2="8" stroke="#a58f72" stroke-width="2"></line>
+          </pattern>
+        </defs>
+        <g id="mapViewport">
+          <g id="grid"></g>
+          <g id="countries"></g>
+          <g id="capitalMarkers"></g>
+          <g id="labelLeaders"></g>
+          <g id="labelAnchors"></g>
+          <g id="labels"></g>
+        </g>
+      </svg>
+      <details class="legend-panel"><summary>Map key</summary><div class="legend" id="legend" aria-label="Continent colour legend"></div></details>
+    </div>
+
+    <section class="control" aria-label="Country input">
+      <form id="guessForm" autocomplete="off">
+        <input id="guessInput" type="text" autocomplete="new-password" enterkeyhint="go" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Type a country name" aria-label="Type a country name">
+        <button type="button" id="voiceButton" class="voice-button" aria-label="Say country name" title="Say country name">Speak</button>
+        <button type="submit" id="markButton">Mark</button>
       </form>
-    </dialog>
+      <div class="message" id="message" role="status" aria-live="polite" aria-atomic="true">Name a country to begin. Pinch to zoom; drag to explore.</div>
+    </section>
 
-    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-    <div class="sr-only" id="app-status" aria-live="polite"></div>
-    <script>
-      window.createSpeechRecognition = function() {
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        return SR ? new SR() : null;
-      };
-    </script>
-    <script src="./public/runtime-config.js"></script>
-    <script src="./voice-input.js?v=20260913-voice6"></script>
-    <script type="module" src="./src/main.js?v=20260913-voice6"></script>
-  </body>
+    <div class="loading" id="loading">Loading map...</div>
+  </main>
+
+  <script>window.COUNTRY_MEMORY_SINGLE_APP=true;</script>
+  <script src="flag-data.js?v=20260908-flags1"></script>
+  <script src="game-core.js?v=20260908-flags1"></script>
+  <script src="countries-data.js?v=20260910-mobile-perf2"></script>
+  <script src="capitals-data.js"></script>
+  <script src="voice-input.js?v=20260913-voice5"></script>
+  <script src="src/world-map-runtime.js"></script>
+  <script src="country-borders.js"></script>
+  <script src="game-data.js?v=20260908-flags1"></script>
+  <script src="game-map.js?v=20260910-mobile-perf2"></script>
+  <script src="flag-component.js?v=20260908-flags1"></script>
+  <script src="country-outline.js?v=20260908-flags1"></script>
+  <script src="multiplayer-config.js?v=20260913-friends1"></script>
+  <script src="player-system.js?v=20260909-release1"></script>
+  <script src="game-shell.js?v=20260910-recovery"></script>
+  <script src="quiz-data.js?v=20260911-quiz1"></script>
+  <script src="quiz-game.js?v=20260911-quiz1"></script>
+  <script src="game-ui.js?v=20260913-single-app"></script>
+  <script src="multiplayer-service.js?v=20260913-single-app"></script>
+  <script src="multiplayer-ui.js?v=20260913-single-app"></script>
+  <script type="module" src="src/app.js"></script>
+</body>
 </html>

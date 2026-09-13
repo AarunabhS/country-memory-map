@@ -78,7 +78,7 @@
           type.endsWith?.('_CLICK') ? 'Use the interactive map to choose a country.' :
           config.family === 'conquest' || config.family === 'quiz' ? 'Enter a country name and submit.' : 'Choose a game format and start.'
       }, callbacks: {
-        home: () => window.CountryMemoryRetained?.requestHostNavigation?.({ type: 'home' }),
+        home: () => window.CountryMemoryApp?.requestHostNavigation?.({ type: 'home' }),
         endRound: () => { if (window.QuizGame?.isActive()) { window.QuizGame.deactivate(); menu(); return; } remote ? remote.finish() : engine.finish('manual'); },
         submitAnswer: raw => window.gameController?.handleText(raw)
       } });
@@ -134,7 +134,7 @@
       } catch { return false; }
     }
     profileUI?.mount();
-    players?.initialize().then(() => { if (!players.active && !friendsRouteRequested()) profileUI?.open('create'); });
+    players?.initialize().then(() => { /* Profiles are optional; never block entry to a game. */ });
     function tickSolo() {
       const at=Date.now(),s=engine.state;
       if(s.gameStatus==='playing'&&((s.deadline!==null&&at>=s.deadline)||(s.feedbackUntil!==null&&at>=s.feedbackUntil)||(s.currentQuestion&&!s.currentQuestion.resolved&&at>=s.currentQuestion.deadline)))soloReplay?.actions.push({kind:'tick',at:at-s.startedAt});
@@ -289,7 +289,6 @@
       return [...flagChoices.querySelectorAll('button')].find(button => button.dataset.flagId === id) || null;
     }
     async function start(config = activeConfig()) {
-      if (profilesEnabled && players && !players.active) { profileUI?.open('create'); textFeedback('Create a player before starting a score-bearing round.','bad'); return; }
       if (tracker?.hasActiveSession()) {
         suppressResults = true;
         tracker.finish('mode_change', engine.state);
@@ -517,7 +516,7 @@
       control.hidden=false; form.hidden=false; markButton.textContent='Mark'; input.disabled=true; updateRecent();
       renderShell('setup');
     }
-    function legacy() {
+    function explore() {
       window.QuizGame?.deactivate();
       startToken++; $('soloCountdown').hidden=true;
       hostedGame=false; app.removeAttribute('data-hosted-game');
@@ -525,7 +524,7 @@
       platform=false; app.classList.remove('platform','choosing','round-ended','map-question','flag-platform','quiz-platform'); app.setAttribute('data-free-map-active',''); map.restore();
       document.querySelector('.setup-panel').hidden=true; $('questionPanel').hidden=true;
       flagView.hidden=true; flagChoices.replaceChildren(); control.hidden=false;form.hidden=false;markButton.textContent='Mark';input.disabled=false;voice.disabled=false;
-      textFeedback('Free map: the original country and capital checkers.');
+      textFeedback('Name countries or switch to capitals. Drag the map to explore.');
       renderShell('free-map');
     }
     function hostDeactivate({ reason = 'mode_change' } = {}) {
@@ -550,18 +549,18 @@
     function hostOpenGame({ family: nextFamily, variant } = {}) {
       if (!MODES[nextFamily] || !MODES[nextFamily][variant]) throw new Error('That game setup is unavailable.');
       const current = engine.config || {};
-      if (platform && engine.state.gameStatus === 'playing' && !remote && current.family === nextFamily && current.variant === variant) return window.CountryMemoryRetained.getLifecycleState();
+      if (platform && engine.state.gameStatus === 'playing' && !remote && current.family === nextFamily && current.variant === variant) return window.CountryMemoryApp.getLifecycleState();
       hostDeactivate({ reason: 'mode_change' });
       chooseFamily(nextFamily, variant);
       menu({ hosted: true });
-      return window.CountryMemoryRetained.getLifecycleState();
+      return window.CountryMemoryApp.getLifecycleState();
     }
     function hostOpenFreeMap({ checker = 'countries' } = {}) {
       if (!['countries', 'capitals'].includes(checker)) throw new Error('That Free Map checker is unavailable.');
       hostDeactivate({ reason: 'mode_change' });
-      legacy();
+      explore();
       $(checker === 'capitals' ? 'capitalModeButton' : 'countryModeButton').click();
-      return window.CountryMemoryRetained.getLifecycleState();
+      return window.CountryMemoryApp.getLifecycleState();
     }
     function hostSubmitFreeMapGuess({ value, checker = 'countries' } = {}) {
       if (platform) throw new Error('The Free Map checker is not active.');
@@ -626,6 +625,7 @@
         startToken++; $('soloCountdown').hidden=true;
         const s={...data.game,completedCountries:new Set(data.game.completedCountries)};
         const previousStatus=engine.state.gameStatus, key=data.match.id+':'+s.startedAt,previous=engine.state.currentQuestion?.id,isNewMatch=remoteKey!==key;
+        if(isNewMatch||previous!==s.currentQuestion?.id){remoteSubmission=null;map.clearPending();}
         engine.config=data.config;engine.pool=countries.filter(c=>data.config.variant!=='continent'||c.continent===data.config.region);engine.state=s;
         platform=true;app.classList.add('platform');app.classList.remove('choosing','round-ended');app.removeAttribute('data-free-map-active');
         renderShell(s.gameStatus === 'playing' ? 'playing' : 'results', s.currentQuestion);
@@ -634,19 +634,22 @@
           if(data.config.family==='conquest'){if(isNewMatch||form.hidden){onEvent({type:'question',question:{type:TYPES.COUNTRY_TYPING}},s);}}
           else if(previous!==s.currentQuestion?.id)onEvent({type:'question',question:s.currentQuestion},s);
           if(data.event?.id&&lastRemoteEvent!==data.event.id&&(data.config.family==='conquest'||data.event.questionId===s.currentQuestion?.id)){lastRemoteEvent=data.event.id;onEvent(data.event,s);}
-          if(s.feedbackUntil===null){const typing=data.config.family==='conquest'||s.currentQuestion?.type===TYPES.CAPITAL_TYPING;input.disabled=!typing;voice.disabled=!typing;if(typing&&previous!==s.currentQuestion?.id)focusTyping({ allowDesktopAutofocus: false });}
+          const ready=s.feedbackUntil===null&&engine.now()>=s.startedAt;
+          const typing=data.config.family==='conquest'||s.currentQuestion?.type===TYPES.CAPITAL_TYPING;
+          input.disabled=!ready||!typing;voice.disabled=!ready||!typing;map.enableClick(ready&&!typing);
+          if(ready&&typing&&previous!==s.currentQuestion?.id)focusTyping({ allowDesktopAutofocus: false });
         }else{
           if (previousStatus === 'playing' && tracker?.hasActiveSession()) tracker.finish(data.result?.reason || s.result?.reason || 'completed', s, data.result || s.result);
           input.disabled=true;voice.disabled=true;$('endGame').hidden=true;map.end();
         }
         $('gameTitle').textContent= families[data.config.family]+' · Friends';updateHUD(s);
       },
-      blockRemote(value) {input.disabled=value;voice.disabled=value;},
+      blockRemote(value) {input.disabled=value;voice.disabled=value;if(value)map.enableClick(false);},
       exitRemote() { if (tracker?.hasActiveSession()) tracker.finish('abandoned', engine.state); remote=null;remoteKey=null;remoteSubmission=null;engine.state.gameStatus='idle';menu(); },
       closeResults() {$('resultsDialog').close();}
 
     };
-    window.CountryMemoryRetained = {
+    window.CountryMemoryApp = {
       openGame: hostOpenGame,
       openFreeMap: hostOpenFreeMap,
       submitFreeMapGuess: hostSubmitFreeMapGuess,
@@ -722,12 +725,12 @@
     $('playAgain').addEventListener('click',()=>start(lastConfig));
     $('practiceMissed').addEventListener('click',()=>start({...lastConfig,variant:lastConfig.family==='conquest'?'relaxed':lastConfig.family==='find'?'standard':lastConfig.family==='flag'?lastConfig.variant:'classic',practiceIds:result.missedCountries}));
     $('challengeFriends').addEventListener('click',()=>{if(window.Friends&&result?.replay){$('resultsDialog').close();window.Friends.challenge(result.replay);}});
-    $('chooseGame').addEventListener('click',()=>{ if (!window.CountryMemoryRetained.requestHostNavigation({ type: 'home' })) menu(); });
+    $('chooseGame').addEventListener('click',()=>{ if (!window.CountryMemoryApp.requestHostNavigation({ type: 'home' })) menu(); });
     $('freeMap').addEventListener('click',()=>{
-      if (hostedGame && window.CountryMemoryRetained.requestHostNavigation({ type:'home' })) return;
-      legacy();
+      if (hostedGame && window.CountryMemoryApp.requestHostNavigation({ type:'home' })) return;
+      explore();
     });
-    $('openGames').addEventListener('click',()=>{ if (!window.CountryMemoryRetained.requestHostNavigation({ type: 'home' })) menu(); });
+    $('openGames').addEventListener('click',()=>{ if (!window.CountryMemoryApp.requestHostNavigation({ type: 'home' })) menu(); });
     $('resultsDialog').addEventListener('cancel',e=>{e.preventDefault();menu();});
     function syncKeyboard() {
       const viewport = window.visualViewport;

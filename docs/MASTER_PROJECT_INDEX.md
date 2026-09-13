@@ -1,3 +1,5 @@
+> Architecture update (2026-09-13): the single-document app in [ARCHITECTURE.md](../ARCHITECTURE.md) supersedes prior root/retained-iframe migration descriptions below. Earlier plans remain historical context.
+
 # Master project index
 
 This is the navigation and authority map for Country Memory Map development.

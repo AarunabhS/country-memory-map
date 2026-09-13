@@ -103,7 +103,7 @@ test('retained bridge activates Free Map before submitting to its checker', asyn
     getLifecycleState: () => state,
     submitFreeMapGuess: ({ value, checker }) => { order.push(`submit:${checker}:${value}`); return { message: `Marked ${value}.`, kind: 'good', accepted: true }; },
   };
-  const frameDocument = { defaultView: { CountryMemoryRetained: host } };
+  const frameDocument = { defaultView: { CountryMemoryApp: host } };
 
   activateRetainedFreeMap(frameDocument, { checker: 'countries' });
   const result = await submitRetainedFreeMapGuess(frameDocument, 'India', { checker: 'countries' });
@@ -125,7 +125,7 @@ test('retained bridge waits until the existing Free Map control is fully wired',
     now: () => time,
     delay: async milliseconds => {
       time += milliseconds;
-      if (time >= 10) frameDocument.defaultView.CountryMemoryRetained = {
+      if (time >= 10) frameDocument.defaultView.CountryMemoryApp = {
         openFreeMap: ({ checker }) => { attempts++; state = { state: 'free-map', checker }; },
         getLifecycleState: () => state,
         submitFreeMapGuess: () => ({ message: 'Marked India.' }),
@@ -160,7 +160,7 @@ test('checker preparation failure clears transient UI and produces no gameplay s
 
 test('retained bridge fails without a complete structured host contract', async () => {
   const { activateRetainedFreeMap, submitRetainedFreeMapGuess } = await loadInteractions();
-  const incompleteDocument = { defaultView: { CountryMemoryRetained: { openFreeMap() {} } } };
+  const incompleteDocument = { defaultView: { CountryMemoryApp: { openFreeMap() {} } } };
   assert.throws(() => activateRetainedFreeMap(incompleteDocument), /Free Map checker is unavailable/);
   await assert.rejects(submitRetainedFreeMapGuess(incompleteDocument, 'India'), /answer engine is unavailable/);
 });

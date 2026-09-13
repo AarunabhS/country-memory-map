@@ -1,4 +1,4 @@
-/* Small browser speech-recognition lifecycle shared by root and retained UI. */
+/* Small browser speech-recognition lifecycle used by every game and Explore. */
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;

@@ -37,7 +37,7 @@ test('friends mode clears unrelated profile UI and exits an old remote game for 
   assert.match(ui, /async open\(\{room\}=\{\}\)\{window\.CountryMemoryFriendsActive=true/);
   assert.match(gameUi, /function friendsRouteRequested\(\)/);
   assert.match(gameUi, /searchParams\.get\('game'\) === 'multiplayer'/);
-  assert.match(gameUi, /!players\.active && !friendsRouteRequested\(\)/);
+  assert.doesNotMatch(gameUi.match(/players\?\.initialize\(\).*$/m)?.[0] || '', /profileUI/);
   assert.match(ui, /suspend\(\{keepRoom=false\}=\{\}\)\{window\.CountryMemoryFriendsActive=false/);
   assert.match(ui, /!invite\.matchesSession&&activeGameKey\)\{gameController\.exitRemote\(\);activeGameKey=null/);
 });
