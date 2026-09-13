@@ -955,11 +955,13 @@ const svg = document.getElementById("map");
           if (gameHandled) return;
           const transcript = quizMode === "capitals"
             ? alternatives.find(value => capitalByAlias.has(normalize(value))) || alternatives[0] || ""
-            : alternatives.find(value => countryAnswerValidator?.resolve(value)) || alternatives[0] || "";
+            : alternatives.find(value => countryAnswerValidator?.resolve(value, { allowFuzzy: true })) || alternatives[0] || "";
           input.value = transcript;
           if (transcript) {
             handleGuess(transcript);
-            input.value = "";
+            if (!message.classList.contains("bad")) {
+              input.value = "";
+            }
           }
           focusInput();
         },

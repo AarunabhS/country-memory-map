@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { VoiceInputController } = require('../voice-input.js');
+const { VoiceInputController, alternativesFor } = require('../voice-input.js');
 
 class FakeRecognition {
   constructor() {
@@ -249,5 +249,31 @@ test('permissionStatus onchange dynamically updates microphoneReady state', asyn
   } finally {
     if (originalDescriptor) Object.defineProperty(globalThis, 'navigator', originalDescriptor);
   }
+});
+
+test('interim results deliver as final answer when engine ends without explicit isFinal', () => {
+  const finals = [];
+  const errors = [];
+  const controller = new VoiceInputController({
+    Recognition: FakeRecognition,
+    onFinal: val => finals.push(val),
+    onError: err => errors.push(err.code)
+  });
+  controller.start();
+  controller.recognition.emit('start');
+  controller.recognition.emit('result', { resultIndex: 0, results: [result(['Germany'], false)] });
+  controller.recognition.emit('end');
+  assert.deepEqual(finals, [['Germany']]);
+  assert.deepEqual(errors, []);
+  assert.equal(controller.state, 'idle');
+});
+
+test('alternativesFor handles item() method, iterator, and single transcript fallback', () => {
+  assert.deepEqual(alternativesFor(null), []);
+  assert.deepEqual(alternativesFor({ length: 0 }), []);
+  const itemBased = { length: 2, item: i => (i === 0 ? { transcript: ' France ' } : { transcript: 'Paris' }) };
+  assert.deepEqual(alternativesFor(itemBased), ['France', 'Paris']);
+  const single = { transcript: 'Spain' };
+  assert.deepEqual(alternativesFor(single), ['Spain']);
 });
 

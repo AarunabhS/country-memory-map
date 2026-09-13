@@ -8,17 +8,26 @@
 
   function alternativesFor(result) {
     if (!result) return [];
-    if (typeof result[Symbol.iterator] === 'function') {
-      return [...result]
-        .map(item => String(item?.transcript || '').trim())
-        .filter(Boolean);
-    }
     const items = [];
-    for (let i = 0; i < (result.length || 0); i++) {
-      const text = String(result[i]?.transcript || '').trim();
+    const count = Number(result.length) || 0;
+    for (let i = 0; i < count; i++) {
+      const item = result[i] || (typeof result.item === 'function' ? result.item(i) : null);
+      const text = String(item?.transcript || '').trim();
       if (text) items.push(text);
     }
-    return items;
+    if (items.length) return items;
+    if (typeof result[Symbol.iterator] === 'function') {
+      try {
+        for (const item of result) {
+          const text = String(item?.transcript || '').trim();
+          if (text) items.push(text);
+        }
+      } catch {}
+      if (items.length) return items;
+    }
+    const single = String(result.transcript || '').trim();
+    if (single) return [single];
+    return [];
   }
 
   class VoiceInputController {
@@ -27,7 +36,7 @@
       createRecognition = null,
       language = 'en-US',
       maxAlternatives = 5,
-      startTimeout = 8000,
+      startTimeout = 15000,
       requestMicrophone = null,
       onState = () => {},
       onPreview = () => {},
@@ -53,6 +62,7 @@
       this.startTimer = null;
       this.processedFinals = new Set();
       this.finalDelivered = false;
+      this.lastAlternatives = null;
       this.userStopped = false;
       if (typeof navigator !== 'undefined' && navigator.permissions && typeof navigator.permissions.query === 'function') {
         try {
@@ -112,6 +122,12 @@
       const onStart = () => { if (this.recognition === recognition) this.handleStart(); };
       const onEnd = () => {
         if (this.recognition !== recognition) return;
+        if (this.active && !this.finalDelivered && !this.userStopped && this.lastAlternatives?.length) {
+          this.finalDelivered = true;
+          try { this.onFinal(this.lastAlternatives); }
+          finally { this.reset({ reason: 'ended' }); }
+          return;
+        }
         const empty = this.active && !this.finalDelivered && !this.userStopped;
         this.reset({ reason: 'ended' });
         if (empty) this.onError({ code: 'no-speech' });
@@ -184,6 +200,7 @@
       this.userStopped = false;
       this.processedFinals.clear();
       this.finalDelivered = false;
+      this.lastAlternatives = null;
       this.setState('starting');
       this.startTimer = this.setTimer(() => {
         if (this.state !== 'starting') return;
@@ -248,11 +265,12 @@
       if (this.state !== 'listening') this.handleStart();
       const results = event?.results;
       if (!results?.length) return;
-      const from = Number.isInteger(event.resultIndex) ? Math.max(0, event.resultIndex) : Math.max(0, results.length - 1);
+      const from = Number.isInteger(event.resultIndex) ? Math.max(0, event.resultIndex) : 0;
       for (let index = from; index < results.length; index++) {
-        const result = results[index];
+        const result = results[index] || (typeof results.item === 'function' ? results.item(index) : null);
         const alternatives = alternativesFor(result);
         if (!alternatives.length) continue;
+        this.lastAlternatives = alternatives;
         if (!result.isFinal) {
           this.onPreview(alternatives[0], alternatives);
           continue;
@@ -280,6 +298,7 @@
     reset(detail = {}) {
       this.clearStartTimer();
       this.userStopped = false;
+      this.lastAlternatives = null;
       if (this.state !== 'idle') this.setState('idle', detail);
     }
   }
