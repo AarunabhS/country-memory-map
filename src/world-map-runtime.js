@@ -869,6 +869,28 @@ const svg = document.getElementById("map");
       closeBtn?.focus({ preventScroll: true });
     }
 
+    let activeMicStream = null;
+    let isRequestingMic = false;
+
+    function stopVoiceInput(reason = "cancelled") {
+      if (activeMicStream) {
+        try { activeMicStream.getTracks().forEach(t => t.stop()); } catch {}
+        activeMicStream = null;
+      }
+      if (recognition?.active) {
+        try { recognition.abort(); } catch {}
+      }
+      isListening = false;
+      voiceButton.classList.remove("listening", "starting", "permission");
+      voiceButton.setAttribute("aria-busy", "false");
+      voiceButton.setAttribute("aria-pressed", "false");
+      voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Say capital name" : "Say country name");
+      voiceButton.textContent = "Speak";
+      if (reason === "cancelled") {
+        setMessage("Microphone stopped. Press Speak to try again or type your answer.");
+      }
+    }
+
     function setupVoiceInput() {
       const createRecognition = (function() {
         const LocalSR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -895,42 +917,18 @@ const svg = document.getElementById("map");
       voiceButton.setAttribute("aria-pressed", "false");
       recognition = new VoiceInputController({
         createRecognition,
-        requestMicrophone: typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia
-          ? () => navigator.mediaDevices.getUserMedia({ audio: true })
-          : null,
         onState: ({ state, reason }) => {
-          isListening = state === "listening";
-          const isBusy = state === "starting" || state === "permission";
-          voiceButton.classList.toggle("listening", isListening);
-          voiceButton.classList.toggle("starting", state === "starting");
-          voiceButton.classList.toggle("permission", state === "permission");
-          voiceButton.setAttribute("aria-busy", String(isBusy));
-          voiceButton.setAttribute("aria-pressed", String(isListening));
-          if (state === "permission") {
-            voiceButton.setAttribute("aria-label", "Cancel microphone permission request");
-            voiceButton.textContent = "Cancel";
-            setMessage("Allow microphone access in the browser prompt. Tap again to cancel.", "listening");
-          } else if (state === "starting") {
-            voiceButton.setAttribute("aria-label", "Starting microphone… tap to cancel");
-            voiceButton.textContent = "Starting…";
-            setMessage("Starting microphone…", "listening");
-          } else if (isListening) {
+          if (state === "listening") {
+            isListening = true;
+            voiceButton.classList.add("listening");
+            voiceButton.classList.remove("starting", "permission");
+            voiceButton.setAttribute("aria-busy", "false");
+            voiceButton.setAttribute("aria-pressed", "true");
             voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Stop listening to capital name" : "Stop listening to country name");
             voiceButton.textContent = "● Listening";
             setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
-          } else {
-            voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Say capital name" : "Say country name");
-            voiceButton.textContent = "Speak";
-            if (reason === "permission-granted") {
-              setMessage("Microphone enabled. Listening…", "listening");
-              setTimeout(() => {
-                if (recognition && !recognition.active) {
-                  recognition.start();
-                }
-              }, 50);
-            } else if (reason === "cancelled") {
-              setMessage("Microphone stopped. Press Speak to try again or type your answer.");
-            }
+          } else if (state === "idle" && isListening) {
+            stopVoiceInput(reason);
           }
         },
         onPreview: (heard) => {
@@ -939,6 +937,15 @@ const svg = document.getElementById("map");
           if (!handled) setMessage(`Hearing: “${heard}”…`, "listening");
         },
         onFinal: alternatives => {
+          if (activeMicStream) {
+            try { activeMicStream.getTracks().forEach(t => t.stop()); } catch {}
+            activeMicStream = null;
+          }
+          isListening = false;
+          voiceButton.classList.remove("listening");
+          voiceButton.setAttribute("aria-pressed", "false");
+          voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Say capital name" : "Say country name");
+          voiceButton.textContent = "Speak";
           const heard = alternatives[0] || "";
           input.value = heard;
           const gameHandled = window.gameController?.handleVoice?.(alternatives);
@@ -954,6 +961,16 @@ const svg = document.getElementById("map");
           focusInput();
         },
         onError: ({ code }) => {
+          if (activeMicStream) {
+            try { activeMicStream.getTracks().forEach(t => t.stop()); } catch {}
+            activeMicStream = null;
+          }
+          isListening = false;
+          voiceButton.classList.remove("listening", "starting", "permission");
+          voiceButton.setAttribute("aria-busy", "false");
+          voiceButton.setAttribute("aria-pressed", "false");
+          voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Say capital name" : "Say country name");
+          voiceButton.textContent = "Speak";
           if (code === "not-allowed" || code === "service-not-allowed") {
             showVoiceDialog({
               title: "Microphone Access Blocked",
@@ -964,8 +981,6 @@ const svg = document.getElementById("map");
           }
           const reason = code === "no-speech"
             ? "No speech was heard. Try again, move closer to the microphone, or type your answer."
-            : code === "permission-timeout"
-              ? "Microphone permission is still pending. Tap Speak to retry or type your answer."
             : code === "start-timeout"
               ? "The microphone did not start. Check browser permission, then try again or type your answer."
               : `Voice input did not work. Try again or type the ${quizMode === "capitals" ? "capital" : "country"}.`;
@@ -974,7 +989,13 @@ const svg = document.getElementById("map");
       });
     }
 
-    function startVoiceInput() {
+    async function startVoiceInput() {
+      if (isRequestingMic) return;
+      if (isListening || recognition?.active || activeMicStream) {
+        stopVoiceInput("cancelled");
+        return;
+      }
+
       if (location.protocol === "file:") {
         showVoiceDialog({
           title: "Server Required for Voice Input",
@@ -999,11 +1020,45 @@ const svg = document.getElementById("map");
         setMessage("This browser does not support voice input. Use your keyboard’s microphone or type an answer.", "bad");
         return;
       }
-      if (recognition.active) {
-        recognition.abort();
-        return;
+
+      // Request hardware microphone directly in user click event
+      // This guarantees the browser's native permission dialogue box pops up immediately
+      if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+        isRequestingMic = true;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          activeMicStream = stream;
+        } catch (error) {
+          isRequestingMic = false;
+          if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
+            showVoiceDialog({
+              title: "Microphone Access Blocked",
+              message: "Your browser blocked microphone access because it is turned off in your site settings.\n\nBrowsers will not show a permission prompt when microphone access has been disabled.\n\nTo enable microphone access:\n1. Tap the lock or tune icon in the address bar (or go to browser Settings > Site Settings > Microphone).\n2. Change Microphone from 'Blocked' / 'Disabled' to 'Allow' (or click 'Reset permissions').\n3. Tap Speak again to start voice input."
+            });
+            setMessage("Microphone permission was blocked. Allow it in browser settings or type your answer.", "bad");
+          } else {
+            setMessage(`Could not access microphone (${error?.message || "error"}). Type your answer.`, "bad");
+          }
+          return;
+        }
+        isRequestingMic = false;
       }
-      recognition.start();
+
+      // Audio stream is now active - iPhone orange dot lights up, Chrome recording indicator lights up!
+      isListening = true;
+      voiceButton.classList.add("listening");
+      voiceButton.classList.remove("starting", "permission");
+      voiceButton.setAttribute("aria-busy", "false");
+      voiceButton.setAttribute("aria-pressed", "true");
+      voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Stop listening to capital name" : "Stop listening to country name");
+      voiceButton.textContent = "● Listening";
+      setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
+
+      try {
+        recognition.start();
+      } catch (err) {
+        console.warn("Speech recognition failed to start:", err);
+      }
     }
 
     function createLegend() {
@@ -1452,7 +1507,7 @@ const svg = document.getElementById("map");
     window.GameMap = {
       svg, countryRecords, regionRecords, labelRecords, capitalRecords,
       countries: countryRecords, capitals: capitalRecords, gameActive: false, gameRegion: "World",
-      stopVoice: () => recognition?.abort(),
+      stopVoice: () => stopVoiceInput("cancelled"),
       feature: id => countryById.get(id)?.feature,
       countryId: name => countryIdByName.get(name),
       aliases: id => [...countryByAlias].filter(([, value]) => value === id).map(([alias]) => alias),
