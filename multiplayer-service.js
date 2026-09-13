@@ -1,6 +1,6 @@
 /* Transport and reconnection are isolated from game rendering. No keystrokes are sent. */
 window.FriendService=class {
- constructor(onState,onConnection){this.membershipRequest=null;this.generation=0;this.onState=onState;this.onConnection=onConnection;this.room=null;this.offset=0;this.timer=null;this.busy=false;this.polling=false;this.pollPromise=null;this.suspended=false;this.apiResolution=null;this.background=false;this.requestDuration=0;this.key='country-memory-friend-session-v1';try{this.session=JSON.parse(localStorage.getItem(this.key)||'null');}catch{this.session=null;}if(this.session&&(!this.validCode(this.session.code)||typeof this.session.token!=='string'||!this.session.token)){this.session=null;this.save();}const allowedApis=[window.FRIENDS_API,window.FRIENDS_API_FALLBACK].filter(Boolean);this.api=allowedApis.includes(this.session?.api)?this.session.api:null;window.addEventListener('online',()=>this.poll());document.addEventListener('visibilitychange',()=>{if(!document.hidden)this.poll();});}
+ constructor(onState,onConnection){this.membershipRequest=null;this.generation=0;this.onState=onState;this.onConnection=onConnection;this.room=null;this.offset=0;this.timer=null;this.busy=false;this.answerRequests=new Set();this.polling=false;this.pollPromise=null;this.suspended=false;this.apiResolution=null;this.background=false;this.requestDuration=0;this.key='country-memory-friend-session-v1';try{this.session=JSON.parse(localStorage.getItem(this.key)||'null');}catch{this.session=null;}if(this.session&&(!this.validCode(this.session.code)||typeof this.session.token!=='string'||!this.session.token)){this.session=null;this.save();}const allowedApis=[window.FRIENDS_API,window.FRIENDS_API_FALLBACK].filter(Boolean);this.api=allowedApis.includes(this.session?.api)?this.session.api:null;window.addEventListener('online',()=>this.poll());document.addEventListener('visibilitychange',()=>{if(!document.hidden)this.poll();});}
  now(){return Date.now()+this.offset;}
  save(){try{if(this.session)localStorage.setItem(this.key,JSON.stringify(this.session));else localStorage.removeItem(this.key);}catch{}}
  normalizeCode(value){let raw=String(value||'').trim();if(/^https?:\/\//i.test(raw)){try{raw=new URL(raw).searchParams.get('room')||raw;}catch{}}return raw.toUpperCase().replace(/[\s-]+/g,'');}
@@ -30,7 +30,7 @@ window.FriendService=class {
  async inspect(code){code=this.normalizeCode(code);if(!this.validCode(code))throw new Error('Enter the room code from your invite.');return this.request('/rooms/'+encodeURIComponent(code),null,false);}
  async join(code,name){code=this.normalizeCode(code);if(!this.validCode(code))throw new Error('Enter the room code from your invite.');return this.enter('/rooms/'+encodeURIComponent(code),{action:'join',name});}
  async poll(){
-  if(!this.session||this.suspended)return null;
+  if(!this.session||this.suspended||[...this.answerRequests].some(request=>request.generation===this.generation))return null;
   if(this.pollPromise)return this.pollPromise;
   this.polling=true;
   const generation=this.generation;
@@ -42,6 +42,7 @@ window.FriendService=class {
  async action(action,fields={}){
   if(!this.session)throw new Error('Join a room first.');
   const payload={action,...fields};const generation=this.generation;
+  const answering=action==='answer',pendingAnswer={generation};if(answering){this.answerRequests.add(pendingAnswer);clearTimeout(this.timer);}
   try{return this.accept(await this.request('/rooms/'+this.session.code,payload),generation);}
   catch(error){
    if(generation!==this.generation)return null;
@@ -51,11 +52,12 @@ window.FriendService=class {
     catch(retryError){failure=retryError;}
    }
    if(generation!==this.generation)return null;
-   await this.poll();
+   if(answering)this.answerRequests.delete(pendingAnswer);
+   try{await this.poll();}finally{if(answering)this.answerRequests.add(pendingAnswer);}
    if(generation!==this.generation)return null;
    if(this.answerCommitted(payload)){this.onConnection('');return this.room;}
    throw failure;
-  }
+  }finally{if(answering){this.answerRequests.delete(pendingAnswer);if(generation===this.generation&&this.room)this.accept(this.room,generation);}}
  }
  async leave(){
   const session=this.session;

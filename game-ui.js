@@ -276,6 +276,7 @@
         button.appendChild(label);
         button.addEventListener('click', () => {
           if (button.disabled || engine.state.gameStatus !== 'playing') return;
+          if(remote){remote.submit('flag',id);return;}
           tickSolo();
           soloReplay?.actions.push({ kind:'flag', value:id, at:Date.now()-engine.state.startedAt });
           engine.submitFlag(id);
@@ -492,7 +493,7 @@
       $('missedList').replaceChildren(...r.missedCountries.map(id=>{const p=document.createElement('p');const c=byId.get(id);p.textContent=c?`${c.canonical_name}${r.config.family==='capital'?` — ${c.capital.map(x=>`${x.name} (${x.role})`).join('; ')}`:''}`:id;return p;}));
       $('finalMistakes').textContent=r.mistakes.length?`Submitted mistakes: ${r.mistakes.slice(-3).join(' · ')}`:'';
       $('practiceMissed').disabled=!r.missedCountries.length;
-      $('challengeFriends').disabled=!!r.config.practiceIds || r.config.family==='flag';
+      $('challengeFriends').disabled=!!r.config.practiceIds;
       $('resultsDialog').showModal(); $('playAgain').focus(); updateRecent();
     }
     function menu({ hosted = hostedGame } = {}) {
@@ -632,11 +633,17 @@
         if(isNewMatch){remoteKey=key;lastRemoteEvent=null;onEvent({type:'start'},s);if(data.config.family==='conquest')s.completedCountries.forEach(id=>GameMap.mark(id));}
         if(s.gameStatus==='playing'){
           if(data.config.family==='conquest'){if(isNewMatch||form.hidden){onEvent({type:'question',question:{type:TYPES.COUNTRY_TYPING}},s);}}
-          else if(previous!==s.currentQuestion?.id)onEvent({type:'question',question:s.currentQuestion},s);
+          else if(isNewMatch||previous!==s.currentQuestion?.id)onEvent({type:'question',question:s.currentQuestion},s);
           if(data.event?.id&&lastRemoteEvent!==data.event.id&&(data.config.family==='conquest'||data.event.questionId===s.currentQuestion?.id)){lastRemoteEvent=data.event.id;onEvent(data.event,s);}
           const ready=s.feedbackUntil===null&&engine.now()>=s.startedAt;
-          const typing=data.config.family==='conquest'||s.currentQuestion?.type===TYPES.CAPITAL_TYPING;
-          input.disabled=!ready||!typing;voice.disabled=!ready||!typing;map.enableClick(ready&&!typing);
+          const typing=data.config.family==='conquest'||s.currentQuestion?.type===TYPES.CAPITAL_TYPING||s.currentQuestion?.type===TYPES.FLAG_RECALL;
+          input.disabled=!ready||!typing;voice.disabled=!ready||!typing;map.enableClick(ready&&!typing&&data.config.family!=='flag');
+          if(data.config.family==='flag'){
+            const q=s.currentQuestion;
+            flagChoices.querySelectorAll('button').forEach(button=>{button.disabled=!ready||button.classList.contains('flag-option-wrong');button.hidden=button.dataset.flagId===q.hintRemoveId;});
+            $('flagHintButton').disabled=!ready||q.hintUsed;
+            if(q.hintUsed)$('flagHintText').textContent=q.type===TYPES.FLAG_RECALL?`Hint: the answer starts with “${[...byId.get(q.countryId).canonical_name].find(char=>/\p{L}/u.test(char)).toUpperCase()}”. (−25 points)`:'Hint: one incorrect flag has been removed. (−25 points)';
+          }
           if(ready&&typing&&previous!==s.currentQuestion?.id)focusTyping({ allowDesktopAutofocus: false });
         }else{
           if (previousStatus === 'playing' && tracker?.hasActiveSession()) tracker.finish(data.result?.reason || s.result?.reason || 'completed', s, data.result || s.result);
@@ -644,7 +651,7 @@
         }
         $('gameTitle').textContent= families[data.config.family]+' · Friends';updateHUD(s);
       },
-      blockRemote(value) {input.disabled=value;voice.disabled=value;if(value)map.enableClick(false);},
+      blockRemote(value) {input.disabled=value;voice.disabled=value;if(value){map.enableClick(false);if(engine.config?.family==='flag')disableFlagAnswers();}},
       exitRemote() { if (tracker?.hasActiveSession()) tracker.finish('abandoned', engine.state); remote=null;remoteKey=null;remoteSubmission=null;engine.state.gameStatus='idle';menu(); },
       closeResults() {$('resultsDialog').close();}
 
@@ -720,6 +727,8 @@
     });
     $('flagHintButton').addEventListener('click',()=>{
       if (engine.config?.family !== 'flag') return;
+      if(remote){remote.submit('hint','');return;}
+      soloReplay?.actions.push({kind:'hint',at:Date.now()-engine.state.startedAt});
       engine.useHint();
     });
     $('playAgain').addEventListener('click',()=>start(lastConfig));

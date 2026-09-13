@@ -16,7 +16,8 @@ function harness(now=5000){
     app:{classList:{add(){},remove(){}},removeAttribute(){}},
     renderShell(){},onEvent(){},updateHUD(){},focusTyping(){},
     families:{conquest:'World Conquest',capital:'Capital Clash',find:'Find the Country'},
-    TYPES:{CAPITAL_TYPING:'CAPITAL_TYPING'},
+    TYPES:{CAPITAL_TYPING:'CAPITAL_TYPING',FLAG_RECALL:'FLAG_RECALL'},
+    flagChoices:{querySelectorAll:()=>[]},
     $:id=>{if(!elements.has(id))elements.set(id,{});return elements.get(id);},
   };
   vm.createContext(context);
@@ -89,4 +90,14 @@ test('an answer rejected after a deadline cannot show a stale error on the next 
   reject(new Error('That question has ended.'));
   assert.equal(await answer,false);
   assert.equal(context.connection.hidden,true);assert.equal(context.connection.textContent,'');
+});
+
+test('remote Flag Recall enables text and speech; Match never enables the map',()=>{
+ const h=harness();
+ h.controller.renderRemote(state({family:'flag',type:'FLAG_RECALL'}));
+ assert.equal(h.input.disabled,false);assert.equal(h.voice.disabled,false);assert.equal(h.map.click,false);
+ h.controller.renderRemote(state({family:'flag',type:'FLAG_MATCH'}));
+ assert.equal(h.input.disabled,true);assert.equal(h.voice.disabled,true);assert.equal(h.map.click,false);
+ h.controller.renderRemote(state({family:'flag',type:'FLAG_RECALL',feedbackUntil:6000}));
+ assert.equal(h.input.disabled,true);assert.equal(h.voice.disabled,true);
 });

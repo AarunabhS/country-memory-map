@@ -397,3 +397,28 @@ test('damaged saved membership cannot send malformed room requests', async () =>
   assert.equal(calls,0);
   assert.equal(storage.getItem(service.key),null);
 });
+
+test('answers dispatch immediately and pause polls until acknowledgement', async()=>{
+ let answerResolve;const calls=[];
+ const h=serviceHarness({session:{code:'GEOABCDEF',token:'secret',api:localApi},fetchImpl:async(url,options)=>{
+  calls.push(options.method);
+  if(options.method==='POST')return new Promise(resolve=>answerResolve=()=>resolve(response({code:'GEOABCDEF',revision:1,nextSeq:2,match:{id:'m'}})));
+  return response({code:'GEOABCDEF',revision:2});
+ }});
+ const task=h.service.action('answer',{seq:1,matchId:'m',kind:'text',value:'India'});
+ while(!answerResolve)await Promise.resolve();
+ await h.service.poll();assert.deepEqual(calls,['POST']);
+ answerResolve();await task;assert.equal(h.service.room.nextSeq,2);assert.equal(h.service.answerRequests.size,0);
+ await h.service.poll();assert.deepEqual(calls,['POST','GET']);h.service.suspend();
+});
+
+test('a pending answer in a departed room does not pause the new room polls',async()=>{
+ let resolveAnswer;let gets=0;
+ const h=serviceHarness({session:{code:'GEOABCDEF',token:'old',api:localApi},fetchImpl:async(url,options)=>{
+  if(options.method==='POST')return new Promise(resolve=>resolveAnswer=()=>resolve(response({code:'GEOABCDEF',revision:1})));
+  gets++;return response({code:'GEONEWROOM',revision:1});
+ }});
+ const pending=h.service.action('answer',{seq:1});while(!resolveAnswer)await Promise.resolve();
+ h.service.clearSession();h.service.session={code:'GEONEWROOM',token:'new',api:localApi};
+ await h.service.poll();assert.equal(gets,1);resolveAnswer();await pending;assert.equal(h.service.room.code,'GEONEWROOM');h.service.suspend();
+});

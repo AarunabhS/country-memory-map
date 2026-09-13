@@ -240,12 +240,21 @@
     loadQuestion(0);
   }
 
+  function setVoiceEnabled(enabled) {
+    const message=ui.message?.textContent;
+    global.GameMap?.stopVoice();
+    if(ui.message&&message!==undefined)ui.message.textContent=message;
+    const button=document.getElementById('voiceButton');
+    if(button){button.disabled=!enabled;button.setAttribute('aria-label','Say country name');button.title='Say country name';}
+  }
+
   function loadQuestion(index) {
     if (!currentRound || index >= currentRound.questions.length) {
       finishRound();
       return;
     }
 
+    setVoiceEnabled(true);
     currentRound.currentIndex = index;
     const q = currentRound.questions[index];
     questionStartTime = Date.now();
@@ -431,6 +440,7 @@
   function showFactCard() {
     if (!currentRound || !currentRound.current) return;
     const qData = currentRound.current.data;
+    setVoiceEnabled(false);
     if (ui.guessInput) ui.guessInput.disabled = true;
     ui.hintButton.disabled = true;
     ui.revealButton.hidden = true;
@@ -452,6 +462,7 @@
   }
 
   function finishRound() {
+    setVoiceEnabled(false);
     active = false;
     if (timerInterval) {
       clearInterval(timerInterval);
@@ -503,6 +514,7 @@
   }
 
   function deactivate() {
+    setVoiceEnabled(false);
     active = false;
     if (timerInterval) {
       clearInterval(timerInterval);

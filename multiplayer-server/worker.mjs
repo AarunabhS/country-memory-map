@@ -31,8 +31,12 @@ export async function handle(request,store,now=Date.now()){
  if(url.pathname==='/health')return send({ok:true,service:'Country Memory Map Friends',serverNow:now});
  if(!['GET','POST'].includes(request.method))throw new RoomError('METHOD','Unsupported method.',405);
  const ip=request.headers.get('CF-Connecting-IP')||'local';
- const key=await hash(ip+':'+Math.floor(now/60000));if(await store.rate(key,now)>1800)throw new RoomError('RATE_LIMITED','Too many requests. Please wait a minute.',429);
- const codeMatch=url.pathname.match(/^\/rooms\/([A-Z0-9]{6,12})$/);
+ const roomMatch=url.pathname.match(/^\/rooms\/([A-Z0-9]{6,12})$/);
+ // Independent reads overlap; every response/mutation still awaits the rate gate.
+ const key=await hash(ip+':'+Math.floor(now/60000));
+ const [rate,initialRow]=await Promise.all([store.rate(key,now),roomMatch?store.get(roomMatch[1]):Promise.resolve(null)]);
+ if(rate>1800)throw new RoomError('RATE_LIMITED','Too many requests. Please wait a minute.',429);
+ const codeMatch=roomMatch;
  let input={};if(request.method==='POST'){if(!request.headers.get('Content-Type')?.includes('application/json'))throw new RoomError('CONTENT_TYPE','Use JSON requests.',415);const body=await request.text();if(body.length>250000)throw new RoomError('TOO_LARGE','Request too large.',413);try{input=JSON.parse(body);}catch{throw new RoomError('INVALID_JSON','Invalid request.');}}
  if(request.method==='POST'&&['/rooms','/challenges'].includes(url.pathname)){
   const count=await store.rate(await hash(ip+':create:'+Math.floor(now/3600000)),now,3600000);if(count>20)throw new RoomError('RATE_LIMITED','Room creation limit reached. Try again later.',429);
@@ -43,13 +47,16 @@ export async function handle(request,store,now=Date.now()){
  const roomCode=codeMatch[1];const bearer=request.headers.get('Authorization')?.replace(/^Bearer /,'');const authHash=bearer?await hash(bearer):null;
  const newToken=input.action==='join'?token():null;const newId=crypto.randomUUID();const newHash=newToken?await hash(newToken):null;
  for(let attempt=0;attempt<12;attempt++){
-  const row=await store.get(roomCode);if(!row)throw new RoomError('ROOM_NOT_FOUND','ROOM NOT FOUND',404);
+  const row=attempt===0?initialRow:await store.get(roomCode);if(!row)throw new RoomError('ROOM_NOT_FOUND','ROOM NOT FOUND',404);
   const room=JSON.parse(row.body);let p=null,event=null;
+  const before=request.method==='GET'?JSON.stringify(room):null;
   syncRoom(room,now);if(room.state==='CLOSED')throw new RoomError('ROOM_EXPIRED',room.notice||'THIS ROOM HAS EXPIRED',410);
   if(request.method==='POST'){
    if(input.action==='join'){joinRoom(room,{id:newId,tokenHash:newHash,name:input.name},now);p=member(room,newHash);}
    else{if(!authHash)throw new RoomError('SESSION_REQUIRED','Join the room first.',401);p=member(room,authHash);event=roomAction(room,p,input,now);}
-  }else if(authHash){p=member(room,authHash);event=roomAction(room,p,{action:'poll'},now);}
+  }else if(authHash){p=member(room,authHash);if(p.left||now-p.lastSeenAt>=5000)event=roomAction(room,p,{action:'poll'},now);}
+  // Preserve revisions on no-op reads, but persist deadlines and presence changes.
+  if(before!==null&&JSON.stringify(room)===before)return send({...publicRoom(room,p,now,event),revision:row.version});
   if(await store.save(room,row.version))return send({...publicRoom(room,p,now,event),revision:row.version+1,...(newToken?{token:newToken}:{})});
  }
  throw new RoomError('BUSY','The room is busy. Please retry.',409);

@@ -22,6 +22,8 @@ Use Node 22.13 or newer for the local SQLite adapter. The normal frontend delibe
 - `worker.mjs`: JSON API, hashed session tokens, origin restrictions, rate limits, D1 persistence and expiration cleanup.
 - `multiplayer-service.js`: transport, server clock offset, revision ordering, retry and session recovery.
 - `multiplayer-ui.js`: invitation/lobby/results and adapter to the existing game UI.
+- Live rooms support World Conquest, Find the Country, Capital Clash, Flag Recall, and Flag Match. Flag answers and hints use the same sequenced server validation; solo flag challenges replay choices and hints.
+- Answer requests pause scheduled client polling until acknowledgement. Rate-limit and initial room reads overlap; unchanged GETs retain the current revision and refresh stored presence every five seconds. Deadline/host/membership changes still commit immediately through compare-and-swap.
 - No public room directory, matchmaking, accounts or opponent answer histories.
 - Foreground clients target a 1.5-second request cadence, subtracting response duration from the next wait (250ms minimum), with deadline-aware polls; background clients poll every eight seconds where the browser permits. Back to Home after finishing preserves this background presence and room membership. Timed live rooms finalize as soon as every player ends, including DNF. Scores are near real time, not WebSocket updates.
 - Clock offset uses request midpoint. Answers carry a measured response duration; the server limits latency compensation to one second. High latency can still affect competitive speed bonuses.

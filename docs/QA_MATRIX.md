@@ -47,3 +47,7 @@ Test every affected game/route at desktop, narrow mobile portrait, and short mob
 ## 2026-09-13 multiplayer recovery evidence
 
 **AUTOMATED VERIFIED** — microphone permission/start lifecycle, response-aware polling, parked session retention, and immediate timed-room completion after all players end. **MANUALLY VERIFIED WITH EVIDENCE** — local two-origin gameplay, early DNF results/rematch, Home membership retention/reentry, copyable room code, keyboard Home action, and desktop/portrait/landscape captures in the [execution record](exec-plans/completed/2026-09-13-multiplayer-voice-results-latency.md). **MANUAL VERIFICATION REQUIRED** — physical iPhone speech and permissions, device background behavior, assistive/reduced-motion modes, deployed frontend/Worker, and mobile-network latency.
+
+## 2026-09-13 Flag multiplayer and answer transport
+
+**AUTOMATED VERIFIED** — Flag room validation/hints/replay, nine concurrent answers, redundant poll writes, rate gating, retry/departure isolation, and Quiz speech control lifecycle. **MANUALLY VERIFIED WITH EVIDENCE** — two local browser players in Recall/Match, typed/keyboard answers and hints, reconnect, portrait/landscape layout and Quiz Speak/reveal/next controls. See the [execution record](exec-plans/completed/2026-09-13-fast-answers-flag-multiplayer.md) for measurements and limits. **MANUAL VERIFICATION REQUIRED** — physical microphone, production rollout and live mobile latency.

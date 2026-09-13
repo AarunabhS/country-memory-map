@@ -145,3 +145,17 @@ test('quiz-game controller loads cleanly in DOM environment and resolves countri
 test('quiz stage removes retained map chrome that would overlap mobile prompts', () => {
   assert.match(quizCss, /\.quiz-platform \.zoom-controls,[\s\S]*?\.quiz-platform \.legend-panel \{[\s\S]*?display: none !important/);
 });
+
+test('quiz speech is enabled for questions and stopped for reveal, finish and exit',()=>{
+ const fs=require('fs'),vm=require('vm'),source=fs.readFileSync('quiz-game.js','utf8');
+ const code=source.slice(source.indexOf('  function setVoiceEnabled('),source.indexOf('  function loadQuestion('));
+ let stops=0;const button={disabled:true,setAttribute(name,value){this[name]=value;}};
+ const context={ui:{message:{textContent:'Answers revealed.'}},global:{GameMap:{stopVoice(){stops++;}}},document:{getElementById:()=>button}};
+ vm.createContext(context);vm.runInContext(code,context);
+ context.setVoiceEnabled(true);assert.equal(button.disabled,false);assert.equal(button['aria-label'],'Say country name');
+ context.setVoiceEnabled(false);assert.equal(button.disabled,true);assert.equal(stops,2);
+ assert.match(source,/setVoiceEnabled\(true\);\s*currentRound.currentIndex/);
+ assert.match(source,/function showFactCard\(\)[\s\S]*?setVoiceEnabled\(false\)/);
+ assert.match(source,/function finishRound\(\) \{\s*setVoiceEnabled\(false\)/);
+ assert.match(source,/function deactivate\(\) \{\s*setVoiceEnabled\(false\)/);
+});

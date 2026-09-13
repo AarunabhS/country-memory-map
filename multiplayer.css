@@ -13,3 +13,9 @@
 
 #friendsPanel .friend-room-code{display:block;width:100%;margin:0 0 14px;padding:12px;font-size:20px;font-weight:800;letter-spacing:2px;}
 #friendsPanel .friends-home{display:block;margin:0 0 14px;}
+
+/* Flag rounds reuse the room standings outside the hidden map surface. */
+.app.flag-platform #flagGameView { position: relative; }
+.app.flag-platform #liveBoard { position: static; flex-shrink: 0; align-self: center; width: min(760px,100%); min-width: 0; max-width: 760px; max-height: 160px; text-align: left; }
+.app.flag-platform #liveBoard summary { min-height: 36px; display: flex; align-items: center; }
+.app.flag-platform #flagGameView:has(#liveBoard:not([hidden])) { justify-content: flex-start; overflow-y: auto; }

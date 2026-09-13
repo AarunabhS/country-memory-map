@@ -8,8 +8,8 @@ const fail=(code,message,status)=>{throw new RoomError(code,message,status);};
 export const rng=Game.seededRandom;
 export function safeName(raw){const name=String(raw||'').normalize('NFC').replace(/[<>\u0000-\u001f\u007f]/g,'').trim();if(!name||[...name].length>20)fail('INVALID_NAME','Choose a name from 1 to 20 characters.');return name;}
 export function config(input={},async=false){
- const family=['conquest','find','capital'].includes(input.family)?input.family:'conquest';
- const allowed=family==='conquest'?(async?['relaxed','sprint','blitz','sudden','continent']:['sprint','blitz','continent']):family==='find'?['standard','blitz','continent']:['classic','blitz','continent'];
+ const family=['conquest','find','capital','flag'].includes(input.family)?input.family:'conquest';
+ const allowed=family==='flag'?['recall','match']:family==='conquest'?(async?['relaxed','sprint','blitz','sudden','continent']:['sprint','blitz','continent']):family==='find'?['standard','blitz','continent']:['classic','blitz','continent'];
  const variant=allowed.includes(input.variant)?input.variant:allowed[0];
  const difficulty=['easy','medium','hard','expert'].includes(input.difficulty)?input.difficulty:'medium';
  const region=['Africa','Asia','Europe','North America','South America','Oceania'].includes(input.region)?input.region:'Africa';
@@ -26,7 +26,7 @@ function createEngine(settings,seed,startAt,now,snapshot,live=true){
 }
 function pack(e,random){return {state:{...e.state,completedCountries:[...e.state.completedCountries]},queue:e.queue.map(c=>c.country_id),lastCountryId:e.lastCountryId,rngState:random.state,result:e.result||null};}
 function startPlayer(room,player,startAt,now){const {e,random}=createEngine(room.config,room.match.seed,startAt,now,undefined,room.kind==='live');player.game=pack(e,random);player.feedback=null;player.dnf=false;player.lastActionAt=startAt;player.lastSeq=0;player.lastResponse=null;}
-function operate(room,p,now,action){const {e,random}=createEngine(room.config,room.match.seed,room.match.startAt,now,p.game);let event=null;e.onEvent=x=>{if(['correct','wrong','duplicate','reveal'].includes(x.type)){event=x;p.feedback={...x,questionId:e.state.currentQuestion?.id||null,id:crypto.randomUUID()};}};action(e);p.game=pack(e,random);return event;}
+function operate(room,p,now,action){const {e,random}=createEngine(room.config,room.match.seed,room.match.startAt,now,p.game);let event=null;e.onEvent=x=>{if(['correct','wrong','duplicate','reveal','hint'].includes(x.type)){event=x;p.feedback={...x,questionId:e.state.currentQuestion?.id||null,id:crypto.randomUUID()};}};action(e);p.game=pack(e,random);return event;}
 export function makeRoom({code,id,tokenHash,name,now,seed}){return {id,code,kind:'live',state:'LOBBY',createdAt:now,expiresAt:now+7200000,hostPlayerId:id,config:config({variant:'blitz'}),players:[{id,tokenHash,name:safeName(name),joinedAt:now,lastSeenAt:now,ready:true,game:null,dnf:false}],match:null,seedCounter:seed,notice:null};}
 function connected(p,now){return !p.left&&now-p.lastSeenAt<15000;}
 export function syncRoom(room,now){
@@ -82,7 +82,7 @@ export function roomAction(room,p,input,now){
    const claimed=Number(input.responseTime);if(!Number.isFinite(claimed)||claimed<0||claimed>real+2)fail('INVALID_TIMING','Answer timing could not be verified.');
    // Bound latency compensation to one second. Clients cannot claim arbitrarily short durations.
    const duration=Math.max(claimed,real-1,0.08);
-   const event=operate(room,p,now,e=>{e.responseDuration=()=>duration;if(input.kind==='country')e.submitCountry(String(input.value||''));else if(input.kind==='text')e.submitText(String(input.value||'').slice(0,160));else fail('INVALID_EVENT','Unsupported answer type.');});
+   const event=operate(room,p,now,e=>{e.responseDuration=()=>duration;if(input.kind==='country')e.submitCountry(String(input.value||''));else if(input.kind==='text')e.submitText(String(input.value||'').slice(0,160));else if(input.kind==='flag'&&room.config.family==='flag'&&s.currentQuestion.type===Game.TYPES.FLAG_MATCH&&s.currentQuestion.options.includes(input.value))e.submitFlag(input.value);else if(input.kind==='hint'&&room.config.family==='flag')e.useHint();else fail('INVALID_EVENT','Unsupported answer type.');});
    p.lastSeq=input.seq;p.lastActionAt=now;p.lastResponse=event;syncRoom(room,now);return event;
   }
   case 'finish':if(p.game?.state.gameStatus==='playing'){operate(room,p,now,e=>e.finish('manual'));p.dnf=!(room.kind==='challenge'&&room.config.family==='conquest'&&['relaxed','continent'].includes(room.config.variant));syncRoom(room,now);}break;
@@ -97,7 +97,7 @@ export function ranking(players){const list=players.map(p=>{const s=p.game?.stat
 export function publicRoom(room,player,now,event=null){
  const own=player?.game,s=own?.state;
  const payload={code:room.code,kind:room.kind,state:room.state,maxPlayers:MAX_PLAYERS,config:room.config,hostPlayerId:room.hostPlayerId,hostName:room.players.find(p=>p.id===room.hostPlayerId)?.name||'A friend',serverNow:now,expiresAt:room.expiresAt,notice:room.notice,players:room.players.map(p=>({id:p.id,name:p.name,ready:p.ready,connected:connected(p,now)})),standings:ranking(room.players),you:player?.id||null,match:room.match?{id:room.match.id,startAt:room.match.startAt,endAt:room.match.endAt}:null,event:player?.feedback||event};
- if(s){const q=s.currentQuestion;payload.game={...s,currentQuestion:q?{id:q.id,type:q.type,countryId:q.countryId,prompt:q.prompt,role:q.role,timeLimit:q.timeLimit,deadline:q.deadline,resolved:q.resolved}:null,completedCountries:s.completedCountries,questionHistory:undefined,submissions:undefined,elapsedTime:Math.max(0,(now-s.startedAt)/1000),remainingTime:s.deadline===null?null:Math.max(0,(s.deadline-now)/1000)};payload.nextSeq=player.lastSeq+1;payload.result=own.result;}
+ if(s){const q=s.currentQuestion;payload.game={...s,currentQuestion:q?{id:q.id,type:q.type,countryId:q.countryId,prompt:q.prompt,role:q.role,timeLimit:q.timeLimit,deadline:q.deadline,resolved:q.resolved,...(room.config.family==='flag'?{options:q.options,hintUsed:q.hintUsed,hintPenalty:q.hintPenalty,hintRemoveId:q.hintRemoveId}: {})}:null,completedCountries:s.completedCountries,questionHistory:undefined,submissions:undefined,elapsedTime:Math.max(0,(now-s.startedAt)/1000),remainingTime:s.deadline===null?null:Math.max(0,(s.deadline-now)/1000)};payload.nextSeq=player.lastSeq+1;payload.result=own.result;}
  return payload;
 }
 // A completed solo run is replayed through the same rules, never accepted as a final-score claim.
@@ -107,7 +107,7 @@ export function createChallenge(input,identity,now){
  const elapsed=Number(input.elapsed);if(!Number.isFinite(elapsed)||elapsed<0||elapsed>7200000)fail('INVALID_REPLAY','Invalid round duration.');
  let at=0;const random=rng(seed);const engine=new Engine(DATA,{now:()=>at,random:()=>random.next()});engine.start(settings);
  if(settings.family!=='conquest')engine.state.questionLimit=settings.practiceIds?.length|| (settings.variant==='blitz'?null:settings.questionCount);
- for(const action of actions){if(!Number.isFinite(action.at)||action.at<at||action.at>elapsed)fail('INVALID_REPLAY','The answer timeline is invalid.');at=action.at;engine.tick();if(action.kind==='text')engine.submitText(String(action.value||'').slice(0,160));else if(action.kind==='country')engine.submitCountry(String(action.value||''));else if(action.kind!=='tick')fail('INVALID_REPLAY','Unknown replay action.');}
+ for(const action of actions){if(!Number.isFinite(action.at)||action.at<at||action.at>elapsed)fail('INVALID_REPLAY','The answer timeline is invalid.');at=action.at;engine.tick();if(action.kind==='text')engine.submitText(String(action.value||'').slice(0,160));else if(action.kind==='country')engine.submitCountry(String(action.value||''));else if(action.kind==='flag'&&settings.family==='flag')engine.submitFlag(String(action.value||''));else if(action.kind==='hint'&&settings.family==='flag')engine.useHint();else if(action.kind!=='tick')fail('INVALID_REPLAY','Unknown replay action.');}
  at=elapsed;engine.tick();if(engine.state.gameStatus==='playing')engine.finish('manual');
  const room=makeRoom({...identity,now,seed});room.kind='challenge';room.config=settings;room.expiresAt=now+259200000;room.match={id:crypto.randomUUID(),seed,startAt:now,endAt:null};room.players[0].game=pack(engine,random);room.players[0].lastSeq=0;room.players[0].lastResponse=null;return room;
 }

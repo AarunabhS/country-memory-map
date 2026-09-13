@@ -86,3 +86,85 @@ test('all-disconnected timed rooms finalize before the unused deadline', () => {
  assert.ok(r.players.every(p=>p.dnf&&p.game.state.gameStatus==='ended'));
  assert.ok(r.match.endAt>base+46001);
 });
+
+test('Flag Recall and Match rooms preserve shared order, independent answers, hints and retries',()=>{
+ for(const variant of ['recall','match']){
+  const r=room();roomAction(r,r.players[0],{action:'settings',config:{family:'flag',variant,difficulty:'easy',questionCount:10}},base);ready(r);
+  const [p,guest]=r.players,q=p.game.state.currentQuestion;
+  assert.equal(r.config.family,'flag');assert.equal(r.config.variant,variant);
+  assert.deepEqual(q,guest.game.state.currentQuestion);
+  const view=publicRoom(r,p,base+4000);assert.equal(view.game.currentQuestion.acceptedAnswers,undefined);
+  if(variant==='match'){assert.equal(view.game.currentQuestion.options.length,4);assert.equal(new Set(q.options).size,4);}
+  const action={action:'answer',matchId:r.match.id,questionId:q.id,seq:1,responseTime:1,kind:'hint'};
+  roomAction(r,p,action,base+4000);roomAction(r,p,action,base+4200);
+  assert.equal(p.game.state.score,-25);assert.equal(p.game.state.hintsUsed,1);assert.equal(guest.game.state.score,0);
+  const restored=publicRoom(r,p,base+4300);assert.equal(restored.game.currentQuestion.hintUsed,true);assert.equal(restored.event.type,'hint');
+  if(variant==='match')assert.ok(restored.game.currentQuestion.options.includes(restored.game.currentQuestion.hintRemoveId));
+  const country=DATA.find(c=>c.country_id===q.countryId);
+  roomAction(r,p,{...action,seq:2,kind:variant==='match'?'flag':'text',value:variant==='match'?q.countryId:country.canonical_name,responseTime:1.5},base+4500);
+  assert.equal(p.game.state.correctAnswers,1);assert.equal(guest.game.state.correctAnswers,0);
+  r.players.forEach(x=>x.lastSeenAt=base+5300);syncRoom(r,base+5300);
+  assert.equal(p.game.state.questionNumber,2);assert.equal(guest.game.state.questionNumber,1);
+  assert.equal(p.game.state.currentQuestion.hintUsed,false);
+  roomAction(r,guest,{...action,kind:variant==='match'?'flag':'text',value:variant==='match'?q.countryId:country.canonical_name,responseTime:2.5},base+5500);
+  syncRoom(r,base+6300);assert.equal(p.game.state.currentQuestion.countryId,guest.game.state.currentQuestion.countryId);
+ }
+});
+
+test('Flag Match rejects fabricated choices and stale questions without consuming a sequence',()=>{
+ const r=room();r.config={family:'flag',variant:'match',difficulty:'hard',questionCount:10,questionTime:20};ready(r);
+ const p=r.players[0],q=p.game.state.currentQuestion;
+ const a={action:'answer',matchId:r.match.id,questionId:q.id,seq:1,responseTime:1,kind:'flag',value:'fake'};
+ assert.throws(()=>roomAction(r,p,a,base+4000),/Unsupported/);assert.equal(p.lastSeq,0);
+ assert.throws(()=>roomAction(r,p,{...a,questionId:'old',value:q.countryId},base+4100),/question has ended/);
+ const wrong=q.options.find(id=>id!==q.countryId);
+ roomAction(r,p,{...a,value:wrong},base+4200);assert.equal(p.game.state.score,-25);
+ roomAction(r,p,{...a,seq:2,value:q.countryId,responseTime:1.5},base+4500);assert.equal(p.game.state.correctAnswers,1);
+});
+
+test('Flag solo challenge replays choices and hints with original scoring',()=>{
+ for(const variant of ['recall','match']){
+  let at=0;const random=Game.seededRandom(42),settings={family:'flag',variant,difficulty:'easy',questionCount:20,questionTime:20};
+  const engine=new Game.Engine(DATA,{now:()=>at,random:()=>random.next()});engine.start(settings);
+  at=1000;engine.useHint();const q=engine.state.currentQuestion,c=DATA.find(c=>c.country_id===q.countryId);
+  at=1500;const kind=variant==='match'?'flag':'text',value=variant==='match'?q.countryId:c.canonical_name;
+  if(kind==='flag')engine.submitFlag(value);else engine.submitText(value);
+  engine.finish('manual');
+  const r=createChallenge({config:settings,seed:42,elapsed:at,actions:[{kind:'hint',at:1000},{kind,value,at}]},{code:'GEOFLAGS',id:'host',name:'Host'},base);
+  assert.equal(r.config.family,'flag');assert.equal(r.players[0].game.result.score,engine.result.score);assert.equal(r.players[0].game.result.hintsUsed,1);
+ }
+});
+
+test('unchanged polls avoid writes, refresh presence within five seconds and persist deadlines',async()=>{
+ const store=new MemoryStore(),r=ready(room());
+ r.players[0].tokenHash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('test-token')))].map(x=>x.toString(16).padStart(2,'0')).join('');
+ await store.insert(r);
+ const poll=at=>handle(new Request('http://test/rooms/'+r.code,{headers:{Authorization:'Bearer test-token'}}),store,at);
+ await poll(base+1000);assert.equal((await store.get(r.code)).version,0);
+ await poll(base+3100);assert.equal((await store.get(r.code)).version,1); // countdown transition
+ await poll(base+4500);assert.equal((await store.get(r.code)).version,1);
+ await poll(base+5100);assert.equal((await store.get(r.code)).version,2);
+ assert.equal(JSON.parse((await store.get(r.code)).body).players[0].lastSeenAt,base+5100);
+ await poll(base+6000);assert.equal((await store.get(r.code)).version,2);
+});
+
+test('rate limiting and room read overlap, and the rate gate still forbids writes',async()=>{
+ let release;const reads=[];const store=new MemoryStore();await store.insert(room());
+ store.rate=()=>new Promise(resolve=>release=resolve);const get=store.get.bind(store);store.get=code=>{reads.push(code);return get(code);};
+ const response=handle(new Request('http://test/rooms/GEOABCDEF'),store,base+100);
+ while(!release)await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(reads,['GEOABCDEF']);release(1801);
+ assert.equal((await response).status,429);assert.equal((await get('GEOABCDEF')).version,0);
+});
+
+test('nine simultaneous answers with polls retain every independent score',async()=>{
+ const r=room();for(let i=1;i<9;i++)joinRoom(r,{id:'p'+i,name:'Player '+i},base);
+ for(let i=0;i<9;i++){r.players[i].tokenHash=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('qa'+i))).toString('hex');r.players[i].ready=true;}
+ roomAction(r,r.players[0],{action:'start'},base);syncRoom(r,base+3000);r.players.forEach(p=>p.lastSeenAt=base+3000);
+ const store=new MemoryStore();await store.insert(r);
+ const responses=await Promise.all(r.players.flatMap((p,i)=>{
+  const headers={Authorization:'Bearer qa'+i,'Content-Type':'application/json'},url='http://test/rooms/'+r.code;
+  return [handle(new Request(url,{headers}),store,base+4000),handle(new Request(url,{method:'POST',headers,body:JSON.stringify({action:'answer',kind:'text',value:'India',seq:1,responseTime:1,matchId:r.match.id})}),store,base+4000)];
+ }));
+ assert.ok(responses.every(response=>response.ok));const saved=JSON.parse((await store.get(r.code)).body);assert.ok(saved.players.every(p=>p.game.state.score===130&&p.lastSeq===1));
+});
