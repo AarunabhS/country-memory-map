@@ -869,14 +869,7 @@ const svg = document.getElementById("map");
       closeBtn?.focus({ preventScroll: true });
     }
 
-    let activeMicStream = null;
-    let isRequestingMic = false;
-
     function stopVoiceInput(reason = "cancelled") {
-      if (activeMicStream) {
-        try { activeMicStream.getTracks().forEach(t => t.stop()); } catch {}
-        activeMicStream = null;
-      }
       if (recognition?.active) {
         try { recognition.abort(); } catch {}
       }
@@ -913,12 +906,18 @@ const svg = document.getElementById("map");
         return;
       }
 
+      const userLang = (typeof navigator !== "undefined" && navigator.language && navigator.language.startsWith("en"))
+        ? navigator.language
+        : "en-US";
+
       voiceButton.setAttribute("aria-busy", "false");
       voiceButton.setAttribute("aria-pressed", "false");
       recognition = new VoiceInputController({
         createRecognition,
+        requestMicrophone: null,
+        language: userLang,
         onState: ({ state, reason }) => {
-          if (state === "listening") {
+          if (state === "listening" || state === "starting") {
             isListening = true;
             voiceButton.classList.add("listening");
             voiceButton.classList.remove("starting", "permission");
@@ -927,8 +926,16 @@ const svg = document.getElementById("map");
             voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Stop listening to capital name" : "Stop listening to country name");
             voiceButton.textContent = "● Listening";
             setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
-          } else if (state === "idle" && isListening) {
-            stopVoiceInput(reason);
+          } else if (state === "idle") {
+            isListening = false;
+            voiceButton.classList.remove("listening", "starting", "permission");
+            voiceButton.setAttribute("aria-busy", "false");
+            voiceButton.setAttribute("aria-pressed", "false");
+            voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Say capital name" : "Say country name");
+            voiceButton.textContent = "Speak";
+            if (reason === "cancelled") {
+              setMessage("Microphone stopped. Press Speak to try again or type your answer.");
+            }
           }
         },
         onPreview: (heard) => {
@@ -937,10 +944,6 @@ const svg = document.getElementById("map");
           if (!handled) setMessage(`Hearing: “${heard}”…`, "listening");
         },
         onFinal: alternatives => {
-          if (activeMicStream) {
-            try { activeMicStream.getTracks().forEach(t => t.stop()); } catch {}
-            activeMicStream = null;
-          }
           isListening = false;
           voiceButton.classList.remove("listening");
           voiceButton.setAttribute("aria-pressed", "false");
@@ -961,10 +964,6 @@ const svg = document.getElementById("map");
           focusInput();
         },
         onError: ({ code }) => {
-          if (activeMicStream) {
-            try { activeMicStream.getTracks().forEach(t => t.stop()); } catch {}
-            activeMicStream = null;
-          }
           isListening = false;
           voiceButton.classList.remove("listening", "starting", "permission");
           voiceButton.setAttribute("aria-busy", "false");
@@ -989,9 +988,8 @@ const svg = document.getElementById("map");
       });
     }
 
-    async function startVoiceInput() {
-      if (isRequestingMic) return;
-      if (isListening || recognition?.active || activeMicStream) {
+    function startVoiceInput() {
+      if (isListening || recognition?.active) {
         stopVoiceInput("cancelled");
         return;
       }
@@ -1021,43 +1019,12 @@ const svg = document.getElementById("map");
         return;
       }
 
-      // Request hardware microphone directly in user click event
-      // This guarantees the browser's native permission dialogue box pops up immediately
-      if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
-        isRequestingMic = true;
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          activeMicStream = stream;
-        } catch (error) {
-          isRequestingMic = false;
-          if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
-            showVoiceDialog({
-              title: "Microphone Access Blocked",
-              message: "Your browser blocked microphone access because it is turned off in your site settings.\n\nBrowsers will not show a permission prompt when microphone access has been disabled.\n\nTo enable microphone access:\n1. Tap the lock or tune icon in the address bar (or go to browser Settings > Site Settings > Microphone).\n2. Change Microphone from 'Blocked' / 'Disabled' to 'Allow' (or click 'Reset permissions').\n3. Tap Speak again to start voice input."
-            });
-            setMessage("Microphone permission was blocked. Allow it in browser settings or type your answer.", "bad");
-          } else {
-            setMessage(`Could not access microphone (${error?.message || "error"}). Type your answer.`, "bad");
-          }
-          return;
-        }
-        isRequestingMic = false;
-      }
-
-      // Audio stream is now active - iPhone orange dot lights up, Chrome recording indicator lights up!
-      isListening = true;
-      voiceButton.classList.add("listening");
-      voiceButton.classList.remove("starting", "permission");
-      voiceButton.setAttribute("aria-busy", "false");
-      voiceButton.setAttribute("aria-pressed", "true");
-      voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Stop listening to capital name" : "Stop listening to country name");
-      voiceButton.textContent = "● Listening";
-      setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
-
       try {
         recognition.start();
       } catch (err) {
         console.warn("Speech recognition failed to start:", err);
+        stopVoiceInput();
+        setMessage(`Voice input could not start (${err?.message || "error"}). Try again or type your answer.`, "bad");
       }
     }
 

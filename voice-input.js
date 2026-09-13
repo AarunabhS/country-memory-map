@@ -28,8 +28,7 @@
       language = 'en-US',
       maxAlternatives = 5,
       startTimeout = 8000,
-      requestMicrophone = typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia
-        ? () => navigator.mediaDevices.getUserMedia({ audio: true }) : null,
+      requestMicrophone = null,
       onState = () => {},
       onPreview = () => {},
       onFinal = () => {},
