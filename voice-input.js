@@ -58,8 +58,19 @@
       if (typeof navigator !== 'undefined' && navigator.permissions && typeof navigator.permissions.query === 'function') {
         try {
           navigator.permissions.query({ name: 'microphone' }).then(permissionStatus => {
-            if (permissionStatus && permissionStatus.state === 'granted') {
-              this.microphoneReady = true;
+            if (permissionStatus) {
+              if (permissionStatus.state === 'granted') {
+                this.microphoneReady = true;
+              } else if (permissionStatus.state === 'denied' || permissionStatus.state === 'prompt') {
+                if (this.requestMicrophone) this.microphoneReady = false;
+              }
+              permissionStatus.onchange = () => {
+                if (permissionStatus.state === 'granted') {
+                  this.microphoneReady = true;
+                } else if (this.requestMicrophone) {
+                  this.microphoneReady = false;
+                }
+              };
             }
           }).catch(() => {});
         } catch {}
@@ -153,7 +164,7 @@
         }, 15000);
         try {
           Promise.resolve(this.requestMicrophone()).then(stream => {
-            stream.getTracks().forEach(track => track.stop());
+            stream?.getTracks?.().forEach(track => track.stop());
             if (this.permissionAttempt !== attempt) return;
             this.permissionAttempt = null;
             this.microphoneReady = true;

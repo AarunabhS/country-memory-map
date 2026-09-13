@@ -847,6 +847,28 @@ const svg = document.getElementById("map");
       if (message.classList.contains("bad")) playAnimation(form.closest("section"), "wrong-answer");
     }
 
+    function showVoiceDialog({ title, message }) {
+      const dialog = document.getElementById("voiceDialog");
+      if (!dialog) {
+        setMessage(message.replace(/\n+/g, " "), "bad");
+        return;
+      }
+      const titleEl = document.getElementById("voiceDialogTitle");
+      const msgEl = document.getElementById("voiceDialogMessage");
+      const closeBtn = document.getElementById("voiceDialogClose");
+      if (titleEl) titleEl.textContent = title;
+      if (msgEl) msgEl.textContent = message;
+      const onClose = () => {
+        dialog.removeEventListener("close", onClose);
+        voiceButton?.focus({ preventScroll: true });
+      };
+      dialog.addEventListener("close", onClose);
+      if (!dialog.open) {
+        try { dialog.showModal(); } catch { dialog.setAttribute("open", ""); }
+      }
+      closeBtn?.focus({ preventScroll: true });
+    }
+
     function setupVoiceInput() {
       const createRecognition = (function() {
         const LocalSR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -900,7 +922,12 @@ const svg = document.getElementById("map");
             voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Say capital name" : "Say country name");
             voiceButton.textContent = "Speak";
             if (reason === "permission-granted") {
-              setMessage("Microphone enabled. Tap Speak to say your answer.");
+              setMessage("Microphone enabled. Listening…", "listening");
+              setTimeout(() => {
+                if (recognition && !recognition.active) {
+                  recognition.start();
+                }
+              }, 50);
             } else if (reason === "cancelled") {
               setMessage("Microphone stopped. Press Speak to try again or type your answer.");
             }
@@ -927,15 +954,21 @@ const svg = document.getElementById("map");
           focusInput();
         },
         onError: ({ code }) => {
-          const reason = code === "not-allowed" || code === "service-not-allowed"
-            ? "Microphone permission was blocked. Allow it in browser settings or type your answer."
-            : code === "no-speech"
-              ? "No speech was heard. Try again, move closer to the microphone, or type your answer."
-              : code === "permission-timeout"
-                ? "Microphone permission is still pending. Tap Speak to retry or type your answer."
-              : code === "start-timeout"
-                ? "The microphone did not start. Check browser permission, then try again or type your answer."
-                : `Voice input did not work. Try again or type the ${quizMode === "capitals" ? "capital" : "country"}.`;
+          if (code === "not-allowed" || code === "service-not-allowed") {
+            showVoiceDialog({
+              title: "Microphone Access Blocked",
+              message: "Your browser blocked microphone access because it is turned off in your site settings.\n\nBrowsers will not show a permission prompt when microphone access has been disabled.\n\nTo enable microphone access:\n1. Tap the lock or tune icon in the address bar (or go to browser Settings > Site Settings > Microphone).\n2. Change Microphone from 'Blocked' / 'Disabled' to 'Allow' (or click 'Reset permissions').\n3. Tap Speak again to start voice input."
+            });
+            setMessage("Microphone permission was blocked. Allow it in browser settings or type your answer.", "bad");
+            return;
+          }
+          const reason = code === "no-speech"
+            ? "No speech was heard. Try again, move closer to the microphone, or type your answer."
+            : code === "permission-timeout"
+              ? "Microphone permission is still pending. Tap Speak to retry or type your answer."
+            : code === "start-timeout"
+              ? "The microphone did not start. Check browser permission, then try again or type your answer."
+              : `Voice input did not work. Try again or type the ${quizMode === "capitals" ? "capital" : "country"}.`;
           setMessage(reason, "bad");
         }
       });
@@ -943,10 +976,26 @@ const svg = document.getElementById("map");
 
     function startVoiceInput() {
       if (location.protocol === "file:") {
+        showVoiceDialog({
+          title: "Server Required for Voice Input",
+          message: "Browsers require an HTTP or HTTPS origin to grant microphone permission.\n\nPlease open this map at http://127.0.0.1:8000/ or http://localhost:8000/ to use voice input."
+        });
         setMessage("For one-time microphone permission, open this map at http://127.0.0.1:8000/ and choose Allow while visiting this site.", "bad");
         return;
       }
+      if (typeof window !== "undefined" && !window.isSecureContext && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+        showVoiceDialog({
+          title: "Secure Connection Required",
+          message: "Mobile browsers and speech recognition require a secure (HTTPS) connection.\n\nMicrophone access is blocked on insecure local network addresses (such as " + location.origin + ").\n\nTo use voice input on mobile:\n• Open the secure site: https://www.arunabhosom.com/country-memory-map/\n• Or test on your computer at http://localhost:8000/."
+        });
+        setMessage("Microphone requires HTTPS or localhost. Open via https://www.arunabhosom.com/country-memory-map/ to use voice on mobile.", "bad");
+        return;
+      }
       if (!recognition) {
+        showVoiceDialog({
+          title: "Voice Input Unsupported",
+          message: "This browser does not support Web Speech voice input.\n\nYou can type your answers or use your device keyboard’s microphone or dictation button."
+        });
         setMessage("This browser does not support voice input. Use your keyboard’s microphone or type an answer.", "bad");
         return;
       }
@@ -1295,6 +1344,11 @@ const svg = document.getElementById("map");
     countryModeButton.addEventListener("click", () => setQuizMode("countries"));
     capitalModeButton.addEventListener("click", () => setQuizMode("capitals"));
     voiceButton.addEventListener("click", startVoiceInput);
+    document.getElementById("voiceDialogClose")?.addEventListener("click", () => {
+      const dialog = document.getElementById("voiceDialog");
+      if (dialog?.open) dialog.close();
+      else dialog?.removeAttribute("open");
+    });
 
     revealButton.addEventListener("click", () => {
       if (selectedContinent === "World") {

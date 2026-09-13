@@ -193,15 +193,22 @@ test('leaving a game rejects late speech results even after a new microphone ses
 });
 
 test('pre-granted navigator permission sets microphoneReady to true immediately', async () => {
-  const originalNavigator = globalThis.navigator;
+  const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
   try {
-    globalThis.navigator = {
-      mediaDevices: { getUserMedia: () => Promise.resolve() },
-      permissions: {
-        query: ({ name }) => Promise.resolve({ state: name === 'microphone' ? 'granted' : 'prompt' })
-      }
-    };
-    const controller = new VoiceInputController({ Recognition: FakeRecognition });
+    Object.defineProperty(globalThis, 'navigator', {
+      value: {
+        mediaDevices: { getUserMedia: () => Promise.resolve() },
+        permissions: {
+          query: ({ name }) => Promise.resolve({ state: name === 'microphone' ? 'granted' : 'prompt' })
+        }
+      },
+      configurable: true
+    });
+    const controller = new VoiceInputController({
+      Recognition: FakeRecognition,
+      requestMicrophone: () => Promise.resolve()
+    });
+    assert.equal(controller.microphoneReady, false);
     await Promise.resolve();
     assert.equal(controller.microphoneReady, true);
     controller.start();
@@ -209,7 +216,38 @@ test('pre-granted navigator permission sets microphoneReady to true immediately'
     assert.equal(controller.recognition.startCalls, 1);
     controller.abort();
   } finally {
-    globalThis.navigator = originalNavigator;
+    if (originalDescriptor) Object.defineProperty(globalThis, 'navigator', originalDescriptor);
+  }
+});
+
+test('permissionStatus onchange dynamically updates microphoneReady state', async () => {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  try {
+    const currentStatus = { state: 'prompt', onchange: null };
+    Object.defineProperty(globalThis, 'navigator', {
+      value: {
+        mediaDevices: { getUserMedia: () => Promise.resolve() },
+        permissions: {
+          query: () => Promise.resolve(currentStatus)
+        }
+      },
+      configurable: true
+    });
+    const controller = new VoiceInputController({
+      Recognition: FakeRecognition,
+      requestMicrophone: () => Promise.resolve({ getTracks: () => [] })
+    });
+    assert.equal(controller.microphoneReady, false);
+    await Promise.resolve();
+    assert.equal(controller.microphoneReady, false);
+    currentStatus.state = 'granted';
+    currentStatus.onchange?.();
+    assert.equal(controller.microphoneReady, true);
+    currentStatus.state = 'denied';
+    currentStatus.onchange?.();
+    assert.equal(controller.microphoneReady, false);
+  } finally {
+    if (originalDescriptor) Object.defineProperty(globalThis, 'navigator', originalDescriptor);
   }
 });
 

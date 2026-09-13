@@ -552,3 +552,60 @@
       .topbar #revealButton { grid-column: 1; grid-row: 3; }
       .topbar #resetButton { grid-column: 2; grid-row: 3; }
     }
+
+    .voice-dialog {
+      border: 1px solid #ccddd3;
+      border-radius: 20px;
+      color: #243b32;
+      padding: 0;
+      width: min(520px, calc(100vw - 32px));
+      max-height: calc(100dvh - 32px);
+      background: #fcfffd;
+      box-shadow: 0 24px 90px rgba(13, 56, 44, 0.35);
+      margin: auto;
+    }
+    .voice-dialog::backdrop {
+      background: rgba(18, 54, 47, 0.65);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    .voice-dialog-content {
+      padding: 24px 28px;
+    }
+    .voice-dialog-content h2 {
+      font-size: 22px;
+      line-height: 1.2;
+      letter-spacing: -0.5px;
+      margin: 0 0 12px;
+      color: #16483b;
+    }
+    .voice-dialog-content p {
+      font-size: 15px;
+      line-height: 1.55;
+      margin: 0 0 20px;
+      color: #2c4a40;
+      white-space: pre-line;
+    }
+    .voice-dialog-content .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    .voice-dialog-content .primary-button {
+      min-height: 44px;
+      padding: 10px 22px;
+      border-radius: 12px;
+      background: #176d53;
+      color: #ffffff;
+      border: 1px solid #176d53;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .voice-dialog-content .primary-button:hover {
+      background: #125742;
+    }
+    .voice-dialog-content .primary-button:focus-visible {
+      outline: 3px solid #176d53;
+      outline-offset: 2px;
+    }
