@@ -10,7 +10,7 @@ const countriesByIso = new Map(countries.map(c => [c.iso_code, c]));
 
 test('all quiz questions have valid schema and resolve to authentic playable countries', () => {
   const { QUESTIONS, TIERS } = quizData;
-  assert.equal(QUESTIONS.length, 32);
+  assert.equal(QUESTIONS.length, 52);
 
   const validTiers = new Set(Object.values(TIERS));
   const seenIds = new Set();
@@ -63,20 +63,60 @@ test('user-mandated questions are present and verified', () => {
   assert.ok(weaponQ.accepted.includes('GTM'), 'Guatemala has rifles');
   assert.ok(weaponQ.accepted.includes('SAU'), 'Saudi Arabia has sword');
   assert.ok(weaponQ.accepted.includes('KEN'), 'Kenya has spears');
+
+  // New additions: Square flags
+  const squareQ = getQuestionById('easy-square-flags');
+  assert.ok(squareQ, 'Square flags question must exist');
+  assert.deepEqual(squareQ.accepted.sort(), ['CHE', 'VAT'].sort());
+
+  // Starts with Z
+  const zQ = getQuestionById('easy-starts-z');
+  assert.ok(zQ, 'Starts with Z question must exist');
+  assert.deepEqual(zQ.accepted.sort(), ['ZMB', 'ZWE'].sort());
+
+  // Guinea names
+  const guineaQ = getQuestionById('easy-guinea-names');
+  assert.ok(guineaQ, 'Guinea names question must exist');
+  assert.deepEqual(guineaQ.accepted.sort(), ['GIN', 'GNB', 'GNQ', 'PNG'].sort());
+
+  // United names
+  const unitedQ = getQuestionById('easy-united-names');
+  assert.ok(unitedQ, 'United names question must exist');
+  assert.deepEqual(unitedQ.accepted.sort(), ['ARE', 'GBR', 'USA'].sort());
+
+  // Doubly landlocked
+  const dblQ = getQuestionById('med-double-landlocked');
+  assert.ok(dblQ, 'Doubly landlocked question must exist');
+  assert.deepEqual(dblQ.accepted.sort(), ['LIE', 'UZB'].sort());
+
+  // Prime meridian
+  const pmQ = getQuestionById('med-prime-meridian');
+  assert.ok(pmQ, 'Prime meridian question must exist');
+  assert.deepEqual(pmQ.accepted.sort(), ['BFA', 'DZA', 'ESP', 'FRA', 'GBR', 'GHA', 'MLI', 'TGO'].sort());
+
+  // Danube capitals
+  const danubeQ = getQuestionById('med-danube-capitals');
+  assert.ok(danubeQ, 'Danube capitals question must exist');
+  assert.deepEqual(danubeQ.accepted.sort(), ['AUT', 'HUN', 'SRB', 'SVK'].sort());
+
+  // Borneo three
+  const borneoQ = getQuestionById('med-borneo-three');
+  assert.ok(borneoQ, 'Borneo three question must exist');
+  assert.deepEqual(borneoQ.accepted.sort(), ['BRN', 'IDN', 'MYS'].sort());
 });
 
 test('tier filtering, tier counts, and expert tier aliasing work correctly', () => {
   const { getQuestionsByTier, TIERS, QUESTIONS } = quizData;
 
-  assert.equal(getQuestionsByTier('all').length, 32);
-  assert.equal(getQuestionsByTier().length, 32);
+  assert.equal(getQuestionsByTier('all').length, 52);
+  assert.equal(getQuestionsByTier().length, 52);
 
   const easy = getQuestionsByTier(TIERS.EASY);
-  assert.equal(easy.length, 8);
+  assert.equal(easy.length, 18);
   assert.ok(easy.every(q => q.tier === 'easy'));
 
   const medium = getQuestionsByTier(TIERS.MEDIUM);
-  assert.equal(medium.length, 8);
+  assert.equal(medium.length, 18);
   assert.ok(medium.every(q => q.tier === 'medium'));
 
   const hard = getQuestionsByTier(TIERS.HARD);
