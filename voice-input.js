@@ -42,8 +42,8 @@
       onPreview = () => {},
       onFinal = () => {},
       onError = () => {},
-      setTimer = setTimeout,
-      clearTimer = clearTimeout
+      setTimer = (fn, ms) => (typeof window !== 'undefined' ? window.setTimeout(fn, ms) : setTimeout(fn, ms)),
+      clearTimer = id => (typeof window !== 'undefined' ? window.clearTimeout(id) : clearTimeout(id))
     } = {}) {
       this.createRecognition = createRecognition;
       this.Recognition = Recognition || (typeof createRecognition === 'function' ? createRecognition : null);
@@ -54,11 +54,11 @@
       this.onFinal = onFinal;
       this.onError = onError;
       this.startTimeout = startTimeout;
-      this.requestMicrophone = requestMicrophone;
+      this.requestMicrophone = typeof requestMicrophone === 'function' ? () => requestMicrophone() : null;
       this.microphoneReady = !requestMicrophone;
       this.permissionAttempt = null;
-      this.setTimer = setTimer;
-      this.clearTimer = clearTimer;
+      this.setTimer = (fn, ms) => setTimer(fn, ms);
+      this.clearTimer = id => clearTimer(id);
       this.startTimer = null;
       this.processedFinals = new Set();
       this.finalDelivered = false;

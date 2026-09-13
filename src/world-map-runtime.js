@@ -916,6 +916,8 @@ const svg = document.getElementById("map");
         createRecognition,
         requestMicrophone: null,
         language: userLang,
+        setTimer: (fn, ms) => window.setTimeout(fn, ms),
+        clearTimer: id => window.clearTimeout(id),
         onState: ({ state, reason }) => {
           if (state === "listening" || state === "starting") {
             isListening = true;

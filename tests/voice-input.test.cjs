@@ -277,3 +277,28 @@ test('alternativesFor handles item() method, iterator, and single transcript fal
   assert.deepEqual(alternativesFor(single), ['Spain']);
 });
 
+test('setTimer and clearTimer are invoked safely without illegal invocation', () => {
+  const strictTimer = function() {
+    if (this && this.constructor && this.constructor.name === 'VoiceInputController') {
+      throw new TypeError('Illegal invocation');
+    }
+    return 123;
+  };
+  const strictClear = function() {
+    if (this && this.constructor && this.constructor.name === 'VoiceInputController') {
+      throw new TypeError('Illegal invocation');
+    }
+  };
+  const controller = new VoiceInputController({
+    Recognition: FakeRecognition,
+    setTimer: strictTimer,
+    clearTimer: strictClear
+  });
+  assert.doesNotThrow(() => {
+    controller.start();
+  });
+  assert.doesNotThrow(() => {
+    controller.abort();
+  });
+});
+
