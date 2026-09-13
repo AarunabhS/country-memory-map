@@ -28,7 +28,8 @@
       language = 'en-US',
       maxAlternatives = 5,
       startTimeout = 8000,
-      requestMicrophone = null,
+      requestMicrophone = typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia
+        ? () => navigator.mediaDevices.getUserMedia({ audio: true }) : null,
       onState = () => {},
       onPreview = () => {},
       onFinal = () => {},
@@ -54,6 +55,15 @@
       this.processedFinals = new Set();
       this.finalDelivered = false;
       this.userStopped = false;
+      if (typeof navigator !== 'undefined' && navigator.permissions && typeof navigator.permissions.query === 'function') {
+        try {
+          navigator.permissions.query({ name: 'microphone' }).then(permissionStatus => {
+            if (permissionStatus && permissionStatus.state === 'granted') {
+              this.microphoneReady = true;
+            }
+          }).catch(() => {});
+        } catch {}
+      }
       if (!this.supported) return;
       this.language = language;
       this.maxAlternatives = maxAlternatives;

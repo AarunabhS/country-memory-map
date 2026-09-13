@@ -873,15 +873,38 @@ const svg = document.getElementById("map");
       voiceButton.setAttribute("aria-pressed", "false");
       recognition = new VoiceInputController({
         createRecognition,
+        requestMicrophone: typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia
+          ? () => navigator.mediaDevices.getUserMedia({ audio: true })
+          : null,
         onState: ({ state, reason }) => {
-          isListening = state === "listening" || state === "starting";
+          isListening = state === "listening";
+          const isBusy = state === "starting" || state === "permission";
           voiceButton.classList.toggle("listening", isListening);
-          voiceButton.setAttribute("aria-busy", String(state === "starting"));
+          voiceButton.classList.toggle("starting", state === "starting");
+          voiceButton.classList.toggle("permission", state === "permission");
+          voiceButton.setAttribute("aria-busy", String(isBusy));
           voiceButton.setAttribute("aria-pressed", String(isListening));
-          voiceButton.setAttribute("aria-label", isListening ? "Stop listening" : quizMode === "capitals" ? "Say capital name" : "Say country name");
-          voiceButton.textContent = isListening ? "● Listening" : "Speak";
-          if (isListening) setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
-          if (state === "idle" && reason === "cancelled") setMessage("Microphone stopped. Press Speak to try again or type your answer.");
+          if (state === "permission") {
+            voiceButton.setAttribute("aria-label", "Cancel microphone permission request");
+            voiceButton.textContent = "Cancel";
+            setMessage("Allow microphone access in the browser prompt. Tap again to cancel.", "listening");
+          } else if (state === "starting") {
+            voiceButton.setAttribute("aria-label", "Starting microphone… tap to cancel");
+            voiceButton.textContent = "Starting…";
+            setMessage("Starting microphone…", "listening");
+          } else if (isListening) {
+            voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Stop listening to capital name" : "Stop listening to country name");
+            voiceButton.textContent = "● Listening";
+            setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
+          } else {
+            voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Say capital name" : "Say country name");
+            voiceButton.textContent = "Speak";
+            if (reason === "permission-granted") {
+              setMessage("Microphone enabled. Tap Speak to say your answer.");
+            } else if (reason === "cancelled") {
+              setMessage("Microphone stopped. Press Speak to try again or type your answer.");
+            }
+          }
         },
         onPreview: (heard) => {
           input.value = heard;

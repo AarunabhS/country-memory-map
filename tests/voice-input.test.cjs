@@ -191,3 +191,25 @@ test('leaving a game rejects late speech results even after a new microphone ses
   assert.deepEqual(finals,[['France']]);
   voice.abort();
 });
+
+test('pre-granted navigator permission sets microphoneReady to true immediately', async () => {
+  const originalNavigator = globalThis.navigator;
+  try {
+    globalThis.navigator = {
+      mediaDevices: { getUserMedia: () => Promise.resolve() },
+      permissions: {
+        query: ({ name }) => Promise.resolve({ state: name === 'microphone' ? 'granted' : 'prompt' })
+      }
+    };
+    const controller = new VoiceInputController({ Recognition: FakeRecognition });
+    await Promise.resolve();
+    assert.equal(controller.microphoneReady, true);
+    controller.start();
+    assert.equal(controller.state, 'starting');
+    assert.equal(controller.recognition.startCalls, 1);
+    controller.abort();
+  } finally {
+    globalThis.navigator = originalNavigator;
+  }
+});
+
