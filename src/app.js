@@ -8,6 +8,38 @@ const controller = window.CountryMemoryApp;
 let route = null;
 let globe;
 let navigation = 0;
+let selectionVersion = 0;
+const factsPanel = document.createElement('aside');
+factsPanel.id = 'countryFacts';
+factsPanel.hidden = true;
+factsPanel.setAttribute('aria-label', 'Selected country facts');
+document.querySelector('.map-shell').append(factsPanel);
+function clearFacts() { selectionVersion++; factsPanel.hidden = true; factsPanel.replaceChildren(); }
+document.addEventListener('country-memory-selection', async ({ detail }) => {
+  clearFacts();
+  if (!detail || route?.kind !== 'free-map') return;
+  const version = selectionVersion;
+  try {
+    const { buildCountryFacts } = await import('./country-facts.js');
+    if (version !== selectionVersion || route?.kind !== 'free-map') return;
+    const facts = buildCountryFacts(detail);
+    const heading = document.createElement('h2');
+    heading.textContent = `${facts.flag} ${facts.name}`;
+    const close = document.createElement('button');
+    close.type = 'button'; close.textContent = 'Close';
+    close.setAttribute('aria-label', 'Close country facts');
+    close.onclick = () => { clearFacts(); controller.focusPrimary(); };
+    const capital = document.createElement('p'); capital.textContent = `Capital: ${facts.capitalLabel}`;
+    const region = document.createElement('p'); region.textContent = facts.regionLabel;
+    const population = document.createElement('p');
+    population.textContent = `Population: ${facts.populationLabel}${facts.populationYear ? ` (${facts.populationYear}, ${facts.populationSource})` : ''}`;
+    factsPanel.replaceChildren(close, heading, capital, region, population);
+    factsPanel.hidden = false;
+  } catch (error) {
+    // Facts are optional; failed loading must never interfere with a valid answer.
+    console.warn('Country facts unavailable:', error.message);
+  }
+});
 
 function url(next, absolute = false) {
   return buildGameUrl(next, { pathname: location.pathname, origin: absolute ? location.origin : '' });
@@ -16,6 +48,7 @@ function write(next, replace = false) {
   history[replace ? 'replaceState' : 'pushState'](null, '', url(next));
 }
 async function show(next, { replace = false, historyChange = true } = {}) {
+  clearFacts();
   const token = ++navigation;
   window.GameMap.stopVoice();
   if (historyChange) write(next, replace);
@@ -39,6 +72,17 @@ async function show(next, { replace = false, historyChange = true } = {}) {
   else controller.focusPrimary();
 }
 controller.setHostNavigationHandler(payload => {
+  if (payload.type === 'solo-selection') {
+    const selected = Object.values(GAME_ROUTES).find(item => item.kind === 'solo' && item.family === payload.family && (item.family !== 'flag' || item.variant === payload.variant));
+    if (selected && route?.slug !== selected.slug) { route = selected; write(selected); }
+    return;
+  }
+  if (payload.type === 'solo-menu') {
+    void show(GAME_ROUTES['world-conquest']);
+    controller.showGameCatalog();
+    return;
+  }
+  if (payload.type === 'explore') { void show(GAME_ROUTES.explore); return; }
   if (payload.type === 'invite-url') return url({ ...GAME_ROUTES.multiplayer, room: payload.room }, true);
   if (payload.type === 'multiplayer-room') {
     exit.hidden = false;
@@ -52,7 +96,7 @@ document.getElementById('welcomeFriends').onclick = () => show(GAME_ROUTES.multi
 document.getElementById('welcomeSolo').onclick = () => {
   void show(GAME_ROUTES['world-conquest']);
   // All solo games share the same setup screen and controller.
-  app.removeAttribute('data-hosted-game');
+  controller.showGameCatalog();
 };
 document.getElementById('welcomeExplore').onclick = () => show(GAME_ROUTES.explore);
 document.getElementById('appHome').onclick = () => show(null);

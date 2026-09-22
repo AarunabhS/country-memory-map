@@ -450,7 +450,15 @@
     persist() { try { if (!this.storage) throw new Error('No storage'); this.storage.setItem(this.key, JSON.stringify(this.data)); } catch { this.available = false; } }
     select(config) { this.data.difficulty = config.difficulty; this.data.lastMode = { family: config.family, variant: config.variant }; this.persist(); }
     record(result) {
-      const c = result.config, key = [c.family,c.variant,c.variant === 'continent' ? c.region : 'World', c.family === 'conquest' ? 'all' : c.difficulty, c.practiceIds ? 'practice' : 'game'].join(':');
+      const c = result.config;
+      // v2 never compares against or removes legacy records with incomplete settings.
+      const key = ['v2', c.rulesVersion || 'core-v1', c.contentVersion || 'countries-195-v1',
+        c.family, c.variant, c.variant === 'continent' ? c.region : 'World',
+        c.family === 'conquest' ? 'all' : c.difficulty,
+        c.family === 'conquest' || c.family === 'quiz' ? 'untimed-question' : c.questionTime || 10,
+        c.variant === 'blitz' || c.family === 'conquest' ? 'open' : c.questionCount || MODES[c.family]?.[c.variant]?.questions,
+        result.hintsUsed ? 'hinted' : 'unassisted', c.practiceIds ? 'practice' : 'game'].join(':');
+      result.personalBest = false;
       const previous = this.data.bests[key];
       const completionRace = c.family === 'conquest' && ['relaxed','continent'].includes(c.variant);
       const better = completionRace ? result.completed && (!previous || result.elapsedTime < previous.elapsedTime) :

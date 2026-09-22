@@ -1,8 +1,8 @@
 # Universal Cinematic GameShell specification
 
-Status: thin adapter and retained-suite integration are **VERIFIED CURRENT ARCHITECTURE**; production/device verification remains **NEEDS QA**. Further component-library expansion is **PROPOSED TARGET ARCHITECTURE**.
+Status: thin adapter and single-document suite integration are **VERIFIED CURRENT ARCHITECTURE**; production/device verification remains **NEEDS QA**. Further component-library expansion is **PROPOSED TARGET ARCHITECTURE**.
 
-`game-shell.js` currently provides the engine-independent presentation contract and `game-shell.css` applies it to the retained scored-game suite, profiles, results, and multiplayer surroundings. It is not a game store and is not production-verified.
+`game-shell.js` currently provides the engine-independent presentation contract and `game-shell.css` applies it to the scored-game suite, profiles, results, and multiplayer surroundings. It is not a game store and is not production-verified.
 
 ## Goals
 
@@ -26,11 +26,11 @@ Status: thin adapter and retained-suite integration are **VERIFIED CURRENT ARCHI
 
 - The shell receives serializable display state and callbacks; it does not calculate score, select countries, mutate persistence, or import game-engine internals.
 - Map/globe renderers are supplied through an adapter slot. The shell does not import Google Maps directly.
-- Every 3D-dependent game declares a playable fallback state. A decorative Earth is not a playable fallback.
+- No active game currently requires Google 3D. Any future 3D-dependent game declares a playable fallback state. A decorative Earth is not a playable fallback.
 - Game state remains authoritative through transitions; shell animation cannot delay deadlines or accept late answers.
 - Shell components expose semantic names, live-region behavior, visible focus, keyboard order, touch sizing, contrast, and reduced-motion variants.
 - Mobile portrait and landscape define separate space allocations for header, stage, HUD, answer dock, and navigation controls so they cannot overlap.
-- Existing verified routes and deep links remain stable during incremental migration unless a separately approved routing decision says otherwise. No per-game legacy deep-link contract is current; adding one requires that routing decision.
+- Existing verified routes and deep links remain stable during incremental migration unless a separately approved routing decision says otherwise. Canonical links in `src/game-routes.js` are current; catalog selection and browser history must restore the matching existing route.
 
 ## Verification and future adoption gates
 

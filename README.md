@@ -13,9 +13,10 @@ Home offers **Play with friends**, **Play solo**, and **Explore the map**. The b
 - **Capital Clash:** 20-question Classic (10 typed, 10 clicked), 60-second alternating Blitz, 20-question Continent.
 - **Flag Recall:** identify an authentic country flag by typing its country or territory name; normal recall has no answer suggestions.
 - **Flag Match:** choose the correct flag from four unique flag cards. Easy, Medium and Hard alter distractor selection, including same-region and curated confusable-flag preferences.
+- **Geo Quiz:** 52 category questions across four tiers; Easy/Medium rounds use 10 questions, Hard/Expert use 8. Typed or spoken answers, hints and fact review use the existing Quiz scoring. Results and profile statistics are saved locally; Quiz has no Practice Missed or friend challenge.
 - **Free map:** the original country and capital recognition modes, aliases, territories, labels, filters, zoom, touch gestures and speech.
 
-All games use the same 195-country classification as the original checker. Small pools repeat only after every eligible country has been served. Practice Missed uses exactly the countries missed or answered with retries and is separate from personal-best comparisons.
+All games use the same 195-country classification as the original checker. Small pools repeat only after every eligible country has been served. For engine-backed games, Practice Missed uses exactly the countries missed or answered with retries and is separate from device-best comparisons. Device bests separate timing, length, difficulty and hint use; named-player profiles do not own this shared best store.
 
 ## Play with Friends
 
@@ -26,6 +27,7 @@ Create a room to receive both a public invite link and a room code. Friends can 
 - `index.html`, `src/app.js`, `app.css`: one document, navigation, home, and persistent room exit.
 - `src/world-map-runtime.js`, `world-map.css`: country recognition, map drawing, labels, geography filters, and voice wiring, extracted from the former embedded document.
 - `game-core.js`, `game-data.js`: shared rules, scoring, questions, and country model.
+- `quiz-data.js`, `quiz-game.js`: lazy-loaded Quiz content and rules, integrated with shared results/profiles.
 - `game-ui.js`, `game-map.js`, `game-shell.*`: one game controller and shared presentation for solo and multiplayer rounds.
 - `multiplayer-service.js`: room transport, authentication, polling, reconnection, and immediate local departure. Late responses cannot restore a departed session.
 - `multiplayer-ui.js`, `multiplayer.css`: room creation, codes, invites, readiness, settings, standings, results, and rematches.

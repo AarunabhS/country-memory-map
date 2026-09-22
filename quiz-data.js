@@ -22,6 +22,37 @@
     genius: 'Genius'
   });
 
+  // Review metadata distinguishes editorial checks from independent fact verification.
+  const CONTENT_VERSION = 'quiz-52-20260922';
+  const SOURCE_REVIEW = {
+    'easy-three-capitals': ['https://www.gov.za/south-africa-glance', 'Government description of the three capitals.'],
+    'med-one-land-border': ['https://www.canada.ca/en/global-affairs/news/2022/06/boundary-dispute.html', 'Hans Island exception; category explicitly uses the pre-2022 convention.'],
+    'med-mekong-countries': ['https://www.mrcmekong.org/mekong-river-basin/', 'Commission lists the six river countries.'],
+    'hard-most-islands': ['https://www.scb.se/en/finding-statistics/statistics-by-subject-area/housing-construction-and-building/land-use/land-use-in-proximity-to-shoreline/pong/statistical-news/coast-shores-and-islands-in-sweden-2013/', '2013 national survey count; not a standardized international comparison.'],
+    'hard-most-time-zones': ['https://www.timeanddate.com/time/zone/france', 'Standard time zones including overseas territories.'],
+    'hard-no-capital': ['https://www.aboutswitzerland.eda.admin.ch/en/political-system', 'Swiss federal-city terminology; Nauru also checked against its national communication.'],
+    'hard-zero-rivers': ['https://cdmdna.gov.sa/Resources/119/bur2.pdf', 'Saudi national report describes the absence of perennial rivers; previous broad answer set narrowed.'],
+    'genius-vulcan-point': ['https://science.nasa.gov/earth/earth-observatory/sulfur-spews-from-taal-146142/', '2020 eruption context; historical rather than a guaranteed present-day lake configuration.'],
+    'genius-southernmost-capital': ['https://wellington.govt.nz/-/media/your-council/plans-policies-and-bylaws/plans-and-policies/annualreport/2022-23/annual-report-2022-23-summary.pdf', 'Wellington city profile.'],
+    'genius-all-four-hemispheres': ['https://visitkiribati.travel/wp-content/uploads/2019/05/Kiribati-Travel-Information-2019.pdf', 'Island groups span hemispheres; the prompt no longer claims global uniqueness.'],
+    'genius-longest-coastline': ['https://www.canada.ca/en/services/environment/our-environment/nature-based-climate-solutions/coastlines.html', 'Longest coastline; measurement-dependent exact length omitted.']
+  };
+  function reviewedQuestion(question) {
+    const specific = SOURCE_REVIEW[question.id];
+    const names = ['Name Lore', 'Alphabet Oddities'].includes(question.category);
+    const flags = question.category === 'Flag Secrets' || /flag/.test(question.id);
+    return Object.freeze({ ...question, review: Object.freeze({
+      editedAt: '2026-09-22', contentVersion: CONTENT_VERSION,
+      scope: 'Existing 195-country game; common English names and explicit prompt exceptions.',
+      source: specific?.[0] || (names ? 'https://unstats.un.org/unsd/methodology/m49/' : flags ? 'https://github.com/hampusborgos/country-flags' : 'https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-countries/'),
+      localSource: names ? 'game-data.js / countries-data.js' : flags ? 'flags/ / flag-data.js' : 'countries-data.js / capitals-data.js / country-borders.js',
+      check: specific ? 'source-cross-check' : 'editorial-consistency-review',
+      notes: specific?.[1] || 'Source is the reference dataset, not independent proof of every descriptive fact. See docs/QUIZ_CONTENT_REVIEW.md.',
+      verifiedAt: specific ? '2026-09-22' : null,
+      bonusRationale: question.bonusAccepted ? 'Central is an intentional extra answer under the broader directional-name convention.' : null
+    }) });
+  }
+
   const QUESTIONS = Object.freeze([
     /* ==========================================================================
        TIER 1: EASY
@@ -41,13 +72,13 @@
       id: 'easy-cardinal-directions',
       tier: TIERS.EASY,
       category: 'Name Lore',
-      prompt: 'Name countries that have a cardinal direction (North, South, East, or West) in their official short name',
+      prompt: 'Name six countries with North, South, East or West in a common English name; Central African Republic also counts as a bonus',
       format: 'multi',
       targetCount: 6,
       accepted: ['PRK', 'KOR', 'ZAF', 'SSD', 'MKD', 'TLS'],
       bonusAccepted: ['CAF'],
       hint: 'Look for two on the Korean peninsula, two in Sub-Saharan Africa, one in the Balkans, and one in Maritime Southeast Asia.',
-      funFact: 'Only 6 UN-recognized countries feature cardinal directions in their common English names: North Korea, South Korea, South Africa, South Sudan, North Macedonia, and Timor-Leste (East Timor).'
+      funFact: 'This category uses common English names, including East Timor for Timor-Leste. Central African Republic is an extra accepted answer under this game’s broader directional-name convention.'
     },
     {
       id: 'easy-starts-q-or-y',
@@ -64,7 +95,7 @@
       id: 'easy-country-equals-capital',
       tier: TIERS.EASY,
       category: 'Capital Curiosities',
-      prompt: 'Name a country whose capital city has the exact same name as the country',
+      prompt: 'Name a country whose capital shares its name, allowing additions such as City or la Vella',
       format: 'single',
       targetCount: 1,
       accepted: ['MEX', 'PAN', 'GTM', 'KWT', 'DJI', 'SGP', 'MCO', 'SMR', 'VAT', 'AND', 'LUX'],
@@ -80,7 +111,7 @@
       targetCount: 1,
       accepted: ['NPL'],
       hint: 'This Himalayan nation is home to Mount Everest.',
-      funFact: 'Nepal is the only country in the world whose national flag is non-quadrilateral; its double-pennant shape symbolizes the Himalayas and the harmony of Hinduism and Buddhism.'
+      funFact: 'Nepal’s national flag consists of two joined pennants, unlike the rectangular or square flags used by the other countries in this game.'
     },
     {
       id: 'easy-island-continent',
@@ -211,7 +242,7 @@
       format: 'multi',
       targetCount: 4,
       accepted: ['FIN', 'ISL', 'IRL', 'NZL', 'POL', 'CHE', 'THA'],
-      hint: 'Look across Europe for six nations, plus one famous Pacific island country and one Southeast Asian kingdom.',
+      hint: 'Look across Europe for five nations, plus one famous Pacific island country and one Southeast Asian kingdom.',
       funFact: 'Seven sovereign countries end exactly with "land": Finland, Iceland, Ireland, New Zealand, Poland, Switzerland, and Thailand (the Netherlands and Marshall Islands end in "lands")!'
     },
     {
@@ -223,7 +254,7 @@
       targetCount: 3,
       accepted: ['SGP', 'MCO', 'VAT'],
       hint: 'One is a bustling island nation in Southeast Asia, one is a glamorous principality on the French Riviera, and one is enclosed within Rome.',
-      funFact: 'Singapore, Monaco, and Vatican City are universally recognized as the three true sovereign microstate city-states of the modern world!'
+      funFact: 'Singapore, Monaco, and Vatican City are commonly described as modern sovereign city-states!'
     },
 
     /* ==========================================================================
@@ -233,12 +264,12 @@
       id: 'med-weapons-on-flags',
       tier: TIERS.MEDIUM,
       category: 'Flags & Weapons',
-      prompt: 'Name countries that feature weapons (rifles, swords, spears, daggers, or machetes) on their national flag',
+      prompt: 'Name countries that feature weapons and weapon symbols (rifles, swords, spears, daggers, machetes or tridents) on their national flag',
       format: 'multi',
       targetCount: 4,
       accepted: ['MOZ', 'GTM', 'SAU', 'KEN', 'OMN', 'BRB', 'LKA', 'AGO', 'SWZ'],
       hint: 'Consider Mozambique (AK-47), Guatemala (rifles), Saudi Arabia or Sri Lanka (swords), and Kenya or Eswatini (spears and shields).',
-      funFact: 'Mozambique’s flag uniquely features a modern AK-47 assault rifle with attached bayonet, Guatemala displays crossed Remington rifles, and Saudi Arabia and Sri Lanka brandish ceremonial swords.'
+      funFact: 'Mozambique’s flag uniquely features a modern AK-47 assault rifle with attached bayonet, Guatemala displays crossed rifles, and Saudi Arabia and Sri Lanka brandish ceremonial swords.'
     },
     {
       id: 'med-single-border-enclaves',
@@ -255,23 +286,23 @@
       id: 'med-transcontinental',
       tier: TIERS.MEDIUM,
       category: 'Extremes & Geography',
-      prompt: 'Name countries whose territory spans across two different continents',
+      prompt: 'Name countries commonly described as transcontinental, or Panama, which links Central and South America',
       format: 'multi',
       targetCount: 4,
       accepted: ['RUS', 'TUR', 'EGY', 'KAZ', 'AZE', 'GEO', 'PAN'],
       hint: 'Russia, Turkey, and Kazakhstan cross between Europe and Asia; Egypt spans Africa and Asia; Panama bridges North and South America.',
-      funFact: 'Istanbul, Turkey is the only historic metropolis on Earth that sits simultaneously on two continents across the Bosphorus Strait.'
+      funFact: 'Continental boundaries are conventions. This category includes the Caucasus convention for Georgia and Azerbaijan, and accepts Panama as an intercontinental bridge rather than claiming it lies in South America.'
     },
     {
       id: 'med-same-start-end-letter',
       tier: TIERS.MEDIUM,
       category: 'Alphabet Oddities',
-      prompt: "Name countries whose English name begins and ends with the exact same letter",
+      prompt: "Name countries whose common English name begins and ends with the letter A",
       format: 'multi',
       targetCount: 4,
-      accepted: ['DZA', 'AND', 'AGO', 'ARG', 'ARM', 'AUS', 'AUT'],
+      accepted: ['ALB', 'DZA', 'AND', 'AGO', 'ATG', 'ARG', 'ARM', 'AUS', 'AUT'],
       hint: 'Every single sovereign country fitting this rule begins and ends with the letter "A"!',
-      funFact: "All seven matching countries start and end with 'A': Algeria, Andorra, Angola, Argentina, Armenia, Australia, and Austria!"
+      funFact: "Nine country names in this game start and end with A: Albania, Algeria, Andorra, Angola, Antigua and Barbuda, Argentina, Armenia, Australia and Austria."
     },
     {
       id: 'med-bicolor-stripes',
@@ -310,12 +341,12 @@
       id: 'med-one-land-border',
       tier: TIERS.MEDIUM,
       category: 'Enclaves & Borders',
-      prompt: 'Name countries that share a land border with ONLY one other nation',
+      prompt: 'Using the pre-2022 convention, name countries with one land neighbour, excluding overseas territories and dependencies',
       format: 'multi',
       targetCount: 4,
       accepted: ['CAN', 'PRT', 'IRL', 'GBR', 'MCO', 'SMR', 'VAT', 'LSO', 'BRN', 'KOR', 'GMB', 'DOM', 'HTI', 'QAT', 'DNK', 'PNG'],
       hint: 'Consider Canada (borders only the US), Portugal (only Spain), Ireland (only the UK), or South Korea (only North Korea).',
-      funFact: 'Canada and the United States share the longest undefended international land border in the world at 8,891 km (5,525 miles).'
+      funFact: 'This is a historical category: the 2022 Hans Island agreement created a land boundary between Canada and the Kingdom of Denmark. Both remain accepted here under the stated pre-2022 convention.'
     },
     {
       id: 'med-double-landlocked',
@@ -451,7 +482,7 @@
       targetCount: 1,
       accepted: ['FRA'],
       hint: 'This European nation has islands and territories across the Atlantic, Indian, and Pacific oceans.',
-      funFact: 'Because of its overseas territories from French Polynesia to Réunion, France spans 12 time zones (13 during daylight savings), beating Russia (11) and the USA (11)!'
+      funFact: 'France uses 12 standard time zones when overseas territories are included. Counts that include Antarctic claims use a different scope; seasonal daylight saving is not an extra standard time zone.'
     },
     {
       id: 'hard-null-island',
@@ -479,7 +510,7 @@
       id: 'hard-no-capital',
       tier: TIERS.HARD,
       category: 'Capital Curiosities',
-      prompt: 'Name the only country in the world that has no officially designated capital city',
+      prompt: 'Name a country without a formally designated capital city; a federal city or government district may serve that role',
       format: 'single',
       targetCount: 1,
       accepted: ['NRU', 'CHE'],
@@ -501,23 +532,23 @@
       id: 'hard-most-islands',
       tier: TIERS.HARD,
       category: 'Extremes & Geography',
-      prompt: 'Name the country with the most islands in the world (over 260,000 islands)',
+      prompt: 'Name the Nordic country whose statistics agency counted 267,570 islands in its 2013 survey',
       format: 'single',
       targetCount: 1,
       accepted: ['SWE'],
       hint: 'This Scandinavian nation is famous for Stockholm, the Baltic archipelago, and IKEA.',
-      funFact: 'Sweden contains an estimated 267,570 islands — far more than any other nation on Earth, though fewer than 1,000 are inhabited.'
+      funFact: 'Statistics Sweden counted 267,570 islands in its 2013 survey. Island totals depend on each survey’s definition and minimum size.'
     },
     {
       id: 'hard-zero-rivers',
       tier: TIERS.HARD,
       category: 'Extremes & Geography',
-      prompt: 'Name a sovereign nation that has zero permanent natural rivers or lakes',
+      prompt: 'Name the Arabian Peninsula kingdom containing Riyadh that has no permanent natural rivers',
       format: 'single',
       targetCount: 1,
-      accepted: ['SAU', 'KWT', 'BHR', 'QAT', 'ARE', 'OMN', 'YEM', 'MLT', 'VAT', 'MCO'],
-      hint: 'Think of vast Arabian desert nations or tiny Mediterranean city-states.',
-      funFact: 'Saudi Arabia is the largest country on Earth without a single permanent natural surface river, relying on seawater desalination plants and deep aquifers.'
+      accepted: ['SAU'],
+      hint: 'Its capital is Riyadh, and much of its territory lies on the Arabian Peninsula.',
+      funFact: 'Saudi Arabia has no perennial rivers. Its water supply includes groundwater and desalination; seasonal wadis are different from permanent rivers.'
     },
 
     /* ==========================================================================
@@ -538,12 +569,12 @@
       id: 'genius-vulcan-point',
       tier: TIERS.GENIUS,
       category: 'Extremes & Geography',
-      prompt: 'Name the archipelago nation famous for Vulcan Point — an island within a lake, on an island within a lake, on an island!',
+      prompt: 'Name the archipelago nation whose Taal volcano was famous for the nested island-and-lake feature Vulcan Point before the 2020 eruption',
       format: 'single',
       targetCount: 1,
       accepted: ['PHL'],
       hint: 'This Southeast Asian nation contains Luzon, home to the scenic Taal Volcano.',
-      funFact: 'On Luzon island in the Philippines, Lake Taal contains Taal Volcano Island, which holds Crater Lake, inside of which sits the tiny rock island Vulcan Point!'
+      funFact: 'Before the January 2020 eruption, Taal’s nested lakes and islands included Vulcan Point. Eruptions can change crater-lake geography, so this question refers to the historical feature.'
     },
     {
       id: 'genius-southernmost-capital',
@@ -571,23 +602,23 @@
       id: 'genius-all-four-hemispheres',
       tier: TIERS.GENIUS,
       category: 'Extremes & Geography',
-      prompt: 'Name the only country in the world situated in all four hemispheres (Northern, Southern, Eastern, and Western)',
+      prompt: 'Name the Pacific island country whose Gilbert, Phoenix and Line island groups span the Equator and the 180th meridian',
       format: 'single',
       targetCount: 1,
       accepted: ['KIR'],
       hint: 'This Pacific island nation spans across both the Equator and the 180th Meridian.',
-      funFact: "Kiribati's 33 atolls and islands span 3.5 million km² across both the Equator and the 180th Meridian, making it the only country lying in all four hemispheres!"
+      funFact: "Kiribati's 33 atolls and islands span 3.5 million km² across both the Equator and the 180th Meridian, placing it in all four geographic hemispheres. This refers to longitude, not the International Date Line."
     },
     {
       id: 'genius-isolated-capital',
       tier: TIERS.GENIUS,
       category: 'Capital Curiosities',
-      prompt: 'Name the nation with the most isolated capital city in the world, sitting over 2,300 km from its nearest capital neighbor',
+      prompt: 'Name either the country of Wellington in the South Pacific or of Reykjavík in the North Atlantic',
       format: 'single',
       targetCount: 1,
       accepted: ['NZL', 'ISL'],
       hint: 'Wellington is 2,326 km away from its closest national neighbor Canberra, Australia.',
-      funFact: 'Wellington (New Zealand) is the most geographically isolated national capital on Earth, followed closely by Reykjavik (Iceland).'
+      funFact: 'Wellington is the capital of New Zealand and Reykjavík is the capital of Iceland. This question does not rank capital isolation, which depends on the comparison set and distance definition.'
     },
     {
       id: 'genius-longest-coastline',
@@ -598,7 +629,7 @@
       targetCount: 1,
       accepted: ['CAN'],
       hint: 'This northern giant has an Arctic archipelago with tens of thousands of indented islands and bays.',
-      funFact: "Canada's coastline measures a staggering 202,080 km (125,567 miles) along the Atlantic, Pacific, and Arctic oceans — enough to circle the equator five times!"
+      funFact: "Canada has the world’s longest coastline, bordering the Atlantic, Pacific and Arctic oceans. Published lengths differ with measurement scale and the treatment of islands."
     },
     {
       id: 'genius-baarle-enclaves',
@@ -611,9 +642,10 @@
       hint: 'In Baarle-Hertog and Baarle-Nassau, the border weaves between cafes, shops, and living rooms.',
       funFact: 'The border between Belgium and the Netherlands in Baarle is one of the most complex in the world, featuring 22 Belgian exclaves surrounded by Dutch territory, with Dutch counter-enclaves inside them!'
     }
-  ]);
+  ].map(reviewedQuestion));
 
   return {
+    CONTENT_VERSION,
     TIERS,
     TIER_LABELS,
     QUESTIONS,

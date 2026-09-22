@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Local load audit</title>
+<style>body{font:16px system-ui;margin:24px;max-width:1100px}iframe{width:100%;height:620px;border:1px solid #aaa}pre{white-space:pre-wrap}button{padding:12px}</style>
+<h1>Local load audit</h1>
+<p>Five sequential Home loads. Browser cache is retained. This measures local navigation and resource bytes, not field Web Vitals or physical-device performance. The audit itself does not store or transmit results.</p>
+<button id="run">Run five local samples</button>
+<pre id="results" aria-live="polite">Ready.</pre>
+<iframe id="preview" title="Game load sample"></iframe>
+<script>
+const button=document.getElementById('run'), output=document.getElementById('results'), frame=document.getElementById('preview');
+button.onclick=async()=>{
+  button.disabled=true; const samples=[];
+  try {
+    for(let i=0;i<5;i++) {
+      await new Promise((resolve,reject)=>{
+        const timeout=setTimeout(()=>reject(new Error('Sample timed out')),15000);
+        frame.onload=()=>{clearTimeout(timeout);resolve();};
+        frame.src='../?audit='+Date.now()+'-'+i;
+      });
+      await new Promise(resolve=>setTimeout(resolve,500));
+      const p=frame.contentWindow.performance, n=p.getEntriesByType('navigation')[0], resources=p.getEntriesByType('resource');
+      samples.push({sample:i+1,domContentLoadedMs:Math.round(n.domContentLoadedEventEnd),loadMs:Math.round(n.loadEventEnd),resourceCount:resources.length,transferBytes:n.transferSize+resources.reduce((sum,r)=>sum+r.transferSize,0),decodedResourceBytes:resources.reduce((sum,r)=>sum+r.decodedBodySize,0),quizRequested:resources.some(r=>/quiz-(data|game)\.js/.test(r.name)),viewport:[frame.contentWindow.innerWidth,frame.contentWindow.innerHeight]});
+      output.textContent=JSON.stringify(samples,null,2);
+    }
+  } catch(error){output.textContent+='\n'+error.message;} finally{button.disabled=false;}
+};
+</script>
+</html>

@@ -14,6 +14,15 @@
   let validator = null;
   let countriesByIso = new Map();
   let ui = {};
+  let onEvent = () => {};
+  let roundConfig = {};
+
+  function snapshot() {
+    const r = currentRound;
+    return { startedAt: roundStartTime, elapsedTime: Math.max(0, (Date.now() - roundStartTime) / 1000),
+      score: r?.score || 0, streak: r?.streak || 0, bestStreak: r?.bestStreak || 0 };
+  }
+  function emit(event) { onEvent(event, snapshot(), roundConfig); }
 
   function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
@@ -167,6 +176,7 @@
   }
 
   function startRound(config = {}) {
+    if (active) finishRound('mode_change');
     initUI();
     const dataModule = global.GeographyQuizData;
     if (!dataModule) throw new Error('Quiz questions dataset is unavailable.');
@@ -177,6 +187,9 @@
 
     const count = Math.min(Number(config.questionCount) || 10, allQuestions.length);
     const selectedQuestions = shuffle(allQuestions).slice(0, count);
+    onEvent = typeof config.onEvent === 'function' ? config.onEvent : () => {};
+    roundConfig = { family: 'quiz', variant: 'trivia', difficulty: tier === 'genius' ? 'expert' : tier,
+      questionCount: count, rulesVersion: 'quiz-v1', contentVersion: dataModule.CONTENT_VERSION || 'quiz-52-v1' };
 
     ensureCountryData(config.countries);
 
@@ -191,12 +204,15 @@
       totalTargets: 0,
       totalFound: 0,
       history: [],
+      answerTimes: [],
+      wrongAttempts: 0,
       hintsUsed: 0,
       current: null
     };
 
     active = true;
     roundStartTime = Date.now();
+    emit({ type: 'start' });
 
     // Show quiz view and hide other platforms
     const app = document.querySelector('.app');
@@ -326,7 +342,7 @@
   }
 
   function handleText(raw) {
-    if (!active || !currentRound || !currentRound.current || currentRound.current.revealed) return false;
+    if (!active || !currentRound || !currentRound.current || currentRound.current.revealed || currentRound.current.complete) return false;
     const text = String(raw || '').trim();
     if (!text) return false;
 
@@ -347,7 +363,9 @@
 
     if (!isAccepted) {
       currentQ.wrongAttempts++;
+      currentRound.wrongAttempts++;
       currentRound.streak = 0;
+      emit({ type: 'wrong', countryId: country.country_id });
       setMessage(`“${country.canonical_name}” does not match this category. Streak reset!`, 'bad');
       animateInputError();
       updateHUD();
@@ -355,6 +373,7 @@
     }
 
     if (currentQ.foundIsos.has(iso)) {
+      emit({ type: 'duplicate', countryId: country.country_id });
       setMessage(`“${country.canonical_name}” was already found!`, 'pending');
       return true;
     }
@@ -371,6 +390,8 @@
     const streakMultiplier = currentRound.streak >= 10 ? 1.25 : currentRound.streak >= 5 ? 1.1 : 1.0;
     const points = Math.round(100 * speedMultiplier * streakMultiplier);
     currentRound.score += points;
+    currentRound.answerTimes.push(responseSeconds);
+    emit({ type: 'correct', countryId: country.country_id, gained: points, seconds: responseSeconds });
 
     // Update Chip
     const chips = [...ui.targetsStage.querySelectorAll('.quiz-target-chip:not(.is-found)')];
@@ -385,6 +406,7 @@
 
     if (remaining <= 0) {
       // Question complete!
+      currentQ.complete = true;
       currentRound.correctCount++;
       setMessage(`Brilliant! All answers found! (+${points} pts)`, 'good');
       showFactCard();
@@ -397,11 +419,12 @@
   }
 
   function useHint() {
-    if (!active || !currentRound || !currentRound.current || currentRound.current.hintUsed || currentRound.current.revealed) return;
+    if (!active || !currentRound || !currentRound.current || currentRound.current.hintUsed || currentRound.current.revealed || currentRound.current.complete) return;
     const currentQ = currentRound.current;
     currentQ.hintUsed = true;
     currentRound.hintsUsed++;
     currentRound.score = Math.max(0, currentRound.score - 25);
+    emit({ type: 'hint' });
 
     ui.hintCard.hidden = false;
     ui.hintCard.innerHTML = `<strong>Hint:</strong> ${currentQ.data.hint || 'No specific hint available for this question.'}`;
@@ -412,7 +435,7 @@
   }
 
   function revealCurrentQuestion() {
-    if (!active || !currentRound || !currentRound.current || currentRound.current.revealed) return;
+    if (!active || !currentRound || !currentRound.current || currentRound.current.revealed || currentRound.current.complete) return;
     const currentQ = currentRound.current;
     currentQ.revealed = true;
     currentRound.streak = 0;
@@ -451,7 +474,7 @@
   }
 
   function advanceQuestion() {
-    if (!currentRound) return;
+    if (!active || !currentRound || (!currentRound.current?.revealed && !currentRound.current?.complete)) return;
     loadQuestion(currentRound.currentIndex + 1);
   }
 
@@ -461,7 +484,8 @@
     setTimeout(() => ui.guessInput.classList.remove('is-error'), 400);
   }
 
-  function finishRound() {
+  function finishRound(reason = 'complete') {
+    if (!active || !currentRound) return;
     setVoiceEnabled(false);
     active = false;
     if (timerInterval) {
@@ -472,48 +496,22 @@
     const r = currentRound;
     if (!r) return;
 
-    const totalQuestions = r.questions.length;
+    const totalQuestions = Math.min(r.currentIndex + 1, r.questions.length);
     const accuracy = totalQuestions > 0 ? Math.round((r.correctCount / totalQuestions) * 100) : 0;
     const totalTime = Math.floor((Date.now() - roundStartTime) / 1000);
 
-    // Populate Results Dialog if available
-    const dialog = ui.resultsDialog;
-    if (dialog) {
-      const modeTitle = document.getElementById('resultsMode');
-      if (modeTitle) modeTitle.textContent = `Geo Quiz · ${global.GeographyQuizData?.TIER_LABELS[r.tier] || 'Trivia'}`;
-      const resultsTitle = document.getElementById('resultsTitle');
-      if (resultsTitle) resultsTitle.textContent = 'Quiz Complete!';
-
-      const stats = document.getElementById('resultStats');
-      if (stats) {
-        stats.innerHTML = `
-          <div class="hud-stat"><span>Score</span><strong>${r.score.toLocaleString()}</strong></div>
-          <div class="hud-stat"><span>Accuracy</span><strong>${accuracy}%</strong></div>
-          <div class="hud-stat"><span>Questions</span><strong>${r.correctCount} / ${totalQuestions}</strong></div>
-          <div class="hud-stat"><span>Best Streak</span><strong>${r.bestStreak}</strong></div>
-          <div class="hud-stat"><span>Time</span><strong>${formatTime(totalTime)}</strong></div>
-        `;
-      }
-
-      const note = document.getElementById('resultNote');
-      if (note) {
-        note.textContent = accuracy === 100
-          ? 'Legendary geography mastery! A flawless round!'
-          : accuracy >= 70
-          ? 'Splendid trivia knowledge! Ready for the next tier?'
-          : 'Great exploration! Keep playing to uncover more world secrets.';
-      }
-
-      const missedDetails = document.getElementById('missedDetails');
-      if (missedDetails) missedDetails.hidden = true;
-      const mistakes = document.getElementById('finalMistakes');
-      if (mistakes) mistakes.innerHTML = '';
-
-      dialog.showModal();
-    }
+    emit({ type: 'end', result: { config: { ...roundConfig }, endedAt: new Date().toISOString(), reason,
+      score: r.score, correct: r.correctCount, wrong: totalQuestions - r.correctCount, total: totalQuestions,
+      incorrectAttempts: r.wrongAttempts, accuracy, bestStreak: r.bestStreak, elapsedTime: totalTime,
+      averageResponseTime: r.answerTimes.length ? r.answerTimes.reduce((a, b) => a + b, 0) / r.answerTimes.length : null,
+      fastestAnswer: r.answerTimes.length ? Math.min(...r.answerTimes) : null,
+      strongestRegion: null, weakestRegion: null, missedCountries: [], mistakes: [], questionHistory: [],
+      hintsUsed: r.hintsUsed, hintPenalty: r.hintsUsed * 25, completed: reason === 'complete', personalBest: false,
+      capabilities: { practice: false, challenge: false } } });
   }
 
-  function deactivate() {
+  function deactivate(reason = 'mode_change') {
+    if (active) finishRound(reason);
     setVoiceEnabled(false);
     active = false;
     if (timerInterval) {
@@ -532,6 +530,7 @@
     revealCurrentQuestion,
     advanceQuestion,
     isActive: () => active,
+    finish: finishRound,
     deactivate
   });
 

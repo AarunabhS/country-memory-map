@@ -1,16 +1,32 @@
 # Performance budget
 
-## Current baseline
+## Current baseline — 2026-09-23
 
-**VERIFIED CURRENT ARCHITECTURE**
+**VERIFIED CURRENT ARCHITECTURE**: one HTML document, classic scripts plus the `src/app.js` module graph, local canvas Home globe and SVG gameplay. There is no active Google Maps import or retained iframe. Geometry, flags and country data are local. The Worker has an esbuild build; the root has no bundler.
 
-- The root frontend has no bundler or automated performance measurement.
-- It serves one browser-optimized first-party geometry bundle, a cinematic CSS/JS shell, an adaptively capped local-globe raster renderer, an optional Google Maps 3D network path, a retained iframe application, and self-hosted flag SVGs. The local globe, Google overlays, and retained map reuse that single geometry payload.
-- The 2026-09-10 geometry pass reduced `countries-data.js` from 13,287,262 to 1,792,471 bytes (643,242 bytes with local gzip) and removed the duplicate 13,287,234-byte `countries.geojson`. These are file-size measurements, not network or Core Web Vitals measurements.
-- Explore country facts add an 11,164-byte uncompressed generated population lookup covering 194 of 195 playable countries. It loads with the root module graph and avoids any selection-time third-party request; this is a file-size measurement, not a compressed-transfer or interaction measurement.
-- The multiplayer Worker has an existing esbuild production build.
+Quiz data/controller now load only when starting Quiz. Explore facts/population load on selection. Optional asset failure does not replace the map; navigation tokens prevent a late Quiz load from starting after departure. The shared 50ms timer remains installed but skips engine/HUD work while idle or playing Quiz. Quiz owns its active timer and clears it on finish/deactivation. No runtime dependency was added.
 
-No production Core Web Vitals, transfer-size, memory, or long-task baseline was captured by governance v1. Do not label estimates as measurements.
+Entry-point JS/CSS file-size comparison against `88c1f8f` (sum of separately gzipped files, Python gzip, not actual HTTP transfer):
+
+| Measurement | Before | After |
+| --- | ---: | ---: |
+| Eager JS/CSS references | 28 | 26 |
+| Raw bytes | 2,230,931 | 2,189,865 |
+| Gzip bytes | 760,990 | 749,474 |
+
+These figures cover direct `index.html` JS/CSS references, not transitive module imports or lazy flags. `countries-data.js` still dominates the payload. The earlier geometry reduction is documented in its historical execution record; no geometry was changed here.
+
+Five samples using `scripts/performance-audit.html`, local Python HTTP server, macOS in-app browser, 1100×620 iframe, retained browser cache, no network throttling:
+
+| Sample | DOMContentLoaded ms | Load ms | Resources | Reported transfer bytes | Decoded resource bytes | Quiz requested |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| 1 | 349 | 351 | 29 | 6,556 | 2,230,579 | No |
+| 2 | 152 | 154 | 29 | 6,556 | 2,230,579 | No |
+| 3 | 144 | 145 | 29 | 6,556 | 2,230,579 | No |
+| 4 | 147 | 148 | 29 | 6,556 | 2,230,579 | No |
+| 5 | 131 | 133 | 29 | 6,556 | 2,230,579 | No |
+
+Median local load: 148ms; range 133–351ms. The tiny reported transfer reflects cached resources and is **not** a cold-download size. Samples preceded final minor copy/focus edits. There is no comparable historical runtime sample, so these times do not establish a speedup. LCP, INP, CLS, long tasks, memory, low-end mobile and production network performance remain **NEEDS QA**. This is a reproducible local baseline, not field Web Vitals.
 
 ## Governance budget
 
@@ -18,7 +34,7 @@ Until a measured numeric baseline is approved:
 
 - no new frontend framework, bundler, runtime library, font service, analytics tag, or always-on network request without architecture-authority review;
 - no duplicate country/geometry payload or eager loading of an entire game-only asset class without measured justification;
-- preserve progressive loading: optional live 3D may not block first usable UI or remove recovery paths;
+- preserve progressive loading: optional mode assets may not block Home or remove recovery paths;
 - clean up observers, animation frames, timers, listeners, map overlays, polling, and large references when their owner is destroyed;
 - keep animations transform/opacity-oriented where practical and provide reduced-motion behavior;
 - any change expected to add more than 50 KiB compressed first-party JS/CSS or more than 5% to a measured route transfer requires an explicit budget exception;
@@ -26,6 +42,6 @@ Until a measured numeric baseline is approved:
 
 ## Required evidence
 
-For performance-sensitive changes record device/network assumptions, cold/warm state, route/mode, tool used, before/after values, and variance. The future baseline should cover first usable UI, total/first-party transfer, request count, LCP, INP, CLS, long tasks, peak memory where available, Google 3D success/failure, and the playable fallback.
+For performance-sensitive changes record device/network assumptions, cold/warm state, route/mode, tool used, before/after values, and variance. The future baseline should cover first usable UI, total/first-party transfer, request count, LCP, INP, CLS, long tasks, peak memory where available, optional asset success/failure, local-globe availability, and SVG play.
 
 Budget exceptions require architecture authority, rationale, a user benefit, mitigation, rollback, and a follow-up measurement date.

@@ -760,6 +760,7 @@ const svg = document.getElementById("map");
         setMessage(`${name} is shown and highlighted as a territory${note}; it is not counted in the 195-country score.`, "good");
       }
       celebrateCountry(id);
+      notifyFreeMapSelection(id);
     }
 
     function handleCountryGuess(raw) {
@@ -794,6 +795,12 @@ const svg = document.getElementById("map");
         "good"
       );
       celebrateCountry(record.countryId);
+      notifyFreeMapSelection(record.countryId);
+    }
+
+    function notifyFreeMapSelection(id) {
+      if (!document.querySelector('.app')?.hasAttribute('data-free-map-active')) return;
+      document.dispatchEvent(new CustomEvent('country-memory-selection', { detail: countrySummary(id) }));
     }
 
     function handleCapitalGuess(raw) {
@@ -1097,6 +1104,7 @@ const svg = document.getElementById("map");
     }
 
     function setQuizMode(mode) {
+      document.dispatchEvent(new CustomEvent('country-memory-selection', { detail: null }));
       quizMode = mode === "capitals" ? "capitals" : "countries";
       labelsVisible = false;
       svg.classList.remove("labels-on");
@@ -1130,6 +1138,7 @@ const svg = document.getElementById("map");
     }
 
     function selectContinent(name) {
+      document.dispatchEvent(new CustomEvent('country-memory-selection', { detail: null }));
       selectedContinent = name;
       labelsVisible = false;
       svg.classList.remove("labels-on");
@@ -1409,6 +1418,7 @@ const svg = document.getElementById("map");
     });
 
     resetButton.addEventListener("click", () => {
+      document.dispatchEvent(new CustomEvent('country-memory-selection', { detail: null }));
       if (quizMode === "capitals") {
         foundCapitalCountryIds.clear();
         foundCapitalCityIds.clear();

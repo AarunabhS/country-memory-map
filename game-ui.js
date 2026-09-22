@@ -41,7 +41,7 @@
         <div class="flag-tools"><button id="flagHintButton" type="button">Use a hint <span aria-hidden="true">−25</span></button><p id="flagHintText" class="flag-hint" role="status" aria-live="polite"></p></div>
       </section>
       <section class="setup-panel" aria-label="Choose a game">
-        <p class="eyebrow" id="setupKicker">THE WORLD IS YOUR PLAYGROUND</p><h2 id="setupTitle">Where will you begin?</h2>
+        <div class="setup-scroll"><p class="eyebrow" id="setupKicker">THE WORLD IS YOUR PLAYGROUND</p><h2 id="setupTitle">Where will you begin?</h2>
         <div class="game-choices" role="group" aria-label="Game">
           <button type="button" data-family="conquest"><b>World Conquest</b><span>Name countries. Build your streak.</span></button>
           <button type="button" data-family="find"><b>Find the Country</b><span>See the name. Find it on the map.</span></button>
@@ -52,12 +52,11 @@
         </div>
         <div class="setup-fields"><label>Format<select id="gameVariant"></select></label><label id="difficultyField">Difficulty<select id="gameDifficulty"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="expert">Expert</option></select></label><label id="questionTimeField">Time per question<select id="gameQuestionTime"><option value="30">30 seconds</option><option value="20" selected>20 seconds</option><option value="15">15 seconds</option><option value="10">10 seconds · challenging</option></select></label><label id="regionField" hidden>Continent<select id="gameRegion"></select></label></div>
         <p id="gameRules" class="game-rules"></p><p id="setupError" role="status"></p>
-        <button type="button" id="startGame" class="primary-button">Start playing <span aria-hidden="true">↗</span></button>
-        <details class="rules-details"><summary>Scoring & rules</summary><p>New answer: 100 points × speed bonus × streak bonus, rounded. Under 2s: ×1.30; under 4s: ×1.20; up to 7s: ×1.10. Streaks of 5 / 10 / 20 / 40 earn ×1.05 / ×1.10 / ×1.20 / ×1.30.</p><p>World Conquest: duplicates change nothing. Invalid submissions reset your streak, and accuracy measures accepted entries. Other games: choose 10, 15, 20, or 30 seconds per question; wrong attempts cost 25 then 50 points. A third mistake or timeout reveals the answer, and accuracy measures questions answered correctly.</p><p>Flag games use the same transparent scoring. Each hint removes 25 points; wrong attempts cost 25, then 50. Flag Match options are unique, with Easy using contrasting choices, Medium favouring the same region, and Hard favouring visually confusable flags.</p></details>
+        <details id="scoringRules" class="rules-details"><summary>Scoring & rules</summary><div id="scoringRuleText"><p>New answer: 100 points × speed bonus × streak bonus, rounded. Under 2s: ×1.30; under 4s: ×1.20; up to 7s: ×1.10. Streaks of 5 / 10 / 20 / 40 earn ×1.05 / ×1.10 / ×1.20 / ×1.30.</p><p>World Conquest: duplicates change nothing. Invalid submissions reset your streak, and accuracy measures accepted entries. Other games: choose 10, 15, 20, or 30 seconds per question; wrong attempts cost 25 then 50 points. A third mistake or timeout reveals the answer, and accuracy measures questions answered correctly.</p><p>Flag games use the same transparent scoring. Each hint removes 25 points; wrong attempts cost 25, then 50. Flag Match options are unique, with Easy using contrasting choices, Medium favouring the same region, and Hard favouring visually confusable flags.</p></div></details>
         <details id="recentPanel" class="rules-details"><summary>Recent rounds on this device</summary><div id="recentResults"></div></details>
-        <p class="storage-note" id="storageNote"></p>
+        <p class="storage-note" id="storageNote"></p></div><div class="setup-start"><button type="button" id="startGame" class="primary-button">Start playing <span aria-hidden="true">↗</span></button></div>
       </section>
-      <dialog id="resultsDialog" aria-labelledby="resultsTitle"><div class="results-content"><p class="eyebrow" id="resultsMode"></p><h2 id="resultsTitle">Round complete</h2><p id="personalBest" class="personal-best" hidden>NEW PERSONAL BEST</p><div id="resultStats" class="result-stats"></div><p id="resultRegions"></p><p id="resultNote" class="result-note"></p><details id="missedDetails"><summary id="missedSummary">Countries to practise</summary><div id="missedList"></div></details><div id="finalMistakes"></div><div class="result-actions"><button type="button" id="playAgain" class="primary-button">Play Again</button><button type="button" id="practiceMissed">Practice Missed</button><button type="button" id="chooseGame">Choose game</button><button type="button" id="challengeFriends">Challenge Friends</button></div></div></dialog>
+      <dialog id="resultsDialog" aria-labelledby="resultsTitle"><div class="results-content"><p class="eyebrow" id="resultsMode"></p><h2 id="resultsTitle">Round complete</h2><p id="personalBest" class="personal-best" hidden>NEW DEVICE BEST</p><div id="resultStats" class="result-stats"></div><p id="resultRegions"></p><p id="resultNote" class="result-note"></p><details id="missedDetails"><summary id="missedSummary">Countries to practise</summary><div id="missedList"></div></details><div id="finalMistakes"></div><div class="result-actions"><button type="button" id="playAgain" class="primary-button">Play Again</button><button type="button" id="practiceMissed">Practice Missed</button><button type="button" id="chooseGame">Choose game</button><button type="button" id="challengeFriends">Challenge Friends</button></div></div></dialog>
     `);
     const shell = document.querySelector('.map-shell');
     shell.insertAdjacentHTML('beforeend','<div id="milestone" class="milestone" role="status" hidden></div>');
@@ -68,18 +67,18 @@
     // a shallow, serializable presentation snapshot for the shared shell.
     function renderShell(phase = 'setup', question = engine?.state?.currentQuestion) {
       if (!window.GameShell) return;
-      const config = engine.config || {};
-      const type = question?.type || '';
+      const config = family === 'quiz' && !remote ? { family, variant: 'trivia' } : engine.config || {};
+      const type = config.family === 'quiz' ? '' : question?.type || '';
       const stage = config.family === 'flag' ? 'flag' : config.family === 'quiz' ? 'quiz' : type.endsWith?.('_CLICK') ? 'map-answer' : 'map';
       window.GameShell.render({ root: app, display: {
         phase, family: config.family || family, variant: config.variant || $('gameVariant').value,
-        stage, timed: typeof engine.state?.remainingTime === 'number', lives: typeof engine.state?.lives === 'number',
+        stage, timed: config.family !== 'quiz' && typeof engine.state?.remainingTime === 'number', lives: config.family !== 'quiz' && typeof engine.state?.lives === 'number',
         answerDescription: type === TYPES.CAPITAL_TYPING ? 'Enter a capital and submit.' :
           type.endsWith?.('_CLICK') ? 'Use the interactive map to choose a country.' :
           config.family === 'conquest' || config.family === 'quiz' ? 'Enter a country name and submit.' : 'Choose a game format and start.'
       }, callbacks: {
         home: () => window.CountryMemoryApp?.requestHostNavigation?.({ type: 'home' }),
-        endRound: () => { if (window.QuizGame?.isActive()) { window.QuizGame.deactivate(); menu(); return; } remote ? remote.finish() : engine.finish('manual'); },
+        endRound: () => { if (window.QuizGame?.isActive()) { window.QuizGame.finish('manual'); return; } remote ? remote.finish() : engine.finish('manual'); },
         submitAnswer: raw => window.gameController?.handleText(raw)
       } });
     }
@@ -120,7 +119,8 @@
       async beforeSwitch() {
         if (!tracker?.hasActiveSession()) return;
         suppressResults = true;
-        tracker.finish('player_switch', engine.state);
+        if (window.QuizGame?.isActive()) window.QuizGame.finish('player_switch');
+        else tracker.finish('player_switch', engine.state);
         if (engine.state.gameStatus === 'playing') engine.finish('player_switch');
         menu();
         suppressResults = false;
@@ -207,9 +207,19 @@
         continent: `Conquer ${region}. Only countries in this continent count; the rest of the world stays dimmed.`
       }[c.variant] : family === 'find' ? (c.variant==='blitz'?'Sixty seconds. Find as many countries as possible.':`20 questions${c.variant==='continent'?` in ${region}`:''}. Tap the country on the map.`) : family === 'capital' ?
         (c.variant==='blitz'?'Sixty seconds. Alternate naming capitals and finding their countries.':`20 questions${c.variant==='continent'?` in ${region}`:''}: 10 typed capitals and 10 map locations.`) : family === 'quiz' ?
-        '10 questions. Identify countries matching unique geographical categories, directions, flag symbols, and trivia. Use hints if stuck!' :
+        `${['hard', 'expert'].includes(c.difficulty) ? 8 : 10} questions. Identify countries matching geographical categories, directions, flag symbols, and trivia. Use hints if stuck!` :
         (c.variant === 'match' ? '20 questions. See a country name and choose one of four unique flags.' : '20 questions. Identify an authentic flag by typing its country name. No answer suggestions are shown during recall.');
       $('gameRules').textContent = rules;
+      const paragraphs = family === 'quiz' ? [
+        'Each accepted country earns 100 points. From the start of the category: under 3 seconds ×1.30; under 7 seconds ×1.15; otherwise ×1.00. Streaks of 5 / 10 earn ×1.10 / ×1.25, rounded.',
+        'A recognized country outside the category resets the streak without deducting points. Unrecognized text and duplicates do not change score or streak. A hint costs 25 points, with the score stopping at zero. Revealing resets the streak.',
+        'Accuracy counts fully completed categories, not individual countries. There is no question deadline. Review facts before choosing Next Question. Practice Missed and friend challenges are available in the other scored games.'
+      ] : [
+        'New answer: 100 points × speed bonus × streak bonus, rounded. Under 2s: ×1.30; under 4s: ×1.20; up to 7s: ×1.10. Streaks of 5 / 10 / 20 / 40 earn ×1.05 / ×1.10 / ×1.20 / ×1.30.',
+        family === 'conquest' ? 'Duplicates change nothing. Invalid submissions reset your streak. Sudden Death also costs one life per invalid submission. Accuracy measures accepted entries.' : 'Wrong attempts cost 25 then 50 points. A third mistake or timeout reveals the answer. Accuracy measures questions answered correctly; answer time includes retries.',
+        ...(family === 'flag' ? ['Each hint removes 25 points. Flag Match uses four unique options: Easy contrasts choices, Medium favours the same region, and Hard favours confusable flags.'] : [])
+      ];
+      $('scoringRuleText').replaceChildren(...paragraphs.map(text => { const p = document.createElement('p'); p.textContent = text; return p; }));
       $('setupError').textContent = '';
       syncChoiceSelection();
       if (hostedGame) {
@@ -223,7 +233,7 @@
     function updateRecent() {
       $('recentResults').replaceChildren(...profile.data.recent.slice(0,5).map(r=>{const p=document.createElement('p');p.textContent=`${families[r.config?.family] || 'Round'} · ${variants[r.config?.variant] || ''}: ${r.correct} correct · ${r.score} points`;return p;}));
       $('recentPanel').hidden = !profile.data.recent.length;
-      $('storageNote').textContent = profile.available ? 'Personal bests and recent rounds are saved on this device.' : 'Device storage is unavailable. You can still play; results last for this visit.';
+      $('storageNote').textContent = profile.available ? 'Device bests compare the same rules, difficulty, timing, round length and hint use. Records are shared by players on this device; older bests are kept separately.' : 'Device storage is unavailable. You can still play; results last for this visit.';
     }
     function disableFlagAnswers(keepRecallInput = false) {
       input.disabled = !keepRecallInput; voice.disabled = !keepRecallInput;
@@ -289,7 +299,22 @@
     function flagButtonFor(id) {
       return [...flagChoices.querySelectorAll('button')].find(button => button.dataset.flagId === id) || null;
     }
+    function onQuizEvent(event, state, config) {
+      tracker?.onEvent(event, state, config);
+      if (event.type === 'start') {
+        $('questionPanel').hidden = true;
+        $('gameLives').hidden = true;
+        $('timerLabel').textContent = 'Elapsed';
+        $('gameTime').classList.remove('urgent');
+        renderShell('playing');
+      } else if (event.type === 'end') {
+        input.disabled = true; voice.disabled = true; $('endGame').hidden = true;
+        result = profile.record(event.result);
+        if (['complete', 'manual'].includes(event.result.reason)) showResults(result);
+      }
+    }
     async function start(config = activeConfig()) {
+      window.QuizGame?.deactivate();
       if (tracker?.hasActiveSession()) {
         suppressResults = true;
         tracker.finish('mode_change', engine.state);
@@ -303,6 +328,18 @@
       renderShell('countdown');
       const flagGame = config.family === 'flag';
       const quizGame = config.family === 'quiz';
+      if (quizGame && !window.QuizGame) {
+        $('startGame').disabled = true;
+        $('setupError').textContent = 'Loading Geo Quiz…';
+        try {
+          await import('./quiz-data.js?v=20260923-defects3');
+          await import('./quiz-game.js?v=20260923-defects3');
+        } catch {
+          if (token === startToken) { menu(); $('setupError').textContent = 'Geo Quiz could not load. Check your connection, reload and try again.'; }
+          return;
+        } finally { $('startGame').disabled = false; }
+        if (token !== startToken) return;
+      }
       app.classList.toggle('flag-platform', flagGame);
       app.classList.toggle('quiz-platform', quizGame);
       $('resultsDialog').close(); $('setupError').textContent='';
@@ -315,7 +352,7 @@
       countdown.textContent='GO';await new Promise(resolve=>setTimeout(resolve,300));
       if(token!==startToken)return;countdown.hidden=true;
       if (quizGame) {
-        window.QuizGame?.start({ tier: config.difficulty || 'all', questionCount: 10, countries });
+        window.QuizGame?.start({ tier: config.difficulty || 'all', questionCount: 10, countries, onEvent: onQuizEvent });
         $('endGame').hidden = false;
         profile.select(config);
         return;
@@ -480,20 +517,23 @@
       $('resultsMode').textContent=`${families[r.config.family]} · ${variants[r.config.variant]}`;
       $('resultsTitle').textContent=r.config.family==='conquest'&&r.completed ? (r.total===195?'WORLD CONQUERED':'REGION CONQUERED') : r.reason==='time'?'Time’s up':r.reason==='lives'?'Out of lives':'Round complete';
       $('personalBest').hidden=!r.personalBest;
-      const isConquest=r.config.family==='conquest';
-      const metrics = [[isConquest?'Countries found':'Correct answers',`${r.correct} / ${r.total}`],['Final score',r.score.toLocaleString()],['Accuracy',`${r.accuracy}%`],['Best streak',r.bestStreak],[r.completed?'Completion time':'Time played',formatTime(r.elapsedTime)],['Average correct answer',r.averageResponseTime===null?'—':`${r.averageResponseTime.toFixed(1)}s`],['Fastest correct answer',r.fastestAnswer===null?'—':`${r.fastestAnswer.toFixed(1)}s`],[isConquest?'Incorrect entries':'Missed / timed out',r.wrong]];
+      const isConquest=r.config.family==='conquest', isQuiz=r.config.family==='quiz';
+      const metrics = [[isConquest?'Countries found':isQuiz?'Categories completed':'Correct answers',`${r.correct} / ${r.total}`],['Final score',r.score.toLocaleString()],['Accuracy',`${r.accuracy}%`],['Best streak',r.bestStreak],[r.completed?'Completion time':'Time played',formatTime(r.elapsedTime)],['Average correct answer',r.averageResponseTime===null?'—':`${r.averageResponseTime.toFixed(1)}s`],['Fastest correct answer',r.fastestAnswer===null?'—':`${r.fastestAnswer.toFixed(1)}s`],[isConquest?'Incorrect entries':isQuiz?'Incomplete categories':'Missed / timed out',r.wrong]];
       $('resultStats').replaceChildren(...metrics.map(([label,value])=>{const el=document.createElement('div'),strong=document.createElement('strong'),span=document.createElement('span');strong.textContent=value;span.textContent=label;el.append(strong,span);return el;}));
       const regionText = region=>region?`${region.name} (${region.correct}/${region.total})`:'—';
       $('resultRegions').textContent=`Strongest region: ${regionText(r.strongestRegion)}. Weakest region: ${regionText(r.weakestRegion)}.`;
-      $('resultNote').textContent=isConquest
+      $('resultRegions').hidden = isQuiz;
+      $('resultNote').textContent=isQuiz ? `Accuracy counts fully completed categories among those visited. Answer times run from the category appearing. ${r.incorrectAttempts} incorrect country entries; ${r.hintsUsed} hints used (25 points each, stopping at zero). Quiz review and friend challenges are not available for this mode.` : isConquest
         ? 'Accuracy is the share of submitted country names that were accepted. Answer times use accepted countries only.'
         : `${r.config.family==='flag' ? 'Flags use the same 100-point base, speed/streak bonuses, and −25-point hints.' : 'Accuracy is the share of questions answered correctly.'} Answer times run from the prompt appearing until the correct answer, including retries.${r.incorrectAttempts?` You made ${r.incorrectAttempts} incorrect ${r.incorrectAttempts===1?'attempt':'attempts'}; these affect score and practice suggestions.`:''}${r.hintsUsed?` You used ${r.hintsUsed} hint${r.hintsUsed===1?'':'s'} for −${r.hintPenalty} points.`:''}`;
       $('missedSummary').textContent=`${r.config.family==='flag'?'Flags':'Countries'} to practise (${r.missedCountries.length})`;
       $('missedDetails').hidden=!r.missedCountries.length; $('missedDetails').open=false;
       $('missedList').replaceChildren(...r.missedCountries.map(id=>{const p=document.createElement('p');const c=byId.get(id);p.textContent=c?`${c.canonical_name}${r.config.family==='capital'?` — ${c.capital.map(x=>`${x.name} (${x.role})`).join('; ')}`:''}`:id;return p;}));
       $('finalMistakes').textContent=r.mistakes.length?`Submitted mistakes: ${r.mistakes.slice(-3).join(' · ')}`:'';
-      $('practiceMissed').disabled=!r.missedCountries.length;
-      $('challengeFriends').disabled=!!r.config.practiceIds;
+      $('practiceMissed').hidden = r.capabilities?.practice === false;
+      $('practiceMissed').disabled = !r.missedCountries.length || r.capabilities?.practice === false;
+      $('challengeFriends').hidden = r.capabilities?.challenge === false;
+      $('challengeFriends').disabled = !!r.config.practiceIds || !r.replay?.seed || r.capabilities?.challenge === false;
       $('resultsDialog').showModal(); $('playAgain').focus(); updateRecent();
     }
     function menu({ hosted = hostedGame } = {}) {
@@ -594,7 +634,7 @@
         if (window.QuizGame?.isActive()) {
           const handled = window.QuizGame.handleText(raw);
           input.value = '';
-          input.focus({ preventScroll: true });
+          if (!input.disabled) focusTyping();
           return handled;
         }
         if(remote){
@@ -658,6 +698,7 @@
     };
     window.CountryMemoryApp = {
       openGame: hostOpenGame,
+      showGameCatalog: () => menu({ hosted: false }),
       openFreeMap: hostOpenFreeMap,
       submitFreeMapGuess: hostSubmitFreeMapGuess,
       deactivate: hostDeactivate,
@@ -675,7 +716,7 @@
         if (remote) return { state: 'multiplayer' };
         if (!platform) return { state: 'free-map', checker: GameMap.getChecker() };
         if (window.QuizGame?.isActive()) return { state: 'playing', family: 'quiz', variant: 'trivia' };
-        if ($('resultsDialog').open) return { state: 'results', family: engine.config?.family, variant: engine.config?.variant };
+        if ($('resultsDialog').open) return { state: 'results', family: result?.config.family, variant: result?.config.variant };
         if (engine.state.gameStatus === 'playing') return { state: 'playing', family: engine.config?.family, variant: engine.config?.variant };
         return { state: 'setup', family, variant: $('gameVariant').value };
       },
@@ -709,10 +750,18 @@
       },
       suspendMultiplayer() { return window.CountryMemoryMultiplayer?.suspend?.(); },
     };
-    document.querySelectorAll('[data-family]').forEach(b=>b.addEventListener('click',()=>chooseFamily(b.dataset.family,b.dataset.flagVariant)));
+    document.querySelectorAll('[data-family]').forEach(b=>b.addEventListener('click',()=>{
+      chooseFamily(b.dataset.family,b.dataset.flagVariant);
+      menu({ hosted: true });
+      $('startGame').focus({ preventScroll: true });
+      window.CountryMemoryApp.requestHostNavigation({ type: 'solo-selection', family, variant: $('gameVariant').value });
+    }));
     for (const name of ['Africa','Asia','Europe','North America','South America','Oceania']) $('gameRegion').add(new Option(`${name} · ${countries.filter(c=>c.continent===name).length} countries`,name));
     $('gameDifficulty').value=profile.data.difficulty;
-    ['gameVariant','gameDifficulty','gameRegion','gameQuestionTime'].forEach(id=>$(id).addEventListener('change',updateSetup));
+    ['gameVariant','gameDifficulty','gameRegion','gameQuestionTime'].forEach(id=>$(id).addEventListener('change',()=>{
+      updateSetup();
+      if (id === 'gameVariant') window.CountryMemoryApp.requestHostNavigation({ type: 'solo-selection', family, variant: $('gameVariant').value });
+    }));
     $('startGame').addEventListener('click',()=>start());
     input.addEventListener('focus', () => {
       if (window.innerWidth <= 768) {
@@ -722,7 +771,7 @@
       }
     });
     $('endGame').addEventListener('click',()=>{
-      if (window.QuizGame?.isActive()) { window.QuizGame.deactivate(); menu(); return; }
+      if (window.QuizGame?.isActive()) { window.QuizGame.finish('manual'); return; }
       remote?remote.finish():engine.finish('manual');
     });
     $('flagHintButton').addEventListener('click',()=>{
@@ -732,12 +781,15 @@
       engine.useHint();
     });
     $('playAgain').addEventListener('click',()=>start(lastConfig));
-    $('practiceMissed').addEventListener('click',()=>start({...lastConfig,variant:lastConfig.family==='conquest'?'relaxed':lastConfig.family==='find'?'standard':lastConfig.family==='flag'?lastConfig.variant:'classic',practiceIds:result.missedCountries}));
+    $('practiceMissed').addEventListener('click',()=>{
+      if (!result?.missedCountries?.length || result.capabilities?.practice === false) return;
+      start({...lastConfig,variant:lastConfig.family==='conquest'?'relaxed':lastConfig.family==='find'?'standard':lastConfig.family==='flag'?lastConfig.variant:'classic',practiceIds:result.missedCountries});
+    });
     $('challengeFriends').addEventListener('click',()=>{if(window.Friends&&result?.replay){$('resultsDialog').close();window.Friends.challenge(result.replay);}});
-    $('chooseGame').addEventListener('click',()=>{ if (!window.CountryMemoryApp.requestHostNavigation({ type: 'home' })) menu(); });
+    $('chooseGame').addEventListener('click',()=>{ if (!window.CountryMemoryApp.requestHostNavigation({ type: 'solo-menu' })) menu({hosted:false}); });
     $('freeMap').addEventListener('click',()=>{
-      if (hostedGame && window.CountryMemoryApp.requestHostNavigation({ type:'home' })) return;
-      explore();
+      if (hostedGame && window.CountryMemoryApp.requestHostNavigation({ type:'solo-menu' })) return;
+      if (!window.CountryMemoryApp.requestHostNavigation({ type:'explore' })) explore();
     });
     $('openGames').addEventListener('click',()=>{ if (!window.CountryMemoryApp.requestHostNavigation({ type: 'home' })) menu(); });
     $('resultsDialog').addEventListener('cancel',e=>{e.preventDefault();menu();});
@@ -756,7 +808,7 @@
     input.addEventListener('blur', () => app.classList.remove('keyboard-open'));
     document.addEventListener('visibilitychange',()=>{if(!remote)tickSolo();});
     setInterval(()=>{
-      if(!remote){tickSolo();return;}
+      if(!remote){if (engine.state.gameStatus === 'playing' && !window.QuizGame?.isActive()) tickSolo();return;}
       const s=engine.state;if(s.gameStatus==='playing'){s.elapsedTime=Math.max(0,(engine.now()-s.startedAt)/1000);if(s.deadline!==null){s.remainingTime=Math.max(0,(s.deadline-engine.now())/1000);if(!s.remainingTime){input.disabled=true;voice.disabled=true;}}updateHUD(s);}
     },50);
     chooseFamily(family,profile.data.lastMode.variant);menu();

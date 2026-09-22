@@ -6,12 +6,12 @@ Status labels follow the canonical vocabulary in [`MASTER_PROJECT_INDEX.md`](MAS
 
 ## VERIFIED CURRENT ARCHITECTURE
 
-- The root shell uses the dark cinematic space/Earth identity in `styles.css`, with translucent panels, bright cyan/green accents, compact HUD/stat surfaces, and responsive desktop/mobile arrangements.
-- The retained game's base styles remain in `legacy/index.html`, `game.css`, profile styles, multiplayer styles, and flag-specific styles; `game-shell.css` now supplies their explicit dark cinematic override.
-- Root and retained layers share a cinematic direction but still use separate typography, spacing, controls, HUDs, modal/dialog patterns, and responsive rules.
+- One document uses `app.css` for Home/navigation and `game-shell.css` for the shared cinematic controls, tokens, HUD, profiles and results.
+- `world-map.css`, `game.css`, `flag-game.css`, `quiz-game.css`, profile and multiplayer styles own their particular layouts. `/legacy/index.html` is a redirect, not a retained application.
+- Setup uses a scrollable content area with a persistent Start footer. Catalog cards lead to focused setup. Secondary controls use existing panel tokens; Quiz hides irrelevant map chrome.
 - Visible focus styles, minimum touch sizing in responsive rules, and reduced-motion media queries exist on several current surfaces. Coverage is not presumed complete.
 - Flag assets render from self-hosted SVGs in reserved frames; native proportions are preserved. Country outlines use their own clipped frame.
-- `game-shell.js` and `game-shell.css` provide one current engine-independent presentation adapter and explicit high-contrast styling across retained setup, HUD, stages, results, profiles, and multiplayer surroundings. It is not a general component library.
+- `game-shell.js` and `game-shell.css` provide one current engine-independent presentation adapter and explicit high-contrast styling across shared setup, HUD, stages, results, profiles, and multiplayer surroundings. It is not a general component library.
 
 These are observations, not permission to copy incidental values into a new global standard.
 

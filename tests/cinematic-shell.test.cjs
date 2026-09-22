@@ -9,7 +9,7 @@ const gameMap = fs.readFileSync('game-map.js', 'utf8');
 test('the app loads one game document and routes old URLs into it', () => {
   assert.doesNotMatch(html, /<iframe|src\/main\.js|maps\.googleapis/);
   assert.equal((html.match(/src="game-ui\.js/g) || []).length, 1);
-  assert.match(html, /src="src\/app\.js"/);
+  assert.match(html, /src="src\/app\.js(?:\?v=[^"]+)?"/);
   assert.match(redirect, /location\.replace\('\.\.\/'\+location\.search\+location\.hash\)/);
   assert.doesNotMatch(redirect, /game-ui|GameMap|<iframe/);
 });

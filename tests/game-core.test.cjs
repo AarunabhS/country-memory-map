@@ -68,3 +68,17 @@ test('World Conquest Relaxed allows 1-letter spelling mistakes for names > 5 let
   assert.equal(blitz.state.wrongAnswers, 1);
 });
 
+
+test('device best v2 separates material settings and retains legacy bests',()=>{
+  const legacy={bests:{'find:standard:World:easy:game':{score:99999,correct:20}},recent:[]};
+  const values=new Map([['country-memory-profile-v1',JSON.stringify(legacy)]]);
+  const p=new LocalProfile({getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)});
+  const base={config:{family:'find',variant:'standard',difficulty:'easy',questionTime:10,questionCount:20},score:100,correct:1,elapsedTime:2,hintsUsed:0};
+  for(const change of [{},{questionTime:30},{questionCount:10},{rulesVersion:'core-v2'},{contentVersion:'new-data'}]) assert.equal(p.record({...base,config:{...base.config,...change}}).personalBest,true);
+  assert.equal(p.record({...base,score:10}).personalBest,false);
+  assert.equal(p.record({...base,hintsUsed:1}).personalBest,true);
+  assert.deepEqual(p.data.bests['find:standard:World:easy:game'],legacy.bests['find:standard:World:easy:game']);
+  assert.equal(Object.keys(p.data.bests).length,7);
+  const before=Object.keys(p.data.bests).length;p.record({...base,config:{...base.config,practiceIds:['C0']}});assert.equal(Object.keys(p.data.bests).length,before);
+  assert.equal(new LocalProfile({getItem:k=>values.get(k)}).data.recent.length,8);
+});

@@ -196,6 +196,28 @@ test('quiz speech is enabled for questions and stopped for reveal, finish and ex
  context.setVoiceEnabled(false);assert.equal(button.disabled,true);assert.equal(stops,2);
  assert.match(source,/setVoiceEnabled\(true\);\s*currentRound.currentIndex/);
  assert.match(source,/function showFactCard\(\)[\s\S]*?setVoiceEnabled\(false\)/);
- assert.match(source,/function finishRound\(\) \{\s*setVoiceEnabled\(false\)/);
- assert.match(source,/function deactivate\(\) \{\s*setVoiceEnabled\(false\)/);
+ assert.match(source,/function finishRound\([^)]*\) \{[\s\S]*?setVoiceEnabled\(false\)/);
+ assert.match(source,/function deactivate\([^)]*\) \{[\s\S]*?setVoiceEnabled\(false\)/);
+});
+
+test('Quiz content review metadata distinguishes source checks from editorial coverage', () => {
+  for (const q of quizData.QUESTIONS) {
+    assert.equal(q.review.contentVersion, quizData.CONTENT_VERSION);
+    assert.match(q.review.source, /^https:\/\//);
+    assert.ok(q.review.scope && q.review.localSource && q.review.notes && q.review.editedAt);
+    assert.equal(Boolean(q.review.verifiedAt), q.review.check === 'source-cross-check');
+    assert.ok(q.targetCount <= new Set([...q.accepted, ...(q.bonusAccepted || [])]).size);
+    assert.equal(q.accepted.length, new Set(q.accepted).size);
+    if (q.bonusAccepted) assert.ok(q.review.bonusRationale);
+  }
+});
+
+test('name categories cover the country names they ask for and exceptional prompts disclose their scope', () => {
+  const expectedA = countries.filter(c => /^a.*a$/i.test(c.canonical_name)).map(c => c.iso_code).sort();
+  assert.deepEqual([...quizData.getQuestionById('med-same-start-end-letter').accepted].sort(), expectedA);
+  assert.match(quizData.getQuestionById('easy-cardinal-directions').prompt, /Central African Republic.*bonus/);
+  assert.match(quizData.getQuestionById('easy-country-equals-capital').prompt, /City or la Vella/);
+  assert.match(quizData.getQuestionById('med-one-land-border').prompt, /pre-2022/);
+  assert.deepEqual(quizData.getQuestionById('hard-zero-rivers').accepted, ['SAU']);
+  assert.match(quizData.getQuestionById('hard-most-islands').prompt, /2013 survey/);
 });

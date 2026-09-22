@@ -44,7 +44,7 @@ QA evidence labels describe the result of a specific check:
 | Current architecture | [`ARCHITECTURE.md`](../ARCHITECTURE.md) | Verified boundaries, defects, deployment |
 | Change workflow | [`DEVELOPMENT_PROTOCOL.md`](DEVELOPMENT_PROTOCOL.md) | Impact assessment, stops, rollback, completion |
 | Current/planned visual rules | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | Status-separated visual governance |
-| Proposed shared game shell | [`GAME_SHELL_SPEC.md`](GAME_SHELL_SPEC.md) | Conceptual responsibilities only |
+| Shared game shell | [`GAME_SHELL_SPEC.md`](GAME_SHELL_SPEC.md) | Current thin adapter and future component responsibilities |
 | Responsive behavior | [`RESPONSIVE_STANDARD.md`](RESPONSIVE_STANDARD.md) | Desktop/mobile/portrait/landscape review |
 | Accessibility | [`ACCESSIBILITY_STANDARD.md`](ACCESSIBILITY_STANDARD.md) | Keyboard, semantics, focus, touch, contrast, motion |
 | Performance | [`PERFORMANCE_BUDGET.md`](PERFORMANCE_BUDGET.md) | Growth controls and measurement requirements |
@@ -58,4 +58,4 @@ QA evidence labels describe the result of a specific check:
 
 ## Current follow-up register
 
-The open verified defects are the default-off remote profile API mismatch and duplicated country classification. Production/manual verification remains open for the Home local-globe fallback, Explore highlight/fact presentation, Google key restrictions and failure behavior, physical-device responsive/accessibility behavior, and the deployed multiplayer service. The Google callback, canonical game routes, five-game Home launcher, root fallback, Explore country-selection/fact contract, mobile root composition, GameShell treatment, and multiplayer snapshot refresh are implemented locally; none is labelled production-verified without deployed-origin evidence.
+The default-off remote profile API mismatch and duplicated country classification remain historical follow-ups outside this defect pass. Current P0/P1 repair evidence is tracked in [the execution record](exec-plans/completed/2026-09-22-p0-p1-defect-repair.md). Geo Quiz now shares results/tracking, selection synchronizes canonical routes, Explore facts use the active single-document runtime, and best comparisons distinguish configurations. [Quiz content review](QUIZ_CONTENT_REVIEW.md) distinguishes sourced checks from editorial checks. Physical-device speech/accessibility, independent verification of the remaining trivia facts, production rollout and field performance evidence remain **NEEDS QA**. Google Maps/iframe checks are historical and do not apply to the current local-globe/SVG entry point.
