@@ -874,7 +874,7 @@ const svg = document.getElementById("map");
         try { recognition.abort(); } catch {}
       }
       isListening = false;
-      voiceButton.classList.remove("listening", "starting", "permission");
+      voiceButton.classList.remove("listening", "starting", "processing", "permission");
       voiceButton.setAttribute("aria-busy", "false");
       voiceButton.setAttribute("aria-pressed", "false");
       voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Say capital name" : "Say country name");
@@ -919,10 +919,21 @@ const svg = document.getElementById("map");
         setTimer: (fn, ms) => window.setTimeout(fn, ms),
         clearTimer: id => window.clearTimeout(id),
         onState: ({ state, reason }) => {
-          if (state === "listening" || state === "starting") {
+          if (state === "starting" || state === "processing") {
+            isListening = true;
+            voiceButton.classList.remove("listening", "starting", "processing", "permission");
+            voiceButton.classList.add(state);
+            voiceButton.setAttribute("aria-busy", "true");
+            voiceButton.setAttribute("aria-pressed", "true");
+            voiceButton.setAttribute("aria-label", state === "starting" ? "Cancel microphone startup" : "Cancel voice recognition");
+            voiceButton.textContent = state === "starting" ? "Starting…" : "Finishing…";
+            setMessage(state === "starting"
+              ? "Starting microphone… wait for Listening before speaking. Allow access if your browser asks."
+              : "Finishing voice recognition…", "pending");
+          } else if (state === "listening") {
             isListening = true;
             voiceButton.classList.add("listening");
-            voiceButton.classList.remove("starting", "permission");
+            voiceButton.classList.remove("starting", "processing", "permission");
             voiceButton.setAttribute("aria-busy", "false");
             voiceButton.setAttribute("aria-pressed", "true");
             voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Stop listening to capital name" : "Stop listening to country name");
@@ -930,7 +941,7 @@ const svg = document.getElementById("map");
             setMessage(`Microphone on · say one ${quizMode === "capitals" ? "capital" : "country"} name.`, "listening");
           } else if (state === "idle") {
             isListening = false;
-            voiceButton.classList.remove("listening", "starting", "permission");
+            voiceButton.classList.remove("listening", "starting", "processing", "permission");
             voiceButton.setAttribute("aria-busy", "false");
             voiceButton.setAttribute("aria-pressed", "false");
             voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Say capital name" : "Say country name");
@@ -969,7 +980,7 @@ const svg = document.getElementById("map");
         },
         onError: ({ code }) => {
           isListening = false;
-          voiceButton.classList.remove("listening", "starting", "permission");
+          voiceButton.classList.remove("listening", "starting", "processing", "permission");
           voiceButton.setAttribute("aria-busy", "false");
           voiceButton.setAttribute("aria-pressed", "false");
           voiceButton.setAttribute("aria-label", quizMode === "capitals" ? "Say capital name" : "Say country name");
@@ -977,7 +988,7 @@ const svg = document.getElementById("map");
           if (code === "not-allowed" || code === "service-not-allowed") {
             showVoiceDialog({
               title: "Microphone Access Blocked",
-              message: "Your browser blocked microphone access because it is turned off in your site settings.\n\nBrowsers will not show a permission prompt when microphone access has been disabled.\n\nTo enable microphone access:\n1. Tap the lock or tune icon in the address bar (or go to browser Settings > Site Settings > Microphone).\n2. Change Microphone from 'Blocked' / 'Disabled' to 'Allow' (or click 'Reset permissions').\n3. Tap Speak again to start voice input."
+              message: "Your browser could not allow microphone or speech recognition access.\n\nIn iPhone Safari, open the page menu beside the address bar, then Website Settings > Microphone > Allow.\n\nIn Chrome or other browsers, open the site's permissions beside the address bar and allow Microphone.\n\nIf access is already allowed, check your device's speech recognition settings and restrictions, then tap Speak again. You can also type your answer."
             });
             setMessage("Microphone permission was blocked. Allow it in browser settings or type your answer.", "bad");
             return;
@@ -986,6 +997,8 @@ const svg = document.getElementById("map");
             ? "No speech was heard. Try again, move closer to the microphone, or type your answer."
             : code === "start-timeout"
               ? "The microphone did not start. Check browser permission, then try again or type your answer."
+              : code === "recognition-timeout"
+                ? "Voice recognition took too long. Check any text above and submit it, or press Speak to try again."
               : `Voice input did not work. Try again or type the ${quizMode === "capitals" ? "capital" : "country"}.`;
           setMessage(reason, "bad");
         }

@@ -51,3 +51,7 @@ Test every affected game/route at desktop, narrow mobile portrait, and short mob
 ## 2026-09-13 Flag multiplayer and answer transport
 
 **AUTOMATED VERIFIED** — Flag room validation/hints/replay, nine concurrent answers, redundant poll writes, rate gating, retry/departure isolation, and Quiz speech control lifecycle. **MANUALLY VERIFIED WITH EVIDENCE** — two local browser players in Recall/Match, typed/keyboard answers and hints, reconnect, portrait/landscape layout and Quiz Speak/reveal/next controls. See the [execution record](exec-plans/completed/2026-09-13-fast-answers-flag-multiplayer.md) for measurements and limits. **MANUAL VERIFICATION REQUIRED** — physical microphone, production rollout and live mobile latency.
+
+## 2026-09-22 Safari voice lifecycle
+
+**AUTOMATED VERIFIED** — capture readiness, one callback per event, immediate reuse after a final answer, ten simulated Canada answers, multiword corrections, cancellation and stalled-session recovery; 151 root and 26 server tests passed. **MANUALLY VERIFIED WITH EVIDENCE** — local Chromium typed/keyboard input and simulated voice UI at desktop, portrait and landscape sizes; see the [execution record](exec-plans/completed/2026-09-22-safari-voice-reliability.md). **MANUAL VERIFICATION REQUIRED** — actual Safari transcription on the reported iPhone 15 Pro Max (Canada fails about eight of ten attempts), other physical browser speech, accessibility modes and deployment. Simulated results do not establish hardware latency or recognition accuracy.

@@ -10,7 +10,10 @@ class FakeRecognition {
     this.abortCalls = 0;
   }
   addEventListener(type, listener) { this.listeners.set(type, listener); }
-  emit(type, detail = {}) { this.listeners.get(type)?.(detail); }
+  emit(type, detail = {}) {
+    this.listeners.get(type)?.(detail);
+    this[`on${type}`]?.(detail);
+  }
   start() { this.startCalls++; }
   stop() { this.stopCalls++; }
   abort() { this.abortCalls++; }
@@ -31,9 +34,12 @@ test('voice activation acknowledges immediately and cannot create parallel sessi
   assert.equal(controller.start(), false);
   assert.equal(controller.recognition.startCalls, 1);
   controller.recognition.emit('start');
+  assert.equal(controller.state, 'starting', 'service startup is not audio capture');
+  controller.recognition.emit('audiostart');
   assert.equal(controller.state, 'listening');
   assert.equal(controller.stop(), true);
   assert.equal(controller.recognition.stopCalls, 1);
+  controller.recognition.emit('end');
 });
 
 test('one press previews interim text and delivers one final answer exactly once', () => {
@@ -45,15 +51,17 @@ test('one press previews interim text and delivers one final answer exactly once
     onFinal: values => finals.push(values)
   });
   controller.start();
-  controller.recognition.emit('start');
-  controller.recognition.emit('result', { resultIndex: 0, results: [result(['Ind'], false)] });
+  const recognition = controller.recognition;
+  recognition.emit('audiostart');
+  recognition.emit('result', { resultIndex: 0, results: [result(['Ind'], false)] });
   const finalEvent = { resultIndex: 0, results: [result(['India', 'Indie'], true)] };
-  controller.recognition.emit('result', finalEvent);
-  controller.recognition.emit('result', finalEvent);
-  controller.recognition.emit('result', { resultIndex: 1, results: [finalEvent.results[0], result(['Brazil'], true)] });
+  recognition.emit('result', finalEvent);
+  recognition.emit('result', finalEvent);
+  recognition.emit('result', { resultIndex: 1, results: [finalEvent.results[0], result(['Brazil'], true)] });
   assert.deepEqual(previews, ['Ind']);
   assert.deepEqual(finals, [['India', 'Indie']]);
-  assert.equal(controller.recognition.stopCalls, 1);
+  assert.equal(recognition.stopCalls, 1);
+  assert.equal(controller.state, 'idle');
 });
 
 test('cancelled starts suppress abort noise and a hung start recovers', () => {
@@ -301,4 +309,191 @@ test('setTimer and clearTimer are invoked safely without illegal invocation', ()
     controller.abort();
   });
 });
+function timedVoice(options = {}) {
+  let nextId = 0;
+  const timers = new Map();
+  const events = { states: [], finals: [], previews: [], errors: [] };
+  const controller = new VoiceInputController({
+    Recognition: FakeRecognition,
+    setTimer: (fn, ms) => { timers.set(++nextId, { fn, ms }); return nextId; },
+    clearTimer: id => timers.delete(id),
+    onState: value => events.states.push(value),
+    onFinal: value => events.finals.push(value),
+    onPreview: value => events.previews.push(value),
+    onError: value => events.errors.push(value.code),
+    ...options
+  });
+  const expire = () => {
+    assert.equal(timers.size, 1);
+    const [id, timer] = timers.entries().next().value;
+    timers.delete(id);
+    timer.fn();
+  };
+  return { controller, timers, events, expire };
+}
 
+test('start without audio capture stays cancellable and still times out', () => {
+  const { controller: voice, timers, events, expire } = timedVoice();
+  voice.start();
+  const old = voice.recognition;
+  old.emit('start');
+  assert.equal(voice.state, 'starting');
+  expire();
+  assert.equal(old.abortCalls, 1);
+  assert.equal(voice.state, 'idle');
+  old.emit('audiostart');
+  old.emit('result', { results: [result(['India'], true)] });
+  assert.deepEqual(events.finals, []);
+  assert.deepEqual(events.errors, ['start-timeout']);
+  assert.equal(timers.size, 0);
+});
+
+test('speech end requests finalization and retains corrected multiword alternatives', () => {
+  const { controller: voice, timers, events } = timedVoice();
+  voice.start();
+  const speech = voice.recognition;
+  speech.emit('audiostart');
+  speech.emit('result', { results: [result(['United'], false)] });
+  assert.deepEqual(events.finals, []);
+  speech.emit('result', { results: [result(['United King'], false)] });
+  speech.emit('speechend');
+  speech.emit('audioend');
+  assert.equal(speech.stopCalls, 1);
+  assert.equal(voice.state, 'processing');
+  assert.equal(voice.start(), false);
+  assert.deepEqual(events.finals, []);
+  speech.emit('result', { results: [result(['United Kingdom', 'United kingdoms'], true)] });
+  assert.deepEqual(events.finals, [['United Kingdom', 'United kingdoms']]);
+  assert.equal(voice.active, false);
+  assert.equal(timers.size, 0);
+});
+
+test('next press starts immediately after a final; late end and errors cannot reset it', () => {
+  const { controller: voice, events, timers } = timedVoice();
+  voice.start();
+  const old = voice.recognition;
+  old.emit('result', { results: [result(['India'], true)] });
+  assert.equal(voice.start(), true);
+  const current = voice.recognition;
+  assert.notEqual(current, old);
+  assert.equal(current.startCalls, 1);
+  old.emit('end');
+  old.emit('error', { error: 'aborted' });
+  old.emit('result', { results: [result(['Brazil'], true)] });
+  assert.equal(voice.state, 'starting');
+  current.emit('result', { results: [result(['France'], true)] });
+  assert.deepEqual(events.finals, [['India'], ['France']]);
+  assert.deepEqual(events.errors, []);
+  assert.equal(timers.size, 0);
+});
+
+test('silent listening and missing final/end events release the microphone without scoring partial speech', () => {
+  for (const phase of ['listening', 'interim', 'processing']) {
+    const { controller: voice, events, timers, expire } = timedVoice();
+    voice.start();
+    const speech = voice.recognition;
+    speech.emit('audiostart');
+    if (phase !== 'listening') speech.emit('result', { results: [result(['United'], false)] });
+    if (phase === 'processing') speech.emit('speechend');
+    expire();
+    assert.equal(voice.state, 'idle');
+    assert.equal(speech.abortCalls, 1);
+    assert.deepEqual(events.finals, []);
+    assert.deepEqual(events.errors, ['recognition-timeout']);
+    speech.emit('end');
+    speech.emit('error', { error: 'aborted' });
+    assert.equal(events.errors.length, 1);
+    assert.equal(timers.size, 0);
+    assert.equal(voice.start(), true);
+    voice.abort();
+  }
+});
+
+test('cancel while finalizing suppresses both final and fallback answers and clears timers', () => {
+  const { controller: voice, events, timers } = timedVoice();
+  voice.start();
+  const speech = voice.recognition;
+  speech.emit('result', { results: [result(['India'], false)] });
+  speech.emit('speechend');
+  voice.abort();
+  speech.emit('result', { results: [result(['India'], true)] });
+  speech.emit('end');
+  assert.deepEqual(events.finals, []);
+  assert.deepEqual(events.errors, []);
+  assert.equal(timers.size, 0);
+});
+
+test('end fallback uses only current interim text and never a withdrawn result', () => {
+  for (const withdrawal of [[], [result([], false)]]) {
+    const { controller: voice, events } = timedVoice();
+    voice.start();
+    const speech = voice.recognition;
+    speech.emit('result', { results: [result(['Georgia'], false)] });
+    speech.emit('result', { results: withdrawal });
+    speech.emit('end');
+    assert.deepEqual(events.finals, []);
+    assert.deepEqual(events.errors, ['no-speech']);
+  }
+});
+
+test('IDL-only engines and item-based results retain one preview and one final', () => {
+  class IDLRecognition extends FakeRecognition {
+    constructor() { super(); this.addEventListener = undefined; }
+  }
+  const { controller: voice, events } = timedVoice({ Recognition: IDLRecognition });
+  voice.start();
+  const speech = voice.recognition;
+  speech.emit('audiostart');
+  speech.emit('result', { results: { length: 1, item: () => result(['New'], false) } });
+  speech.emit('result', { results: { length: 1, item: () => result(['New Zealand'], true) } });
+  assert.deepEqual(events.previews, ['New']);
+  assert.deepEqual(events.finals, [['New Zealand']]);
+});
+
+test('errors dispatch once and synchronous abort events cannot overwrite the error', () => {
+  class SyncAbort extends FakeRecognition {
+    abort() { super.abort(); this.emit('error', { error: 'aborted' }); this.emit('end'); }
+  }
+  const { controller: voice, events, timers } = timedVoice({ Recognition: SyncAbort });
+  voice.start();
+  voice.recognition.emit('error', { error: 'not-allowed' });
+  assert.deepEqual(events.errors, ['not-allowed']);
+  assert.equal(voice.state, 'idle');
+  assert.equal(timers.size, 0);
+});
+
+test('ten consecutive Canada answers each need one press even with delayed end events', () => {
+  const { controller: voice, events, timers } = timedVoice();
+  let previous;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    assert.equal(voice.start(), true);
+    const speech = voice.recognition;
+    previous?.emit('end');
+    previous?.emit('error', { error: 'aborted' });
+    speech.emit('start');
+    assert.equal(voice.state, 'starting');
+    speech.emit('audiostart');
+    speech.emit('result', { results: [result(['Canada'], false)] });
+    assert.equal(events.finals.length, attempt);
+    speech.emit('speechend');
+    speech.emit('result', { results: [result(['Canada'], true)] });
+    assert.equal(events.finals.length, attempt + 1);
+    assert.equal(speech.startCalls, 1);
+    assert.equal(voice.state, 'idle');
+    previous = speech;
+  }
+  assert.deepEqual(events.finals, Array.from({ length: 10 }, () => ['Canada']));
+  assert.deepEqual(events.errors, []);
+  assert.equal(timers.size, 0);
+});
+
+test('explicit graceful stop still allows the browser final, while abort discards it', () => {
+  const { controller: voice, events, timers } = timedVoice();
+  voice.start();
+  const speech = voice.recognition;
+  speech.emit('audiostart');
+  voice.stop();
+  speech.emit('result', { results: [result(['Canada'], true)] });
+  assert.deepEqual(events.finals, [['Canada']]);
+  assert.equal(timers.size, 0);
+});

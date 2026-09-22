@@ -37,6 +37,8 @@
       language = 'en-US',
       maxAlternatives = 5,
       startTimeout = 15000,
+      listeningTimeout = 15000,
+      resultTimeout = 15000,
       requestMicrophone = null,
       onState = () => {},
       onPreview = () => {},
@@ -54,17 +56,19 @@
       this.onFinal = onFinal;
       this.onError = onError;
       this.startTimeout = startTimeout;
+      this.listeningTimeout = listeningTimeout;
+      this.resultTimeout = resultTimeout;
       this.requestMicrophone = typeof requestMicrophone === 'function' ? () => requestMicrophone() : null;
       this.microphoneReady = !requestMicrophone;
       this.permissionAttempt = null;
       this.setTimer = (fn, ms) => setTimer(fn, ms);
       this.clearTimer = id => clearTimer(id);
       this.startTimer = null;
-      this.processedFinals = new Set();
+      this.resultTimer = null;
       this.finalDelivered = false;
       this.lastAlternatives = null;
       this.userStopped = false;
-      if (typeof navigator !== 'undefined' && navigator.permissions && typeof navigator.permissions.query === 'function') {
+      if (this.requestMicrophone && typeof navigator !== 'undefined' && navigator.permissions && typeof navigator.permissions.query === 'function') {
         try {
           navigator.permissions.query({ name: 'microphone' }).then(permissionStatus => {
             if (permissionStatus) {
@@ -91,7 +95,7 @@
     }
 
     get active() {
-      return this.state === 'permission' || this.state === 'starting' || this.state === 'listening';
+      return this.state === 'permission' || this.state === 'starting' || this.state === 'listening' || this.state === 'processing';
     }
 
     setState(state, detail = {}) {
@@ -102,6 +106,23 @@
     clearStartTimer() {
       if (this.startTimer !== null) this.clearTimer(this.startTimer);
       this.startTimer = null;
+    }
+
+    clearResultTimer() {
+      if (this.resultTimer !== null) this.clearTimer(this.resultTimer);
+      this.resultTimer = null;
+    }
+
+    watchForResult(timeout) {
+      this.clearResultTimer();
+      const recognition = this.recognition;
+      this.resultTimer = this.setTimer(() => {
+        if (this.recognition !== recognition || !this.active) return;
+        // Keep interim text available for editing, but never score a partial
+        // country just because the browser stopped responding.
+        this.replaceStalledRecognition('recognition-timeout');
+        this.onError({ code: 'recognition-timeout' });
+      }, timeout);
     }
 
     installRecognition() {
@@ -120,39 +141,21 @@
       recognition.maxAlternatives = this.maxAlternatives;
 
       const onStart = () => { if (this.recognition === recognition) this.handleStart(); };
-      const onEnd = () => {
-        if (this.recognition !== recognition) return;
-        if (this.active && !this.finalDelivered && !this.userStopped && this.lastAlternatives?.length) {
-          this.finalDelivered = true;
-          try { this.onFinal(this.lastAlternatives); }
-          finally { this.reset({ reason: 'ended' }); }
-          return;
-        }
-        const empty = this.active && !this.finalDelivered && !this.userStopped;
-        this.reset({ reason: 'ended' });
-        if (empty) this.onError({ code: 'no-speech' });
-      };
+      const onEnd = () => { if (this.recognition === recognition) this.handleEnd(); };
       const onError = event => { if (this.recognition === recognition) this.handleError(event); };
       const onResult = event => { if (this.recognition === recognition) this.handleResult(event); };
+      const onSpeechEnd = () => { if (this.recognition === recognition) this.finishListening(); };
 
-      // Support both EventTarget addEventListener and standard Web Speech IDL on* properties
-      // across Chrome, Safari, and WebKit implementations.
-      if (typeof recognition.addEventListener === 'function') {
-        recognition.addEventListener('start', onStart);
-        recognition.addEventListener('audiostart', onStart);
-        recognition.addEventListener('soundstart', onStart);
-        recognition.addEventListener('speechstart', onStart);
-        recognition.addEventListener('end', onEnd);
-        recognition.addEventListener('error', onError);
-        recognition.addEventListener('result', onResult);
+      // WebKit emits `start` before starting capture. Only audio/speech/results
+      // establish readiness. Register each callback once, not via both APIs.
+      for (const [type, handler] of Object.entries({
+        audiostart: onStart, soundstart: onStart, speechstart: onStart,
+        speechend: onSpeechEnd, audioend: onSpeechEnd,
+        end: onEnd, error: onError, result: onResult
+      })) {
+        if (typeof recognition.addEventListener === 'function') recognition.addEventListener(type, handler);
+        else recognition[`on${type}`] = handler;
       }
-      recognition.onstart = onStart;
-      recognition.onaudiostart = onStart;
-      recognition.onsoundstart = onStart;
-      recognition.onspeechstart = onStart;
-      recognition.onend = onEnd;
-      recognition.onerror = onError;
-      recognition.onresult = onResult;
 
       this.recognition = recognition;
       return recognition;
@@ -160,7 +163,8 @@
 
     replaceStalledRecognition(reason) {
       const stalled = this.recognition;
-      this.installRecognition();
+      // Invalidate before abort: engines can dispatch synchronously or much later.
+      this.recognition = null;
       try { stalled?.abort(); } catch {}
       this.reset({ reason });
     }
@@ -198,7 +202,6 @@
         return true;
       }
       this.userStopped = false;
-      this.processedFinals.clear();
       this.finalDelivered = false;
       this.lastAlternatives = null;
       this.setState('starting');
@@ -207,8 +210,8 @@
         this.replaceStalledRecognition('timeout');
         this.onError({ code: 'start-timeout' });
       }, this.startTimeout);
-      // Ensure a fresh, non-stale Recognition instance is used for each session
-      const recognition = this.installRecognition();
+      // Reuse only the unused prepared instance; retired sessions are never reused.
+      const recognition = this.recognition || this.installRecognition();
       if (!recognition) {
         this.reset({ reason: 'start-failed' });
         this.onError({ code: 'start-failed' });
@@ -217,8 +220,7 @@
       try {
         recognition.start();
       } catch (error) {
-        this.installRecognition();
-        this.reset({ reason: 'start-failed' });
+        this.replaceStalledRecognition('start-failed');
         this.onError({ code: 'start-failed', error });
         return false;
       }
@@ -239,9 +241,11 @@
         return true;
       }
       try {
+        this.setState('processing');
+        this.watchForResult(this.resultTimeout);
         this.recognition.stop();
       } catch {
-        this.reset({ reason: 'stop-failed' });
+        this.replaceStalledRecognition('stop-failed');
       }
       return true;
     }
@@ -251,19 +255,51 @@
     }
 
     handleStart() {
-      if (this.state === 'listening') return;
+      if (this.state !== 'starting') return;
       this.clearStartTimer();
-      if (this.userStopped || this.state === 'idle') {
-        try { this.recognition.abort(); } catch {}
+      this.setState('listening');
+      this.watchForResult(this.listeningTimeout);
+    }
+
+    finishListening() {
+      if (!this.active || this.state === 'processing' || this.userStopped) return;
+      this.clearStartTimer();
+      this.setState('processing');
+      this.watchForResult(this.resultTimeout);
+      // Ask for the final transcript at the browser's speech boundary, never on
+      // an arbitrary pause in interim text (e.g. "United" -> "United Kingdom").
+      try { this.recognition.stop(); } catch {}
+    }
+
+    deliverFinal(alternatives, { ended = false } = {}) {
+      if (this.finalDelivered) return;
+      this.finalDelivered = true;
+      const recognition = this.recognition;
+      this.recognition = null;
+      // Unlock the next click before invoking gameplay, which may navigate or
+      // stop voice. Old end/error/results must not touch the next session.
+      this.reset({ reason: 'answered' });
+      if (!ended) { try { recognition?.stop(); } catch {} }
+      this.onFinal(alternatives);
+    }
+
+    handleEnd() {
+      if (this.active && !this.finalDelivered && !this.userStopped && this.lastAlternatives?.length) {
+        this.deliverFinal(this.lastAlternatives, { ended: true });
         return;
       }
-      this.setState('listening');
+      const empty = this.active && !this.finalDelivered && !this.userStopped;
+      this.recognition = null;
+      this.reset({ reason: 'ended' });
+      if (empty) this.onError({ code: 'no-speech' });
     }
 
     handleResult(event) {
       if (!this.active || this.finalDelivered) return;
-      if (this.state !== 'listening') this.handleStart();
+      this.handleStart();
       const results = event?.results;
+      // Interim results may be replaced or removed by a later result event.
+      this.lastAlternatives = null;
       if (!results?.length) return;
       const from = Number.isInteger(event.resultIndex) ? Math.max(0, event.resultIndex) : 0;
       for (let index = from; index < results.length; index++) {
@@ -275,14 +311,7 @@
           this.onPreview(alternatives[0], alternatives);
           continue;
         }
-        const signature = `${index}:${alternatives.join('\u0000')}`;
-        if (this.processedFinals.has(signature)) continue;
-        this.processedFinals.add(signature);
-        this.finalDelivered = true;
-        // One press is one answer. Some engines append another final segment
-        // before firing `end`; stop immediately so it cannot become a retry.
-        try { this.onFinal(alternatives); }
-        finally { try { this.recognition.stop(); } catch {} }
+        this.deliverFinal(alternatives);
         return;
       }
     }
@@ -291,12 +320,13 @@
       const code = String(event?.error || 'unknown');
       if (code === 'not-allowed' || code === 'audio-capture') this.microphoneReady = !this.requestMicrophone;
       const silent = this.userStopped && code === 'aborted';
-      this.reset({ reason: 'error' });
+      this.replaceStalledRecognition('error');
       if (!silent) this.onError({ code, event });
     }
 
     reset(detail = {}) {
       this.clearStartTimer();
+      this.clearResultTimer();
       this.userStopped = false;
       this.lastAlternatives = null;
       if (this.state !== 'idle') this.setState('idle', detail);
