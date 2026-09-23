@@ -87,3 +87,9 @@ Create an ADR only when the corresponding decision is actively being made:
 - Multiplayer generated-snapshot generation/parity policy
 - Accessibility testing/tooling baseline
 - Performance measurement and numeric budgets
+
+## 2026-09-23 — Orbital arcade visual refresh
+
+Status: accepted user-requested visual redesign; local working tree only.
+
+[ADR 0006](architecture/0006-orbital-arcade-presentation.md) keeps the existing app/GameShell ownership while updating shared visual tokens, Home game cards and short-landscape stage allocation. No game, persistence, room, renderer or deployment contract changed. See the [verification record](exec-plans/completed/2026-09-23-orbital-arcade-ui.md).

@@ -1,24 +1,23 @@
 /* Shared presentation only. Game rules and state remain in game-core.js/game-ui.js. */
 .game-shell {
-  --shell-ink: #f7fbff;
-  --shell-muted: #bdccdc;
-  --shell-panel: rgba(7, 22, 40, 0.94);
-  --shell-panel-solid: #091b30;
-  --shell-line: rgba(159, 210, 241, 0.34);
-  --shell-line-strong: #75d9ff;
-  --shell-cyan: #7cdeff;
-  --shell-green: #84e5b5;
+  --shell-ink: #f2f2e8;
+  --shell-muted: #bcc9bf;
+  --shell-panel: rgba(17, 28, 24, 0.97);
+  --shell-panel-solid: #111c18;
+  --shell-line: rgba(201, 225, 193, 0.22);
+  --shell-line-strong: #c7f575;
+  --shell-cyan: #bbdba6;
+  --shell-green: #c7f575;
   --shell-danger: #ff9da8;
-  --shell-control-bg: #f3f9fd;
-  --shell-control-ink: #0b2a42;
+  --shell-control-bg: #1c2a23;
+  --shell-control-ink: #f2f2e8;
   position: relative;
   isolation: isolate;
   color: var(--shell-ink);
   color-scheme: dark;
   background:
-    radial-gradient(circle at 77% 13%, rgba(43, 129, 216, 0.23), transparent 30%),
-    radial-gradient(circle at 17% 88%, rgba(33, 170, 137, 0.13), transparent 28%),
-    linear-gradient(145deg, #020812, #07192f 56%, #061321);
+    radial-gradient(ellipse at 85% 15%, rgba(132, 166, 97, 0.08), transparent 45%),
+    linear-gradient(145deg, #0b1113, #0c1512 56%, #0b1113);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -33,16 +32,15 @@
     radial-gradient(circle at 82% 35%, rgba(129, 219, 255, 0.72) 0 1px, transparent 1.5px),
     radial-gradient(circle at 44% 70%, rgba(255, 255, 255, 0.42) 0 1px, transparent 1.5px);
   background-size: 170px 170px, 240px 240px, 310px 310px;
-  opacity: 0.5;
+  opacity: 0.12;
   pointer-events: none;
 }
 
 .game-shell.platform,
 .game-shell.flag-platform {
   background:
-    radial-gradient(circle at 77% 13%, rgba(43, 129, 216, 0.23), transparent 30%),
-    radial-gradient(circle at 17% 88%, rgba(33, 170, 137, 0.13), transparent 28%),
-    linear-gradient(145deg, #020812, #07192f 56%, #061321);
+    radial-gradient(ellipse at 85% 15%, rgba(132, 166, 97, 0.08), transparent 45%),
+    linear-gradient(145deg, #0b1113, #0c1512 56%, #0b1113);
   color: var(--shell-ink);
 }
 
@@ -331,9 +329,9 @@
 
 .game-shell.flag-platform .flag-tools button {
   border-color: var(--shell-line);
-  background: #eef6f8;
-  color: #12394b;
-  -webkit-text-fill-color: #12394b;
+  background: var(--shell-control-bg);
+  color: var(--shell-control-ink);
+  -webkit-text-fill-color: var(--shell-control-ink);
 }
 
 .game-shell button:focus-visible,
@@ -443,7 +441,7 @@
   .game-shell.platform .control,
   .game-shell .setup-panel,
   .game-shell #friendsPanel {
-    background: rgba(7, 22, 40, 0.97);
+    background: var(--shell-panel);
   }
 
   .game-shell[data-hosted-game] .setup-panel {
@@ -457,7 +455,7 @@
   }
 
   .game-shell.platform .game-hud {
-    background: rgba(7, 22, 40, 0.97);
+    background: var(--shell-panel);
   }
 }
 
@@ -503,3 +501,134 @@
 }
 
 .game-shell #friendsPanel .friend-room-code{background:var(--shell-panel-solid);color:var(--shell-ink);-webkit-text-fill-color:var(--shell-ink);border-color:var(--shell-line);}
+
+/* Shared orbital-arcade treatment. Layout and state remain with each existing owner. */
+.game-shell { --shell-radius: 12px; --shell-accent-ink: #182312; }
+.game-shell :is(button,a,input,select,summary) { -webkit-tap-highlight-color: transparent; }
+.game-shell button { transition: background 160ms ease,border-color 160ms ease,transform 160ms ease; }
+.game-shell.platform :is(button,input,select),
+.game-shell :is(#resultsDialog,#friendsPanel,.profile-dialog) :is(button,input,select) {
+  border-color: var(--shell-line); background: #1c2a23; color: var(--shell-ink); -webkit-text-fill-color: var(--shell-ink); border-radius: 8px;
+}
+.game-shell.platform :is(input,select),
+.game-shell :is(#friendsPanel,.profile-dialog) :is(input,select) { background: #0b1510; }
+.game-shell.platform input::placeholder,
+.game-shell :is(#friendsPanel,.profile-dialog) input::placeholder { color: #a5b3a7; -webkit-text-fill-color: #a5b3a7; }
+.game-shell.platform button:hover,
+.game-shell :is(#resultsDialog,#friendsPanel,.profile-dialog) button:hover { border-color: #b3d19c; background: #2b3c2f; }
+.game-shell.platform .primary-button,
+.game-shell :is(#resultsDialog,#friendsPanel,.profile-dialog) .primary-button,
+.game-shell.platform #markButton {
+  color: var(--shell-accent-ink); -webkit-text-fill-color: var(--shell-accent-ink); background: var(--shell-green); border-color: var(--shell-green); font-weight: 750;
+}
+.game-shell.platform .primary-button:hover,
+.game-shell :is(#resultsDialog,#friendsPanel,.profile-dialog) .primary-button:hover,
+.game-shell.platform #markButton:hover { background: #dbffa5; }
+.game-shell.platform :is(button,input,select):disabled,
+.game-shell :is(#resultsDialog,#friendsPanel,.profile-dialog) :is(button,input,select):disabled { opacity: .55; cursor: not-allowed; }
+.game-shell .platform-header { border-radius: var(--shell-radius); box-shadow: none; background: #101b16; }
+.game-shell .platform-header h1 { letter-spacing: -.04em; font-weight: 650; }
+.game-shell .brand-kicker { font-size: 9px; letter-spacing: .18em; }
+.game-shell.platform .game-hud { background: #111c18; border-radius: var(--shell-radius); box-shadow: none; }
+.game-shell .hud-stat { border-color: #d6e8cd1c; }
+.game-shell .hud-stat span { text-transform: uppercase; letter-spacing: .1em; font-size: 9px; }
+.game-shell .hud-stat strong { letter-spacing: -.05em; font-weight: 650; }
+.game-shell #gameScore { color: var(--shell-green); }
+.game-shell .hud-stat .urgent { color: var(--shell-danger); }
+.game-shell.platform .control { border-radius: var(--shell-radius); background: #111c18; }
+.game-shell .question-panel h2 { letter-spacing: -.035em; }
+.game-shell .question-track { background: #2c3d2c; }
+.game-shell #questionBar { background: var(--shell-green); }
+.game-shell .setup-panel { border-radius: 16px; box-shadow: 0 24px 70px #0005; }
+.game-shell .setup-panel h2 { font-weight: 600; letter-spacing: -.04em; }
+.game-shell .setup-scroll { padding: 24px; }
+.game-shell .setup-start { padding: 14px 24px; background: #142018; }
+.game-shell .setup-fields label { font-size: 11px; letter-spacing: .02em; }
+.game-shell .setup-fields select { margin-top: 8px; }
+.game-shell .game-choices { gap: 10px; }
+.game-shell .game-choices button { position: relative; padding: 16px; background: #17251d; border: 1px solid #d6e8cd28; min-height: 126px; }
+.game-shell .game-choices button.selected { padding: 16px; border: 1px solid var(--shell-green); background: #283b22; box-shadow: inset 0 0 0 1px var(--shell-green); }
+.game-shell .game-choices button:hover { background: #26382b; }
+.game-shell .game-choices b { font-weight: 650; letter-spacing: -.03em; }
+.game-shell .game-choices span { font-size: 11px; line-height: 1.5; }
+.choice-icon { display: block; width: 36px; height: 36px; margin-bottom: 9px; color: var(--shell-green); }
+.choice-icon svg { width: 100%; height: 100%; }
+[data-family="find"] .choice-icon { color: #aab7ff; }
+[data-family="capital"] .choice-icon { color: #f2ba84; }
+[data-family="flag"] .choice-icon { color: #81d9c5; }
+[data-family="quiz"] .choice-icon { color: #dcc17f; }
+.game-shell .rules-details summary { min-height: 44px; display: list-item; align-content: center; }
+.game-shell .rules-details { margin-top: 10px; padding-top: 6px; }
+.game-shell .storage-note { line-height: 1.6; font-size: 11px; }
+.game-shell .game-rules { line-height: 1.7; }
+.game-shell .flag-game-view { background: radial-gradient(ellipse at center,#21352a80,transparent 70%); }
+.game-shell .flag-round-heading { letter-spacing: .15em; font-size: 10px; }
+.game-shell.flag-platform .flag-option { background: #edf3eb; color: #183223; -webkit-text-fill-color: #183223; }
+.game-shell.flag-platform .flag-option:not(:disabled):hover { background: #fff; border-color: var(--shell-green); transform: translateY(-2px); }
+.game-shell.flag-platform .flag-option-wrong { border-color: #b42f3f; background: #ffe7ea; }
+.game-shell.flag-platform .flag-option-correct { border-color: #147349; background: #ddf8e8; }
+.game-shell :is(#resultsDialog,.profile-dialog) { border-radius: 18px; }
+.game-shell #resultsDialog h2 { font-size: clamp(30px,5vw,46px); font-weight: 650; letter-spacing: -.06em; }
+.game-shell .result-stats > div { border: 1px solid var(--shell-line); background: #1b2a20; border-radius: 10px; }
+.game-shell .result-stats strong { color: var(--shell-green); font-size: 28px; }
+.game-shell .result-stats span { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+.game-shell .personal-best { display: inline-block; color: var(--shell-green); border: 1px solid #c7f57555; padding: 8px 12px; border-radius: 6px; font-size: 10px; }
+.game-shell .profile-avatar,.game-shell .profile-large-avatar { background: #c7f575; color: #182312; }
+.game-shell #friendsPanel .friend-room-code { background: #0b1510; border: 1px dashed #c7f57566; border-radius: 10px; color: var(--shell-green); }
+.game-shell .friend-standing.is-you,.game-shell .friend-player.is-you { background: #c7f57513; }
+.game-shell .solo-countdown { background: #0d1814eb; color: var(--shell-green); font-weight: 650; }
+@media (min-width: 1000px) and (min-height: 501px) {
+  .app.game-shell.choosing:not([data-hosted-game]) .setup-panel { width: 600px; }
+}
+@media (max-width: 760px), (max-height: 500px) and (min-width: 600px) {
+  .game-shell .setup-scroll { padding: 16px; }
+  .game-shell .setup-start { padding: 10px 16px; }
+  .game-shell .game-choices button,.game-shell .game-choices button.selected { padding: 12px; min-height: 112px; }
+  .game-shell .hud-stat strong { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-shell button { transition: none; }
+  .game-shell.flag-platform .flag-option:not(:disabled):hover { transform: none; }
+}
+@media (forced-colors: active) {
+  .game-shell.platform :is(button,input,select),.game-shell .mission-card { border: 1px solid ButtonText; }
+  .game-shell .game-choices button.selected { outline: 2px solid Highlight; }
+}
+/* Decorative icon SVGs must not inherit the interactive map's global SVG frame. */
+.game-shell :is(.brand-symbol,.mission-art,.choice-icon) svg {
+  background: none; border: 0; border-radius: 0; box-shadow: none; min-height: 0; touch-action: auto;
+}
+.game-shell.platform #playFriends { background: #1d3025; color: var(--shell-ink); -webkit-text-fill-color: var(--shell-ink); border-color: var(--shell-line); font-size: 13px; font-weight: 600; }
+.game-shell.platform #playFriends:hover { background: #2b412b; border-color: var(--shell-green); }
+.game-shell[data-hosted-game] #setupTitle { display: block; margin: 12px 0 22px; font-size: 34px; }
+.game-shell.choosing .map-shell { opacity: .5; }
+.game-shell.choosing .map-shell .zoom-controls,.game-shell.choosing .map-shell .legend-panel { visibility: hidden; }
+.game-shell :is(.brand-symbol,.mission-art,.choice-icon) svg { cursor: inherit; }
+.game-shell .continentbar button.active { background: #c7f575; color: #182312; -webkit-text-fill-color: #182312; border-color: #c7f575; }
+@media (max-width: 760px), (max-height: 500px) and (min-width: 600px) {
+  .game-shell[data-hosted-game] #setupTitle { font-size: 28px; margin-block: 10px 18px; }
+}
+.game-shell .setup-panel { background: var(--shell-panel); }
+.game-shell .app-nav button,
+.app.game-shell[data-free-map-active] button {
+  background: #1c2a23; color: var(--shell-ink); -webkit-text-fill-color: var(--shell-ink); border: 1px solid var(--shell-line); border-radius: 8px; min-height: 44px;
+}
+.app.game-shell[data-free-map-active] input { background: #0b1510; color: var(--shell-ink); border: 1px solid var(--shell-line); border-radius: 8px; }
+.app.game-shell[data-free-map-active] input::placeholder { color: #a5b3a7; }
+.app.game-shell[data-free-map-active] :is(#markButton,.mode-switch button.active,.continentbar button.active) { background: var(--shell-green); color: #182312; -webkit-text-fill-color: #182312; }
+.app.game-shell[data-free-map-active] .mode-switch { background: #0b1510; }
+.game-shell.platform .zoom-controls,.app.game-shell[data-free-map-active] .zoom-controls { background: #111c18; border: 1px solid var(--shell-line); }
+.game-shell.platform #map,.app.game-shell[data-free-map-active] #map { background: #c3d2cc; }
+.game-shell .score-pop { animation-name: shell-score-pop; }
+.game-shell .counter-pulse,.game-shell .streak-pulse { animation-name: shell-counter-pulse; }
+@keyframes shell-score-pop { 35% { color: #e0ffad; transform: translateY(-3px); } }
+@keyframes shell-counter-pulse { 35% { color: #e0ffad; transform: scale(1.05); } }
+@media (forced-colors: active) {
+  .game-shell,.game-shell.platform,.game-shell .setup-panel,.game-shell .game-hud,.game-shell .control { background: Canvas; color: CanvasText; }
+  .game-shell :is(button,input,select),.app.game-shell[data-free-map-active] :is(button,input) { forced-color-adjust: auto; -webkit-text-fill-color: currentColor; }
+  .game-shell .game-choices button.selected { outline: 2px solid Highlight; }
+}
+.game-shell .country-outline { background:none; border:0; box-shadow:none; }
+.game-shell .flag-outline-stage { color:var(--shell-cyan); }
+
+.game-shell .profile-dialog label { color: var(--shell-muted); }

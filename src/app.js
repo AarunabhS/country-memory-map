@@ -92,6 +92,14 @@ controller.setHostNavigationHandler(payload => {
   }
   void show(payload.type === 'multiplayer' ? GAME_ROUTES.multiplayer : null);
 });
+// Home cards use the existing navigation lifecycle, including room suspension.
+home.querySelectorAll('[data-game-link]').forEach(link => {
+  link.addEventListener('click', event => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    void show(GAME_ROUTES[link.dataset.gameLink]);
+  });
+});
 document.getElementById('welcomeFriends').onclick = () => show(GAME_ROUTES.multiplayer);
 document.getElementById('welcomeSolo').onclick = () => {
   void show(GAME_ROUTES['world-conquest']);

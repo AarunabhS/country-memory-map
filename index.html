@@ -9,19 +9,66 @@
   <link rel="stylesheet" href="flag-game.css?v=20260911-mobile-viewport2">
   <link rel="stylesheet" href="multiplayer.css?v=20260913-fast-flags">
   <link rel="stylesheet" href="player-profile.css?v=20260911-mobile-viewport2">
-  <link rel="stylesheet" href="game-shell.css?v=20260923-defects3">
+  <link rel="stylesheet" href="game-shell.css?v=20260923-orbital8">
   <link rel="stylesheet" href="quiz-game.css?v=20260911-mobile-viewport2">
-  <link rel="stylesheet" href="app.css?v=20260923-defects3">
+  <link rel="stylesheet" href="app.css?v=20260923-orbital8">
 </head>
 <body>
   <main class="app" data-page="home">
-    <nav class="app-nav" aria-label="Main navigation"><a class="app-brand" href="?">🌍 <span>Country Memory Map</span></a><button id="appHome" type="button">Home</button><button id="exitRoom" type="button" hidden>Leave room</button></nav>
+    <nav class="app-nav" aria-label="Main navigation">
+      <a class="app-brand" href="?"><span class="brand-symbol" aria-hidden="true"><svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="40" cy="40" r="27"/><ellipse cx="40" cy="40" rx="12" ry="27"/><path d="M14 32h52M14 48h52M40 13v54"/></svg></span><span>COUNTRY<br><strong>MEMORY MAP</strong></span></a>
+      <span class="nav-edition">THE GEOGRAPHY ARCADE</span>
+      <a class="home-library-link" href="#gameLibrary">The games <span aria-hidden="true">↗</span></a>
+      <button id="appHome" type="button">Home</button><button id="exitRoom" type="button" hidden>Leave room</button>
+    </nav>
     <section id="welcome" aria-labelledby="welcomeTitle">
-      <div class="welcome-copy"><p class="eyebrow">A WORLD OF FRIENDLY COMPETITION</p><h1 id="welcomeTitle">Small planet.<br>Big bragging rights.</h1><p>Gather your friends. Name countries, find places, and race across the world.</p>
-      <button id="welcomeFriends" class="primary-button" type="button">Play with friends <span aria-hidden="true">→</span></button><p class="welcome-note">2–9 players · Private rooms · No account needed</p>
-      <div class="welcome-secondary"><button id="welcomeSolo" type="button">Play solo</button><button id="welcomeExplore" type="button">Explore the map</button></div>
-      <p class="welcome-note">Type your answers or tap Speak to use your voice.</p></div>
-      <canvas id="welcomeGlobe" aria-label="Earth with country borders. Drag to rotate." tabindex="0"></canvas>
+      <div class="welcome-hero">
+        <div class="welcome-copy">
+          <p class="eyebrow"><span class="status-spark" aria-hidden="true"></span> A SMALL PLANET. A BIG PLAYGROUND.</p>
+          <h1 id="welcomeTitle">Know your<br>world.<br><em>Own the game.</em></h1>
+          <p class="welcome-description">A little curiosity. A competitive streak.<br>Turn what you know into your next big win.</p>
+          <button id="welcomeFriends" class="primary-button" type="button">Play with friends <span aria-hidden="true">↗</span></button>
+          <p class="welcome-note">2–9 players <span aria-hidden="true">/</span> Private rooms <span aria-hidden="true">/</span> No sign-up</p>
+          <div class="welcome-secondary"><button id="welcomeSolo" type="button">Play solo <span aria-hidden="true">→</span></button><button id="welcomeExplore" type="button">Just explore <span aria-hidden="true">↗</span></button></div>
+        </div>
+        <div class="welcome-orbit">
+          <div class="orbit-ring orbit-ring-one" aria-hidden="true"></div><div class="orbit-ring orbit-ring-two" aria-hidden="true"></div>
+          <span class="orbit-coordinate" aria-hidden="true">YOUR NEXT CHALLENGE<br>IS A WORLD AWAY.</span>
+          <canvas id="welcomeGlobe" aria-label="Earth with country borders. Drag to rotate. Use arrow keys to rotate and plus or minus to zoom." tabindex="0"></canvas>
+          <div class="orbit-badge"><span class="status-spark" aria-hidden="true"></span><span><strong>195</strong> countries. Endless discovery.</span></div>
+          <p class="orbit-instruction">DRAG TO EXPLORE <span aria-hidden="true">↔</span></p>
+        </div>
+      </div>
+      <section class="game-library" id="gameLibrary" aria-labelledby="libraryTitle">
+        <div class="library-heading"><div><p class="eyebrow">FIND YOUR COMPETITIVE EDGE</p><h2 id="libraryTitle">Pick your playground.</h2></div><span class="library-count">06 GAMES <span aria-hidden="true">↙</span></span></div>
+        <div class="mission-grid">
+          <a class="mission-card mission-conquest" href="?game=world-conquest" data-game-link="world-conquest">
+            <div class="mission-art"><span class="mission-number" aria-hidden="true">01 /</span><svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="40" cy="40" r="27"/><ellipse cx="40" cy="40" rx="12" ry="27"/><path d="M14 32h52M14 48h52M40 13v54"/></svg><span class="mission-arrow" aria-hidden="true">↗</span></div>
+            <div class="mission-copy"><span class="mission-type">RECALL / ENDURANCE</span><h3>World Conquest</h3><p>Name the world. Own your streak.</p></div>
+          </a>
+          <a class="mission-card mission-find" href="?game=find-country" data-game-link="find-country">
+            <div class="mission-art"><span class="mission-number" aria-hidden="true">02 /</span><svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="40" cy="40" r="22"/><circle cx="40" cy="40" r="8"/><path d="M40 5v17m0 36v17M5 40h17m36 0h17"/></svg><span class="mission-arrow" aria-hidden="true">↗</span></div>
+            <div class="mission-copy"><span class="mission-type">MAP / PRECISION</span><h3>Find the Country</h3><p>Trust your instincts. Pin the place.</p></div>
+          </a>
+          <a class="mission-card mission-capital" href="?game=capital-clash" data-game-link="capital-clash">
+            <div class="mission-art"><span class="mission-number" aria-hidden="true">03 /</span><svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 65h56M18 65V37h15v28m14 0V25h15v40M33 65V14h14v51M36 14l4-8 4 8M22 44h7m-7 8h7m22-18h7m-7 9h7M38 25h4m-4 10h4m-4 10h4"/></svg><span class="mission-arrow" aria-hidden="true">↗</span></div>
+            <div class="mission-copy"><span class="mission-type">CAPITALS / RECALL</span><h3>Capital Clash</h3><p>Big cities. Bigger brain energy.</p></div>
+          </a>
+          <a class="mission-card mission-recall" href="?game=flag-recall" data-game-link="flag-recall">
+            <div class="mission-art"><span class="mission-number" aria-hidden="true">04 /</span><svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M20 70V12m1 3c14-12 25 12 42 0v31c-17 12-28-12-42 0"/></svg><span class="mission-arrow" aria-hidden="true">↗</span></div>
+            <div class="mission-copy"><span class="mission-type">FLAGS / MEMORY</span><h3>Flag Recall</h3><p>One flag. One country. You know it.</p></div>
+          </a>
+          <a class="mission-card mission-match" href="?game=flag-match" data-game-link="flag-match">
+            <div class="mission-art"><span class="mission-number" aria-hidden="true">05 /</span><svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="9" y="10" width="27" height="27" rx="5"/><rect x="44" y="10" width="27" height="27" rx="5"/><rect x="9" y="45" width="27" height="27" rx="5"/><path d="m47 57 9 9 17-20M15 23h15M22 16v14"/></svg><span class="mission-arrow" aria-hidden="true">↗</span></div>
+            <div class="mission-copy"><span class="mission-type">FLAGS / RECOGNITION</span><h3>Flag Match</h3><p>Four flags. Make the right call.</p></div>
+          </a>
+          <a class="mission-card mission-quiz" href="?game=geo-quiz" data-game-link="geo-quiz">
+            <div class="mission-art"><span class="mission-number" aria-hidden="true">06 /</span><svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m40 6 9 23 25 11-25 10-9 24-10-24L6 40l24-11Z"/><circle cx="40" cy="40" r="8"/></svg><span class="mission-arrow" aria-hidden="true">↗</span></div>
+            <div class="mission-copy"><span class="mission-type">TRIVIA / DISCOVERY</span><h3>Geo Quiz</h3><p>Go beyond the obvious.</p></div>
+          </a>
+        </div>
+      </section>
+      <footer class="welcome-footer"><span>A world worth knowing.</span><span>Type it. Say it. Play it.</span></footer>
     </section>
     <div class="topbar">
       <button type="button" id="openGames">Games</button>
@@ -101,9 +148,9 @@
   <script src="multiplayer-config.js?v=20260913-friends1"></script>
   <script src="player-system.js?v=20260923-defects3"></script>
   <script src="game-shell.js?v=20260910-recovery"></script>
-  <script src="game-ui.js?v=20260923-defects3"></script>
+  <script src="game-ui.js?v=20260923-orbital8"></script>
   <script src="multiplayer-service.js?v=20260913-fast-flags"></script>
   <script src="multiplayer-ui.js?v=20260913-fast-flags"></script>
-  <script type="module" src="src/app.js?v=20260923-defects3"></script>
+  <script type="module" src="src/app.js?v=20260923-orbital8"></script>
 </body>
 </html>
