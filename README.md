@@ -2,7 +2,7 @@
 
 A single-page geography game with private multiplayer rooms, solo games, optional voice answers, and a mobile layout. No account is required.
 
-Run `python3 -m http.server 8000`, then open `http://localhost:8000`.
+Run `python3 -m http.server 8000 --bind 127.0.0.1`, then open `http://127.0.0.1:8000`. This keeps the development preview on your computer. Use the public game URL or its built-in invite link when sharing with friends.
 
 Home offers **Play with friends**, **Play solo**, and **Explore the map**. The bordered home globe renders locally without Google Maps or an API key. Rounds use the interactive country map, including keyboard navigation and enlarged small-country targets. The former `/legacy/` URL redirects to the same app and preserves invite parameters.
 

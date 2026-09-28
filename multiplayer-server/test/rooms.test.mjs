@@ -18,6 +18,71 @@ test('mid-game joins rejected and expired rooms close',()=>{const r=ready(room()
 test('ranking uses deterministic ties and DNF ordering',()=>{const p=(id,score)=>({id,name:id,game:{state:{score,correctAnswers:1,wrongAnswers:0,bestStreak:1,gameStatus:'ended'},result:{accuracy:100,averageResponseTime:1}}});const list=ranking([p('a',100),p('b',100),{...p('c',200),dnf:true}]);assert.deepEqual(list.map(p=>p.rank),[1,1,3]);assert.equal(list[2].id,'c');});
 test('async challenge replays answers, ignores submitted score, locks one attempt',()=>{const r=createChallenge({config:{family:'conquest',variant:'blitz'},seed:42,elapsed:60000,actions:[{kind:'text',value:'India',at:1000}],score:999999},{code:'GEOASYNC',id:'host',tokenHash:'h',name:'Host'},base);assert.equal(r.players[0].game.state.score,130);joinRoom(r,{id:'guest',name:'Guest',tokenHash:'g'},base+100);roomAction(r,r.players[1],{action:'attempt'},base+200);assert.throws(()=>roomAction(r,r.players[1],{action:'attempt'},base+300),/already started/);assert.equal(r.match.seed,42);});
 class MemoryStore{constructor(){this.rows=new Map();}async rate(){return 1;}async get(code){return this.rows.get(code);}async insert(room){this.rows.set(room.code,{body:JSON.stringify(room),version:0});}async save(room,v){const old=this.rows.get(room.code);if(old.version!==v)return false;this.rows.set(room.code,{body:JSON.stringify(room),version:v+1});return true;}}
+test('room actions require a token belonging to that room',async()=>{
+ const store=new MemoryStore();
+ const post=(path,input,bearer)=>handle(new Request('http://test'+path,{method:'POST',headers:{'Content-Type':'application/json',...(bearer?{Authorization:'Bearer '+bearer}:{})},body:JSON.stringify(input)}),store,base);
+ const first=await (await post('/rooms',{name:'First host'})).json();
+ const second=await (await post('/rooms',{name:'Second host'})).json();
+ assert.match(first.code,/^GEO[A-HJ-NP-Z2-9]{8}$/);
+ const path='/rooms/'+first.code,initial=JSON.stringify(await store.get(first.code));
+ for(const [bearer,status,error] of [[null,401,'SESSION_REQUIRED'],[second.token,403,'PLAYER_REMOVED']]){
+  for(const action of ['ready','settings','start','kick','close','leave','rematch','attempt','answer','finish','poll']){
+   const response=await post(path,{action},bearer);
+   assert.equal(response.status,status,action);
+   assert.equal((await response.json()).error,error,action);
+   assert.equal(JSON.stringify(await store.get(first.code)),initial,action);
+  }
+ }
+ const joined=await post(path,{action:'join',name:'Guest'});
+ assert.equal(joined.status,200);
+ const guest=await joined.json();
+ assert.equal(typeof guest.token,'string');
+ assert.equal((await post(path,{action:'ready',ready:true},guest.token)).status,200);
+});
+test('oversized streamed JSON is rejected before the full body is read',async()=>{
+ const store=new MemoryStore();let pulls=0;
+ const body=new ReadableStream({pull(controller){pulls++;controller.enqueue(new Uint8Array(400000));if(pulls===5)controller.close();}});
+ const response=await handle(new Request('http://test/rooms',{method:'POST',headers:{'Content-Type':'application/json'},body,duplex:'half'}),store,base);
+ assert.equal(response.status,413);
+ assert.equal((await response.json()).error,'TOO_LARGE');
+ assert.ok(pulls<5);
+ assert.equal(store.rows.size,0);
+});
+test('anonymous room preview hides players and scores and cannot persist timer transitions',async()=>{
+ const store=new MemoryStore(),r=ready(room());await store.insert(r);
+ const response=await handle(new Request('http://test/rooms/'+r.code),store,base+3100);
+ assert.equal(response.status,200);
+ const preview=await response.json();
+ assert.equal(preview.state,'PLAYING');
+ assert.equal(preview.playerCount,2);
+ assert.equal(preview.readyCount,2);
+ assert.equal(preview.hostName,'Arun');
+ for(const key of ['players','standings','match','game','you','token','hostPlayerId'])assert.equal(preview[key],undefined,key);
+ assert.equal((await store.get(r.code)).version,0);
+ assert.equal(JSON.parse((await store.get(r.code)).body).state,'COUNTDOWN');
+});
+test('leaving an active match revokes the room token without erasing standings',async()=>{
+ const store=new MemoryStore(),r=ready(room());
+ r.players[0].tokenHash=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('host-token'))).toString('hex');
+ await store.insert(r);
+ const url='http://test/rooms/'+r.code;
+ const headers={Authorization:'Bearer host-token','Content-Type':'application/json'};
+ const post=action=>handle(new Request(url,{method:'POST',headers,body:JSON.stringify({action})}),store,base+4000);
+ assert.equal((await post('leave')).status,200);
+ const afterLeave=await store.get(r.code);
+ assert.equal(JSON.parse(afterLeave.body).players.length,2);
+ assert.equal(JSON.parse(afterLeave.body).players[0].left,true);
+ for(const action of ['poll','answer','finish','close']){
+  const response=await post(action);
+  assert.equal(response.status,403,action);
+  assert.equal((await response.json()).error,'PLAYER_REMOVED',action);
+  assert.deepEqual(await store.get(r.code),afterLeave,action);
+ }
+ const poll=await handle(new Request(url,{headers:{Authorization:'Bearer host-token'}}),store,base+4000);
+ assert.equal(poll.status,403);
+ assert.equal((await poll.json()).error,'PLAYER_REMOVED');
+ assert.deepEqual(await store.get(r.code),afterLeave);
+});
 test('atomic parallel joins allow eight friends but never a tenth member',async()=>{const store=new MemoryStore(),r=room();await store.insert(r);const responses=await Promise.all(Array.from({length:12},(_,i)=>handle(new Request('http://test/rooms/GEOABCDEF',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'join',name:'Guest '+i})}),store,base+1000)));assert.equal(responses.filter(r=>r.ok).length,8);assert.equal(JSON.parse((await store.get(r.code)).body).players.length,9);});
 
 test('CORS accepts exact production origins and any loopback development port only',async()=>{

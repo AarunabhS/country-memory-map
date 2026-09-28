@@ -1,3 +1,4 @@
+window.COUNTRY_MEMORY_SINGLE_APP = true;
 const hostedFriendsApi = 'https://country-memory-friends.arunabh007.chatgpt.site';
 const hostedFriendsSite = 'https://www.arunabhosom.com/country-memory-map/?game=multiplayer';
 const localFriendsApis = new Set([
