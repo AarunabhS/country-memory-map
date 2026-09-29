@@ -23,8 +23,47 @@
   });
 
   // Review metadata distinguishes editorial checks from independent fact verification.
-  const CONTENT_VERSION = 'quiz-52-20260922';
+  const CONTENT_VERSION = 'quiz-52-20260923-source1';
   const SOURCE_REVIEW = {
+    'easy-ends-in-h': ['https://www.gov.uk/government/publications/geographical-names-and-information', 'FCDO short-name list checked against the playable country set; the hint stays within the name pattern.', '2026-09-23'],
+    'easy-cardinal-directions': ['https://www.gov.uk/government/publications/geographical-names-and-information', 'FCDO short names support the six directional answers; Central African Republic remains a disclosed bonus.', '2026-09-23'],
+    'easy-starts-q-or-y': ['https://www.gov.uk/government/publications/geographical-names-and-information', 'FCDO short-name list supports the Q/Y exhaustive set; FIFA and UN boundary records support the hint.', '2026-09-23'],
+    'easy-country-equals-capital': ['https://unstats.un.org/unsd/ungegn/sessions/2019-new-york-ungegn-1st-session/documents/GEGN.2_2019_CRP.131_Rev.1_World_Capital_City_Names.pdf', 'UN capital-name table supports the accepted examples and City/la Vella convention.', '2026-09-23'],
+    'easy-non-rectangular-flag': ['https://peacemaker.un.org/sites/default/files/document/files/2022/07/npinterimconstitutionwith8amendments2007_0.pdf', 'Nepal constitution specifies two triangular figures; game flag assets support the scoped comparison.', '2026-09-23'],
+    'easy-island-continent': ['https://www.dfat.gov.au/about-us/publications/australia-in-brief', 'Australian government confirms continent-wide governance and sixth-largest land area.', '2026-09-23'],
+    'easy-four-letter-nations': ['https://www.gov.uk/government/publications/geographical-names-and-information', 'FCDO short names, including Laos, checked against the playable sovereign set.', '2026-09-23'],
+    'easy-square-flags': ['https://www.aboutswitzerland.eda.admin.ch/en/swiss-flag', 'Swiss government identifies Switzerland and Vatican City as the two square national flags.', '2026-09-23'],
+    'easy-starts-z': ['https://www.gov.uk/government/publications/geographical-names-and-information', 'FCDO short-name list supports Zambia and Zimbabwe as the Z set.', '2026-09-23'],
+    'easy-guinea-names': ['https://www.gov.uk/government/publications/geographical-names-and-information', 'FCDO short-name list supports the four Guinea names.', '2026-09-23'],
+    'easy-united-names': ['https://www.gov.uk/government/publications/geographical-names-and-information', 'FCDO short names, rather than formal state titles, support the three United names.', '2026-09-23'],
+    'easy-union-jack-flags': ['https://www.anbg.gov.au/oz/flag-similar.html', 'Australian government flag guide identifies the independent blue-ensign flags; checked against game assets.', '2026-09-23'],
+    'easy-landlocked-south-america': ['https://www.un.org/ohrlls/sites/www.un.org.ohrlls/files/lldcs_publications/05-33151_geography_sm.pdf', 'UN landlocked-country report identifies Bolivia and Paraguay.', '2026-09-23'],
+    'easy-saint-countries': ['https://unstats.un.org/unsd/methodology/m49/', 'UN short names support the three sovereign Saint names; non-sovereign Saint territories are excluded.', '2026-09-23'],
+    'easy-equator-south-america': ['https://www.timeanddate.com/geography/equator.html', 'Equator country list and independent 0-degree geometry check agree on Ecuador, Colombia and Brazil.', '2026-09-23'],
+    'easy-ends-land': ['https://www.gov.uk/government/publications/geographical-names-and-information', 'FCDO short names checked against the playable sovereign set; plural lands is excluded.', '2026-09-23'],
+    'easy-city-states': ['https://www.mfa.gov.sg/about-singapore/', 'Singapore government and Monaco/Vatican government descriptions support the three commonly cited city-states.', '2026-09-23'],
+    'med-weapons-on-flags': ['https://digitallibrary.un.org/record/4022558/files/1384517_EN.pdf', 'UN flag plates and official national-symbol descriptions checked against game SVG variants; four omitted answers added.', '2026-09-23'],
+    'med-single-border-enclaves': ['https://digitallibrary.un.org/record/3975846/files/A_CONF.62_C.2_SR.33-EN.pdf', 'UN conference record identifies Lesotho, San Marino and Vatican City as enclosed by one state.', '2026-09-23'],
+    'med-transcontinental': ['https://ggim.un.org/country-reports/documents/Egypt-2016-country-report.pdf', 'Egypt government report supports Africa/Asia example; Caucasus and Panama are explicitly convention-based extras.', '2026-09-23'],
+    'med-same-start-end-letter': ['https://www.gov.uk/government/publications/geographical-names-and-information', 'FCDO short-name list checked against the nine playable A-to-A answers.', '2026-09-23'],
+    'med-bicolor-stripes': ['https://www.gov.pl/web/diplomacy/polands-day-of-the-flag', 'Polish, Indonesian and Monaco flag descriptions support the three plain red/white bicolors.', '2026-09-23'],
+    'med-spanish-in-africa': ['https://ungegn.un.org/dashboard/countries/details?id=226', 'UN geographical-names profile identifies Spanish as an official language of Equatorial Guinea.', '2026-09-23'],
+    'med-colors-in-name': ['https://www.gov.uk/government/publications/geographical-names-and-information', 'FCDO English short names and government translations support the disclosed color-word convention.', '2026-09-23'],
+    'med-double-landlocked': ['https://www.un.org/ohrlls/sites/www.un.org.ohrlls/files/lldcs_publications/economic-growth-in-developing-countries-is-landlockedness-destiny.pdf', 'UN report identifies Liechtenstein and Uzbekistan as doubly landlocked.', '2026-09-23'],
+    'med-prime-meridian': ['https://www.rmg.co.uk/stories/time/what-prime-meridian-why-it-greenwich', 'Royal Museums Greenwich directly lists all eight countries.', '2026-09-23'],
+    'med-tropic-capricorn': ['https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-countries/', 'Independent 23.44-degree south intersection of Natural Earth country geometry yields all ten accepted countries.', '2026-09-23'],
+    'med-black-sea-countries': ['https://www.un.org/depts/los/LEGISLATIONANDTREATIES/black_sea.htm', 'UN ocean-law page directly lists the six coastal states.', '2026-09-23'],
+    'med-caspian-countries': ['https://azerbaijan.un.org/en/96648-un-secretary-general-welcomes-signing-convention-legal-status-caspian-sea', 'UN statement names the five Caspian littoral states.', '2026-09-23'],
+    'med-atlantic-mediterranean': ['https://www.unep.org/unepmap/node/19634', 'UNEP Mediterranean list cross-checked with Atlantic coast records; prompt is scoped to mainland coastlines.', '2026-09-23'],
+    'med-nordic-cross': ['https://www.norden.org/en/information/nordic-flags', 'Nordic cooperation flag guide supports the five sovereign Nordic-cross designs.', '2026-09-23'],
+    'med-borneo-three': ['https://seea.un.org/file/20022/download?token=Oz0oH2d2', 'UN document identifies the Borneo portions of Indonesia, Malaysia and Brunei.', '2026-09-23'],
+    'hard-doubly-landlocked': ['https://www.un.org/ohrlls/sites/www.un.org.ohrlls/files/lldcs_publications/economic-growth-in-developing-countries-is-landlockedness-destiny.pdf', 'UN report identifies the same two doubly landlocked states.', '2026-09-23'],
+    'hard-null-island': ['https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-countries/', 'Nearest-country geometry check at 0N 0E identifies Ghana; the result depends on coastline resolution.', '2026-09-23'],
+    'hard-14-neighbors': ['https://www.un.org/esa/earthsummit/rusia-cp.htm', 'UN Russia profile and Chinese government boundary summary each report 14 land neighbors.', '2026-09-23'],
+    'hard-highest-capital': ['https://data.un.org/en/iso/bo.html', 'UN distinguishes La Paz government seat from Sucre constitutional capital; World Bank confirms height comparison.', '2026-09-23'],
+    'genius-kazungula-quadripoint': ['https://www.afdb.org/sites/default/files/documents/environmental-and-social-assessments/botswana_and_zambia-kazungula_bridge-esia_summary.pdf', 'African Development Bank identifies the four bordering countries; unsupported exact separation and global ranking removed.', '2026-09-23'],
+    'genius-panama-canal-direction': ['https://pancanal.com/wp-content/uploads/2024/04/1999_Panama-Canal-Reconnaissance-Volume-I-USACE.pdf', 'Canal authority-hosted engineering report states northwest-to-southeast route.', '2026-09-23'],
+    'genius-isolated-capital': ['https://data.un.org/en/iso/is.html', 'UN Iceland profile and New Zealand government source confirm the two capitals; unsupported distance hint removed.', '2026-09-23'],
     'easy-three-capitals': ['https://www.gov.za/south-africa-glance', 'Government description of the three capitals.'],
     'med-one-land-border': ['https://www.canada.ca/en/global-affairs/news/2022/06/boundary-dispute.html', 'Hans Island exception; category explicitly uses the pre-2022 convention.'],
     'med-mekong-countries': ['https://www.mrcmekong.org/mekong-river-basin/', 'Commission lists the six river countries.'],
@@ -35,20 +74,22 @@
     'genius-vulcan-point': ['https://science.nasa.gov/earth/earth-observatory/sulfur-spews-from-taal-146142/', '2020 eruption context; historical rather than a guaranteed present-day lake configuration.'],
     'genius-southernmost-capital': ['https://wellington.govt.nz/-/media/your-council/plans-policies-and-bylaws/plans-and-policies/annualreport/2022-23/annual-report-2022-23-summary.pdf', 'Wellington city profile.'],
     'genius-all-four-hemispheres': ['https://visitkiribati.travel/wp-content/uploads/2019/05/Kiribati-Travel-Information-2019.pdf', 'Island groups span hemispheres; the prompt no longer claims global uniqueness.'],
-    'genius-longest-coastline': ['https://www.canada.ca/en/services/environment/our-environment/nature-based-climate-solutions/coastlines.html', 'Longest coastline; measurement-dependent exact length omitted.']
+    'genius-longest-coastline': ['https://www.canada.ca/en/services/environment/our-environment/nature-based-climate-solutions/coastlines.html', 'Longest coastline; measurement-dependent exact length omitted.'],
+    'med-danube-capitals': ['https://www.icpdr.org/danube-basin/danube-river-basin/danube-river-basin-overview-map', 'Danube protection commission identifies the four capitals directly on the river; unsupported global ranking removed.', '2026-09-23'],
+    'genius-baarle-enclaves': ['https://www.baarle-nassau.nl/fileadmin/Bestanden_BaarleNassau/Projecten/Masterplan_Centrum_Baarle.pdf', 'Municipal plan describes 22 Belgian and eight Dutch enclaves; the border crosses streets and buildings.', '2026-09-23']
   };
   function reviewedQuestion(question) {
     const specific = SOURCE_REVIEW[question.id];
     const names = ['Name Lore', 'Alphabet Oddities'].includes(question.category);
     const flags = question.category === 'Flag Secrets' || /flag/.test(question.id);
     return Object.freeze({ ...question, review: Object.freeze({
-      editedAt: '2026-09-22', contentVersion: CONTENT_VERSION,
+      editedAt: specific?.[2] || '2026-09-22', contentVersion: CONTENT_VERSION,
       scope: 'Existing 195-country game; common English names and explicit prompt exceptions.',
       source: specific?.[0] || (names ? 'https://unstats.un.org/unsd/methodology/m49/' : flags ? 'https://github.com/hampusborgos/country-flags' : 'https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-countries/'),
       localSource: names ? 'game-data.js / countries-data.js' : flags ? 'flags/ / flag-data.js' : 'countries-data.js / capitals-data.js / country-borders.js',
       check: specific ? 'source-cross-check' : 'editorial-consistency-review',
       notes: specific?.[1] || 'Source is the reference dataset, not independent proof of every descriptive fact. See docs/QUIZ_CONTENT_REVIEW.md.',
-      verifiedAt: specific ? '2026-09-22' : null,
+      verifiedAt: specific ? (specific[2] || '2026-09-22') : null,
       bonusRationale: question.bonusAccepted ? 'Central is an intentional extra answer under the broader directional-name convention.' : null
     }) });
   }
@@ -66,7 +107,7 @@
       targetCount: 1,
       accepted: ['BGD'],
       hint: 'This South Asian nation is known for the Sundarbans mangrove forest and Dhaka.',
-      funFact: "Bangladesh ('Country of Bengal') is the only sovereign country in the world whose standard English name ends with the letter 'H'!"
+      funFact: "Bangladesh is the only sovereign country in this game's standard English name list that ends with the letter 'H'."
     },
     {
       id: 'easy-cardinal-directions',
@@ -106,7 +147,7 @@
       id: 'easy-non-rectangular-flag',
       tier: TIERS.EASY,
       category: 'Flag Secrets',
-      prompt: 'Name the only country in the world with a non-rectangular national flag',
+      prompt: 'Name the country whose national flag is made of two joined triangular pennants',
       format: 'single',
       targetCount: 1,
       accepted: ['NPL'],
@@ -264,12 +305,12 @@
       id: 'med-weapons-on-flags',
       tier: TIERS.MEDIUM,
       category: 'Flags & Weapons',
-      prompt: 'Name countries that feature weapons and weapon symbols (rifles, swords, spears, daggers, machetes or tridents) on their national flag',
+      prompt: 'Name countries whose flag shown in this game includes a rifle, cannon, sword, spear, dagger, machete or trident, including symbols within a coat of arms',
       format: 'multi',
       targetCount: 4,
-      accepted: ['MOZ', 'GTM', 'SAU', 'KEN', 'OMN', 'BRB', 'LKA', 'AGO', 'SWZ'],
+      accepted: ['MOZ', 'GTM', 'SAU', 'KEN', 'OMN', 'BRB', 'LKA', 'AGO', 'SWZ', 'BOL', 'HTI', 'IRN', 'DOM'],
       hint: 'Consider Mozambique (AK-47), Guatemala (rifles), Saudi Arabia or Sri Lanka (swords), and Kenya or Eswatini (spears and shields).',
-      funFact: 'Mozambique’s flag uniquely features a modern AK-47 assault rifle with attached bayonet, Guatemala displays crossed rifles, and Saudi Arabia and Sri Lanka brandish ceremonial swords.'
+      funFact: 'Mozambique shows a rifle and bayonet, Guatemala shows crossed rifles, and the coats of arms on the displayed Bolivia and Haiti flags include firearms.'
     },
     {
       id: 'med-single-border-enclaves',
@@ -313,7 +354,7 @@
       targetCount: 3,
       accepted: ['POL', 'MCO', 'IDN'],
       hint: 'Two have red on top (one in Southeast Asia, one on the French Riviera), while one European nation has white on top.',
-      funFact: 'Indonesia and Monaco share nearly identical flags with red above white, while Poland flies the exact vertical inversion with white above red.'
+      funFact: 'Indonesia and Monaco use red above white; Poland uses the opposite stripe order, white above red.'
     },
     {
       id: 'med-spanish-in-africa',
@@ -334,8 +375,8 @@
       format: 'single',
       targetCount: 1,
       accepted: ['MNE', 'CPV', 'BLR', 'CIV'],
-      hint: 'Think of "Black Mountain" on the Adriatic, "Green Cape" in the Atlantic, or "White Russia" in Eastern Europe.',
-      funFact: "'Montenegro' translates to 'Black Mountain' in Venetian Italian, Cabo Verde translates to 'Green Cape', and Belarus historically denotes 'White Rus'."
+      hint: 'Think of Montenegro (Black Mountain), Cabo Verde (Green Cape), Belarus (White Rus), or the English name Ivory Coast.',
+      funFact: 'This game accepts translated color words in Montenegro, Cabo Verde and Belarus, plus “Ivory” in the common English name Ivory Coast.'
     },
     {
       id: 'med-one-land-border',
@@ -379,7 +420,7 @@
       targetCount: 4,
       accepted: ['AUT', 'SVK', 'HUN', 'SRB'],
       hint: 'The four capitals on the Danube are Vienna, Bratislava, Budapest, and Belgrade.',
-      funFact: 'The Danube River passes directly through more national capitals than any other river on Earth: Vienna (Austria), Bratislava (Slovakia), Budapest (Hungary), and Belgrade (Serbia)!'
+      funFact: 'Four national capitals lie directly on the Danube: Vienna (Austria), Bratislava (Slovakia), Budapest (Hungary), and Belgrade (Serbia).'
     },
     {
       id: 'med-tropic-capricorn',
@@ -418,12 +459,12 @@
       id: 'med-atlantic-mediterranean',
       tier: TIERS.MEDIUM,
       category: 'Seas & Coasts',
-      prompt: 'Name the three countries that have coastlines on both the Atlantic Ocean and the Mediterranean Sea',
+      prompt: 'Name the three countries with mainland coastlines on both the Atlantic Ocean and the Mediterranean Sea',
       format: 'multi',
       targetCount: 3,
       accepted: ['FRA', 'ESP', 'MAR'],
       hint: 'Two are European neighbors on the Iberian and French mainland, and the third is in North Africa across the Strait of Gibraltar.',
-      funFact: 'Only France, Spain, and Morocco touch both the Atlantic Ocean and the Mediterranean Sea!'
+      funFact: 'The mainlands of France, Spain and Morocco each have Atlantic and Mediterranean coasts. This question excludes overseas territories and dependencies.'
     },
     {
       id: 'med-nordic-cross',
@@ -434,7 +475,7 @@
       targetCount: 5,
       accepted: ['DNK', 'FIN', 'ISL', 'NOR', 'SWE'],
       hint: 'All five are Nordic nations in Northern Europe featuring off-center crosses.',
-      funFact: 'Denmark, Finland, Iceland, Norway, and Sweden all fly flags bearing the Nordic Cross, with Denmark’s Dannebrog dating back to the 13th century as the oldest continuously used national flag!'
+      funFact: 'Denmark, Finland, Iceland, Norway and Sweden fly national flags with the Nordic Cross. Denmark’s Dannebrog has a 1219 origin legend and is documented from the 14th century.'
     },
     {
       id: 'med-borneo-three',
@@ -445,7 +486,7 @@
       targetCount: 3,
       accepted: ['BRN', 'IDN', 'MYS'],
       hint: 'The world’s third-largest island is divided between a tiny sultanate and two large Southeast Asian nations.',
-      funFact: 'Borneo is one of the only islands on Earth divided among three sovereign nations: Indonesia (Kalimantan), Malaysia (Sabah and Sarawak), and Brunei!'
+      funFact: 'Borneo is shared by Indonesia (Kalimantan), Malaysia (Sabah and Sarawak), and Brunei.'
     },
     {
       id: 'med-mekong-countries',
@@ -488,12 +529,12 @@
       id: 'hard-null-island',
       tier: TIERS.HARD,
       category: 'Extremes & Geography',
-      prompt: 'Name the sovereign nation closest to "Null Island" (the intersection of the Equator and Prime Meridian at 0°N, 0°E)',
+      prompt: 'Using this game’s coastline map, name the sovereign nation nearest to “Null Island” (0°N, 0°E)',
       format: 'single',
       targetCount: 1,
       accepted: ['GHA'],
       hint: 'This West African nation on the Gulf of Guinea has its capital at Accra.',
-      funFact: 'Ghana is the closest sovereign landmass to the 0°N, 0°E point in the Gulf of Guinea where the Prime Meridian meets the Equator.'
+      funFact: 'The coastline geometry used by this game places Ghana nearest to the 0°N, 0°E point in the Gulf of Guinea. A different coastline dataset may give a slightly different distance.'
     },
     {
       id: 'hard-14-neighbors',
@@ -562,8 +603,8 @@
       format: 'multi',
       targetCount: 4,
       accepted: ['BWA', 'NAM', 'ZMB', 'ZWE'],
-      hint: 'Near the Kazungula Bridge, four southern African nations converge within just a few meters across the water.',
-      funFact: 'Botswana, Namibia, Zambia, and Zimbabwe almost touch at a single point in the Zambezi River, forming the nearest thing to a four-nation border point on Earth.'
+      hint: 'Near the Kazungula Bridge, four southern African nations come close along the Zambezi River.',
+      funFact: 'Botswana, Namibia, Zambia and Zimbabwe meet in the Kazungula area. The bridge connects Botswana and Zambia across the Zambezi River.'
     },
     {
       id: 'genius-vulcan-point',
@@ -596,7 +637,7 @@
       targetCount: 1,
       accepted: ['PAN'],
       hint: 'This Central American country spans the narrow isthmus connecting North and South America.',
-      funFact: 'Because of the S-curve of the Isthmus of Panama, ships entering the canal from the Atlantic Ocean must sail Southeast to reach the Pacific Ocean!'
+      funFact: 'The Panama Canal runs generally northwest to southeast, so an Atlantic-to-Pacific crossing heads southeast across the isthmus.'
     },
     {
       id: 'genius-all-four-hemispheres',
@@ -617,7 +658,7 @@
       format: 'single',
       targetCount: 1,
       accepted: ['NZL', 'ISL'],
-      hint: 'Wellington is 2,326 km away from its closest national neighbor Canberra, Australia.',
+      hint: 'One capital sits on New Zealand’s North Island; the other is on Iceland’s southwest coast.',
       funFact: 'Wellington is the capital of New Zealand and Reykjavík is the capital of Iceland. This question does not rank capital isolation, which depends on the comparison set and distance definition.'
     },
     {
@@ -639,8 +680,8 @@
       format: 'multi',
       targetCount: 2,
       accepted: ['BEL', 'NLD'],
-      hint: 'In Baarle-Hertog and Baarle-Nassau, the border weaves between cafes, shops, and living rooms.',
-      funFact: 'The border between Belgium and the Netherlands in Baarle is one of the most complex in the world, featuring 22 Belgian exclaves surrounded by Dutch territory, with Dutch counter-enclaves inside them!'
+      hint: 'In Baarle-Hertog and Baarle-Nassau, the border crosses streets and buildings.',
+      funFact: 'Baarle-Nassau contains 22 Belgian enclaves, while Baarle-Hertog contains eight Dutch enclaves.'
     }
   ].map(reviewedQuestion));
 

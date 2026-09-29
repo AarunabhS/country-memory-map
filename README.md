@@ -16,7 +16,7 @@ Home offers **Play with friends**, **Play solo**, and **Explore the map**. The b
 - **Geo Quiz:** 52 category questions across four tiers; Easy/Medium rounds use 10 questions, Hard/Expert use 8. Typed or spoken answers, hints and fact review use the existing Quiz scoring. Results and profile statistics are saved locally; Quiz has no Practice Missed or friend challenge.
 - **Free map:** the original country and capital recognition modes, aliases, territories, labels, filters, zoom, touch gestures and speech.
 
-All games use the same 195-country classification as the original checker. Small pools repeat only after every eligible country has been served. For engine-backed games, Practice Missed uses exactly the countries missed or answered with retries and is separate from device-best comparisons. Device bests separate timing, length, difficulty and hint use; named-player profiles do not own this shared best store.
+All games use the same 195-country classification as the original checker. Small pools repeat only after every eligible country has been served. World Conquest can practise countries left unfound in its round, including unattempted countries; other engine-backed games use Practice Missed for questions missed or answered with retries. Practice is separate from device-best comparisons. Device bests separate timing, length, difficulty and hint use; named-player profiles do not own this shared best store.
 
 ## Play with Friends
 
