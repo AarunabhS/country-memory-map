@@ -332,7 +332,7 @@
         $('startGame').disabled = true;
         $('setupError').textContent = 'Loading Geo Quiz…';
         try {
-          await import('./quiz-data.js?v=20260923-defects3');
+          await import('./quiz-data.js?v=20260923-source1');
           await import('./quiz-game.js?v=20260923-defects3');
         } catch {
           if (token === startToken) { menu(); $('setupError').textContent = 'Geo Quiz could not load. Check your connection, reload and try again.'; }
@@ -526,11 +526,14 @@
       $('resultNote').textContent=isQuiz ? `Accuracy counts fully completed categories among those visited. Answer times run from the category appearing. ${r.incorrectAttempts} incorrect country entries; ${r.hintsUsed} hints used (25 points each, stopping at zero). Quiz review and friend challenges are not available for this mode.` : isConquest
         ? 'Accuracy is the share of submitted country names that were accepted. Answer times use accepted countries only.'
         : `${r.config.family==='flag' ? 'Flags use the same 100-point base, speed/streak bonuses, and −25-point hints.' : 'Accuracy is the share of questions answered correctly.'} Answer times run from the prompt appearing until the correct answer, including retries.${r.incorrectAttempts?` You made ${r.incorrectAttempts} incorrect ${r.incorrectAttempts===1?'attempt':'attempts'}; these affect score and practice suggestions.`:''}${r.hintsUsed?` You used ${r.hintsUsed} hint${r.hintsUsed===1?'':'s'} for −${r.hintPenalty} points.`:''}`;
-      $('missedSummary').textContent=`${r.config.family==='flag'?'Flags':'Countries'} to practise (${r.missedCountries.length})`;
+      $('missedSummary').textContent=isConquest
+        ? `Countries left to find (${r.missedCountries.length})`
+        : `${r.config.family==='flag'?'Flags':'Countries'} to practise (${r.missedCountries.length})`;
       $('missedDetails').hidden=!r.missedCountries.length; $('missedDetails').open=false;
       $('missedList').replaceChildren(...r.missedCountries.map(id=>{const p=document.createElement('p');const c=byId.get(id);p.textContent=c?`${c.canonical_name}${r.config.family==='capital'?` — ${c.capital.map(x=>`${x.name} (${x.role})`).join('; ')}`:''}`:id;return p;}));
       $('finalMistakes').textContent=r.mistakes.length?`Submitted mistakes: ${r.mistakes.slice(-3).join(' · ')}`:'';
       $('practiceMissed').hidden = r.capabilities?.practice === false;
+      $('practiceMissed').textContent = isConquest ? 'Practice remaining' : 'Practice Missed';
       $('practiceMissed').disabled = !r.missedCountries.length || r.capabilities?.practice === false;
       $('challengeFriends').hidden = r.capabilities?.challenge === false;
       $('challengeFriends').disabled = !!r.config.practiceIds || !r.replay?.seed || r.capabilities?.challenge === false;

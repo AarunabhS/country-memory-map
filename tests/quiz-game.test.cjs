@@ -200,12 +200,14 @@ test('quiz speech is enabled for questions and stopped for reveal, finish and ex
  assert.match(source,/function deactivate\([^)]*\) \{[\s\S]*?setVoiceEnabled\(false\)/);
 });
 
-test('Quiz content review metadata distinguishes source checks from editorial coverage', () => {
+test('Quiz content review metadata records a scoped source check for every question', () => {
+  assert.equal(quizData.QUESTIONS.length, 52);
   for (const q of quizData.QUESTIONS) {
     assert.equal(q.review.contentVersion, quizData.CONTENT_VERSION);
     assert.match(q.review.source, /^https:\/\//);
     assert.ok(q.review.scope && q.review.localSource && q.review.notes && q.review.editedAt);
     assert.equal(Boolean(q.review.verifiedAt), q.review.check === 'source-cross-check');
+    assert.equal(q.review.check, 'source-cross-check', `${q.id} lacks a source check`);
     assert.ok(q.targetCount <= new Set([...q.accepted, ...(q.bonusAccepted || [])]).size);
     assert.equal(q.accepted.length, new Set(q.accepted).size);
     if (q.bonusAccepted) assert.ok(q.review.bonusRationale);
@@ -220,4 +222,12 @@ test('name categories cover the country names they ask for and exceptional promp
   assert.match(quizData.getQuestionById('med-one-land-border').prompt, /pre-2022/);
   assert.deepEqual(quizData.getQuestionById('hard-zero-rivers').accepted, ['SAU']);
   assert.match(quizData.getQuestionById('hard-most-islands').prompt, /2013 survey/);
+});
+
+test('reviewed flag and coastline prompts accept the corrected scoped answers', () => {
+  const weapons = quizData.getQuestionById('med-weapons-on-flags');
+  for (const code of ['BOL', 'HTI', 'IRN', 'DOM']) assert.ok(weapons.accepted.includes(code), `${code} flag weapon omitted`);
+  assert.match(weapons.prompt, /flag shown in this game/);
+  assert.match(weapons.prompt, /coat of arms/);
+  assert.match(quizData.getQuestionById('med-atlantic-mediterranean').prompt, /mainland coastlines/);
 });
