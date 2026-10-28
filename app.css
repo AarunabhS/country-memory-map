@@ -270,3 +270,30 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,ca
   .app.platform:not(.choosing) .hud-stat strong { font-size:18px; }
   .app.platform:not(.choosing) #gameLives { grid-column:1 / -1; }
 }
+/* Optional desktop map space. Keep horizontal geometry stable: changing the
+   SVG width would make the map runtime refit the selected continent. */
+#mapExpandButton { display: none; }
+@media (min-width: 1000px) and (min-height: 501px) {
+  #mapExpandButton:not([hidden]) { display: inline-block; min-height: 44px; }
+  .app.game-shell.map-expanded { --nav-height: 52px; padding-top: calc(var(--nav-height) + env(safe-area-inset-top,0px) + 6px); gap: 6px; }
+  .app.game-shell.map-expanded .app-nav { padding: 4px 16px; }
+  .app.game-shell.map-expanded .app-nav :is(.app-brand,.nav-edition) { display: none; }
+  .app.game-shell.map-expanded #appHome { margin-left: auto; }
+  .app.game-shell.map-expanded.platform { grid-template-rows: auto auto minmax(0,1fr) auto; }
+  .app.game-shell.map-expanded .platform-header {
+    position: absolute; grid-area: auto; z-index: 36; top: calc(env(safe-area-inset-top,0px) + 4px); left: 16px;
+    height: 44px; padding: 0; gap: 8px; border: 0; background: transparent; box-shadow: none;
+  }
+  .app.game-shell.map-expanded .platform-header > div,
+  .app.game-shell.map-expanded .platform-header .profile-chip { display: none; }
+  .app.game-shell.map-expanded .game-hud { grid-row: 1; padding: 6px 8px; }
+  .app.game-shell.map-expanded .hud-stat { display: flex; align-items: baseline; gap: 8px; }
+  .app.game-shell.map-expanded .hud-stat span { margin: 0; font-size: 10px; }
+  .app.game-shell.map-expanded .hud-stat strong { font-size: 20px; }
+  .app.game-shell.map-expanded .timer-stat { justify-content: flex-end; }
+  .app.game-shell.map-expanded #gameLives { font-size: 20px; }
+  .app.game-shell.map-expanded .continentbar { grid-row: 2; }
+  .app.game-shell.map-expanded .map-shell { grid-row: 3; }
+  .app.game-shell.map-expanded .control { grid-row: 4; padding: 8px 12px; }
+  .app.game-shell.map-expanded[data-free-map-active] .topbar { padding: 6px 8px; }
+}

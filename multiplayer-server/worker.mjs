@@ -11,7 +11,16 @@ export function isAllowedOrigin(origin){
 const encoder=new TextEncoder();
 async function hash(value){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');}
 const token=()=>[...crypto.getRandomValues(new Uint8Array(32))].map(x=>x.toString(16).padStart(2,'0')).join('');
-const code=()=> 'GEO'+[...crypto.getRandomValues(new Uint8Array(6))].map(x=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[x%31]).join('');
+async function limitedBody(request){
+ const tooLarge=()=>new RoomError('TOO_LARGE','Request too large.',413);
+ if(Number(request.headers.get('Content-Length'))>1000000)throw tooLarge();
+ const reader=request.body?.getReader();if(!reader)return '';
+ const decoder=new TextDecoder();let body='',bytes=0;
+ while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>1000000){void reader.cancel().catch(()=>{});throw tooLarge();}body+=decoder.decode(value,{stream:true});if(body.length>250000){void reader.cancel().catch(()=>{});throw tooLarge();}}
+ body+=decoder.decode();if(body.length>250000)throw tooLarge();return body;
+}
+// Eight base-32 characters provide 40 bits of invite-code entropy. Older codes remain valid.
+const code=()=> 'GEO'+[...crypto.getRandomValues(new Uint8Array(8))].map(x=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[x%32]).join('');
 export class D1Store {
  constructor(db){this.db=db;}
  async get(code){return this.db.prepare('SELECT body, version FROM rooms WHERE code = ?').bind(code).first();}
@@ -37,7 +46,7 @@ export async function handle(request,store,now=Date.now()){
  const [rate,initialRow]=await Promise.all([store.rate(key,now),roomMatch?store.get(roomMatch[1]):Promise.resolve(null)]);
  if(rate>1800)throw new RoomError('RATE_LIMITED','Too many requests. Please wait a minute.',429);
  const codeMatch=roomMatch;
- let input={};if(request.method==='POST'){if(!request.headers.get('Content-Type')?.includes('application/json'))throw new RoomError('CONTENT_TYPE','Use JSON requests.',415);const body=await request.text();if(body.length>250000)throw new RoomError('TOO_LARGE','Request too large.',413);try{input=JSON.parse(body);}catch{throw new RoomError('INVALID_JSON','Invalid request.');}}
+ let input={};if(request.method==='POST'){if(!request.headers.get('Content-Type')?.includes('application/json'))throw new RoomError('CONTENT_TYPE','Use JSON requests.',415);const body=await limitedBody(request);try{input=JSON.parse(body);}catch{throw new RoomError('INVALID_JSON','Invalid request.');}}
  if(request.method==='POST'&&['/rooms','/challenges'].includes(url.pathname)){
   const count=await store.rate(await hash(ip+':create:'+Math.floor(now/3600000)),now,3600000);if(count>20)throw new RoomError('RATE_LIMITED','Room creation limit reached. Try again later.',429);
   const secret=token(),identity={code:code(),id:crypto.randomUUID(),tokenHash:await hash(secret),name:input.name,now,seed:crypto.getRandomValues(new Uint32Array(1))[0]};
@@ -54,7 +63,8 @@ export async function handle(request,store,now=Date.now()){
   if(request.method==='POST'){
    if(input.action==='join'){joinRoom(room,{id:newId,tokenHash:newHash,name:input.name},now);p=member(room,newHash);}
    else{if(!authHash)throw new RoomError('SESSION_REQUIRED','Join the room first.',401);p=member(room,authHash);event=roomAction(room,p,input,now);}
-  }else if(authHash){p=member(room,authHash);if(p.left||now-p.lastSeenAt>=5000)event=roomAction(room,p,{action:'poll'},now);}
+  }else if(authHash){p=member(room,authHash);if(now-p.lastSeenAt>=5000)event=roomAction(room,p,{action:'poll'},now);}
+  else return send({...publicRoom(room,null,now),revision:row.version});
   // Preserve revisions on no-op reads, but persist deadlines and presence changes.
   if(before!==null&&JSON.stringify(room)===before)return send({...publicRoom(room,p,now,event),revision:row.version});
   if(await store.save(room,row.version))return send({...publicRoom(room,p,now,event),revision:row.version+1,...(newToken?{token:newToken}:{})});

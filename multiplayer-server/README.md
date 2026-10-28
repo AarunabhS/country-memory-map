@@ -11,7 +11,7 @@ npm --prefix multiplayer-server ci
 node multiplayer-server/build.mjs
 node --test tests/*.test.cjs multiplayer-server/test/*.test.mjs
 node multiplayer-server/local.mjs
-python3 -m http.server 8000
+python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
 Use Node 22.13 or newer for the local SQLite adapter. The normal frontend deliberately uses the public persistent friends service even on loopback so copied codes and invite links remain reachable from other devices. An isolated test harness may set `window.COUNTRY_MEMORY_FRIENDS_API_OVERRIDE` to the exact loopback API URL before loading `multiplayer-config.js`; the override is accepted only on a loopback page and falls back to the hosted service if local health checking fails. Open the page in separate browser profiles for independent guest identities. The local database is `/private/tmp/country-memory-friends-local.sqlite`; override `FRIENDS_DB` to choose a different test database.
@@ -25,6 +25,7 @@ Use Node 22.13 or newer for the local SQLite adapter. The normal frontend delibe
 - Live rooms support World Conquest, Find the Country, Capital Clash, Flag Recall, and Flag Match. Flag answers and hints use the same sequenced server validation; solo flag challenges replay choices and hints.
 - Answer requests pause scheduled client polling until acknowledgement. Rate-limit and initial room reads overlap; unchanged GETs retain the current revision and refresh stored presence every five seconds. Deadline/host/membership changes still commit immediately through compare-and-swap.
 - No public room directory, matchmaking, accounts or opponent answer histories.
+- A room code allows an invitee to inspect only the host name, game, capacity, and readiness before joining. Player lists, standings, match state, and actions require that room's bearer token. Explicit Leave revokes the token, including during an active match.
 - Foreground clients target a 1.5-second request cadence, subtracting response duration from the next wait (250ms minimum), with deadline-aware polls; background clients poll every eight seconds where the browser permits. Back to Home after finishing preserves this background presence and room membership. Timed live rooms finalize as soon as every player ends, including DNF. Scores are near real time, not WebSocket updates.
 - Clock offset uses request midpoint. Answers carry a measured response duration; the server limits latency compensation to one second. High latency can still affect competitive speed bonuses.
 - Guest identity lives on the device. One official challenge attempt is enforced per room session; clearing storage or using another browser can create another identity. This is a casual friend-game system, not identity-verified competition.

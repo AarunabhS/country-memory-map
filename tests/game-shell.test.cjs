@@ -43,7 +43,7 @@ test('GameShell is a shallow presentation adapter, not another game store', () =
 
 test('all retained experiences load one shared cinematic shell treatment', () => {
   assert.match(legacy, /game-shell\.css\?v=[^"\s]+/);
-  assert.match(legacy, /game-shell\.js\?v=20260910-recovery/);
+  assert.match(legacy, /game-shell\.js\?v=[^"\s]+/);
   assert.match(shellCss, /--shell-cyan/);
   assert.match(shellCss, /data-game-shell-stage="flag"/);
   assert.match(shellCss, /prefers-reduced-motion: reduce/);

@@ -53,9 +53,10 @@ export function joinRoom(room,{id,tokenHash,name},now){syncRoom(room,now);if(roo
  name=safeName(name);if(room.players.some(p=>p.name.normalize('NFKC').toLocaleLowerCase()===name.normalize('NFKC').toLocaleLowerCase()))fail('NAME_TAKEN','That name is already in use. Choose another name.',409);
  room.players.push({id,tokenHash,name,joinedAt:now,lastSeenAt:now,ready:false,game:null,dnf:false});return id;
 }
-export function member(room,tokenHash){const p=room.players.find(p=>p.tokenHash===tokenHash);if(!p)fail('PLAYER_REMOVED','Your session is no longer in this room.',403);return p;}
+export function member(room,tokenHash){const p=room.players.find(p=>p.tokenHash===tokenHash);if(!p||p.left)fail('PLAYER_REMOVED','Your session is no longer in this room.',403);return p;}
 export function roomAction(room,p,input,now){
- const priorSeen=p.lastSeenAt;syncRoom(room,now);p.lastSeenAt=now;p.left=false;
+ if(p.left)fail('PLAYER_REMOVED','Your session is no longer in this room.',403);
+ const priorSeen=p.lastSeenAt;syncRoom(room,now);p.lastSeenAt=now;
  if(room.state==='CLOSED')fail('ROOM_EXPIRED',room.notice||'Room closed.',410);
  const isHost=p.id===room.hostPlayerId, host=()=>{if(!isHost)fail('HOST_ONLY','Only the host can do that.',403);};
  const lobby=()=>{if(!['LOBBY','REMATCH_LOBBY'].includes(room.state)||room.kind!=='live')fail('MATCH_ALREADY_STARTED','Settings are locked for this match.',409);};
@@ -95,6 +96,7 @@ export function ranking(players){const list=players.map(p=>{const s=p.game?.stat
  list.sort(compare);list.forEach((p,i)=>p.rank=i&&compare(p,list[i-1])===0?list[i-1].rank:i+1);return list;
 }
 export function publicRoom(room,player,now,event=null){
+ if(!player)return {code:room.code,kind:room.kind,state:room.state,maxPlayers:MAX_PLAYERS,config:{family:room.config.family,variant:room.config.variant},hostName:room.players.find(p=>p.id===room.hostPlayerId)?.name||'A friend',playerCount:room.players.length,readyCount:room.players.filter(p=>connected(p,now)&&p.ready).length,serverNow:now,expiresAt:room.expiresAt};
  const own=player?.game,s=own?.state;
  const payload={code:room.code,kind:room.kind,state:room.state,maxPlayers:MAX_PLAYERS,config:room.config,hostPlayerId:room.hostPlayerId,hostName:room.players.find(p=>p.id===room.hostPlayerId)?.name||'A friend',serverNow:now,expiresAt:room.expiresAt,notice:room.notice,players:room.players.map(p=>({id:p.id,name:p.name,ready:p.ready,connected:connected(p,now)})),standings:ranking(room.players),you:player?.id||null,match:room.match?{id:room.match.id,startAt:room.match.startAt,endAt:room.match.endAt}:null,event:player?.feedback||event};
  if(s){const q=s.currentQuestion;payload.game={...s,currentQuestion:q?{id:q.id,type:q.type,countryId:q.countryId,prompt:q.prompt,role:q.role,timeLimit:q.timeLimit,deadline:q.deadline,resolved:q.resolved,...(room.config.family==='flag'?{options:q.options,hintUsed:q.hintUsed,hintPenalty:q.hintPenalty,hintRemoveId:q.hintRemoveId}: {})}:null,completedCountries:s.completedCountries,questionHistory:undefined,submissions:undefined,elapsedTime:Math.max(0,(now-s.startedAt)/1000),remainingTime:s.deadline===null?null:Math.max(0,(s.deadline-now)/1000)};payload.nextSeq=player.lastSeq+1;payload.result=own.result;}
