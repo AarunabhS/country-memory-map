@@ -3,6 +3,7 @@
   'use strict';
 
   const phaseNames = new Set(['setup', 'countdown', 'playing', 'feedback', 'results', 'free-map']);
+  const layouts = new WeakMap();
 
   function text(value) { return value == null ? '' : String(value); }
 
@@ -16,6 +17,29 @@
     backdrop.className = 'game-shell-atmosphere';
     backdrop.setAttribute('aria-hidden', 'true');
     root.prepend(backdrop);
+
+    const button = root.querySelector('#mapExpandButton');
+    if (button) {
+      const desktop = global.matchMedia('(min-width: 1000px) and (min-height: 501px)');
+      let expanded = false;
+      const sync = () => {
+        const mapView = root.dataset.gameShellPhase === 'free-map'
+          || (['playing', 'feedback'].includes(root.dataset.gameShellPhase)
+            && ['map', 'map-answer'].includes(root.dataset.gameShellStage));
+        const available = desktop.matches && root.dataset.page !== 'home' && mapView;
+        if (!available) expanded = false;
+        button.hidden = !available;
+        button.setAttribute('aria-pressed', String(expanded));
+        button.textContent = expanded ? 'Restore layout' : 'Expand map';
+        root.classList.toggle('map-expanded', expanded);
+      };
+      button.addEventListener('click', () => { expanded = !expanded; sync(); });
+      desktop.addEventListener('change', sync);
+      const pageObserver = new MutationObserver(sync);
+      pageObserver.observe(root, { attributes: true, attributeFilter: ['data-page'] });
+      layouts.set(root, sync);
+      sync();
+    }
     return global.GameShell;
   }
 
@@ -40,6 +64,7 @@
     // Callbacks are supplied by the controller for action ownership. The shell
     // deliberately neither invokes nor replaces them, preserving existing UI wiring.
     root.dataset.gameShellActions = Object.keys(callbacks).join(' ');
+    layouts.get(root)?.();
   }
 
   global.GameShell = Object.freeze({ mount, render });
